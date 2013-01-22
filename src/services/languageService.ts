@@ -1,5 +1,17 @@
-// Copyright (c) Microsoft. All rights reserved. Licensed under the Apache License, Version 2.0. 
-// See LICENSE.txt in the project root for complete license information.
+﻿//﻿
+// Copyright (c) Microsoft Corporation.  All rights reserved.
+// 
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
 
 ///<reference path='typescriptServices.ts' />
 
@@ -36,6 +48,8 @@ module Services {
 
         getScriptSyntaxAST(fileName: string): ScriptSyntaxAST;
         getFormattingEditsForRange(fileName: string, minChar: number, limChar: number, options: FormatCodeOptions): TextEdit[];
+        getFormattingEditsForDocument(fileName: string, minChar: number, limChar: number, options: FormatCodeOptions): TextEdit[];
+        getFormattingEditsOnPaste(fileName: string, minChar: number, limChar: number, options: FormatCodeOptions): TextEdit[];
         getFormattingEditsAfterKeystroke(fileName: string, position: number, key: string, options: FormatCodeOptions): TextEdit[];
         getBraceMatchingAtPosition(fileName: string, position: number): TextRange[];
         getSmartIndentAtLineNumber(fileName: string, lineNumber: number, options: Services.EditorOptions): number;
@@ -45,8 +59,8 @@ module Services {
         getSymbolAtPosition(script: TypeScript.AST, pos: number): TypeScript.Symbol;
 
         getSymbolTree(): Services.ISymbolTree;
+        getEmitOutput(fileName: string) : IOutputFile[];
     }
-
 
     //
     // Public interface of the host of a language service instance.
@@ -62,15 +76,12 @@ module Services {
         getScriptEditRangeSinceVersion(scriptIndex: number, scriptVersion: number): TypeScript.ScriptEditRange;
     }
 
-
     export function logInternalError(logger: TypeScript.ILogger, err: Error) {
         logger.log("*INTERNAL ERROR* - Exception in typescript services: " + err.message);
     }
 
     // Provides ISourceText implementation over a host script
     export class SourceTextAdapter implements TypeScript.ISourceText {
-
-
         constructor (private host: ILanguageServiceHost, private scriptIndex: number) {
         }
 
@@ -86,14 +97,12 @@ module Services {
     // Provide a ISourceText implementation over a host script where the implementation minimizes the 
     // # of callbacks to the host at the cost of an increased memory usage.
     export class CachedSourceTextAdapter implements TypeScript.ISourceText {
-
         private length: number;
         private text: string;
 
         constructor (host: ILanguageServiceHost, scriptIndex: number) {
             this.length = host.getScriptSourceLength(scriptIndex);
-            this.text = host.getScriptSourceText(scriptIndex, 0, this.length);
-
+            this.text = host.getScriptSourceText(scriptIndex, 0, this.length)
         }
 
         public getText(start: number, end: number): string {
@@ -107,9 +116,7 @@ module Services {
 
     // Provides ISourceText implementation over a text range of another ISourceText
     export class SourceTextRange implements TypeScript.ISourceText {
-
         constructor (private sourceText: TypeScript.ISourceText, private minChar: number, private limChar: number) {
-
         }
 
         public getText(start: number, end: number): string {
@@ -298,6 +305,7 @@ module Services {
     export class TypeInfo {
         constructor (
             public memberName: TypeScript.MemberName,
+            public docComment: string,
             public minChar: number,
             public limChar: number) {
         }
@@ -319,12 +327,14 @@ module Services {
         public isNew: bool;
         public openParen: string;
         public closeParen: string;
+        public docComment: string;
         public signatureGroup: FormalSignatureItemInfo[] = [];
     }
 
     export class FormalSignatureItemInfo {
         public parameters: FormalParameterInfo[] = [];   // Array of parameters
         public returnType: string;                          // String representation of parameter type
+        public docComment: string; // Help for the signature
     }
 
     export class FormalParameterInfo {
@@ -332,6 +342,7 @@ module Services {
         public type: string;        // String representation of parameter type
         public isOptional: bool;    // true if parameter is optional
         public isVariable: bool;    // true if parameter is var args
+        public docComment: string; // Comments that contain help for the parameter
     }
 
     export class ActualSignatureInfo {
@@ -357,6 +368,7 @@ module Services {
         public type = "";
         public kind = "";            // see ScriptElementKind
         public kindModifiers = "";   // see ScriptElementKindModifier, comma separated
+        public docComment = "";
     }
 
     export class ScriptElementKind {
@@ -440,6 +452,12 @@ module Services {
         }
     }
 
+    export interface IOutputFile {
+        name: string;
+        useUTF8encoding: bool;
+        text: string;
+    }
+    
     export class LanguageService implements ILanguageService {
 
         public  logger: TypeScript.ILogger;
@@ -558,7 +576,7 @@ module Services {
             }
 
             var memberName = typeInfo.type.getScopedTypeNameEx(enclosingScopeContext.getScope());
-            return new TypeInfo(memberName, typeInfo.ast.minChar, typeInfo.ast.limChar);
+            return new TypeInfo(memberName, TypeScript.Comment.getDocCommentText(typeInfo.type.getDocComments()), typeInfo.ast.minChar, typeInfo.ast.limChar);
         }
 
         public getNameOrDottedNameSpan(fileName: string, startPos: number, endPos: number): SpanInfo {
@@ -637,7 +655,7 @@ module Services {
                                 containerASTs.push(cur);
                                 break;
 
-                            // These are expressions we cant be used as statements
+                            // These are statements or expressions that cant be used as valid breakpoint statements
                             case TypeScript.NodeType.Script:
                             case TypeScript.NodeType.List:
                             case TypeScript.NodeType.NumberLit:
@@ -650,6 +668,7 @@ module Services {
                             case TypeScript.NodeType.Neg:
                             case TypeScript.NodeType.Not:
                             case TypeScript.NodeType.LogNot:
+                            case TypeScript.NodeType.Block:
                                 break;
 
                             // Type Reference cannot have breakpoint, nor can its children
@@ -920,10 +939,33 @@ module Services {
                 return null;
             }
 
-            var convertSignatureGroupToSignatureInfo = (name: string, isNew: bool, group: TypeScript.SignatureGroup) => {
+            var sourceText = this.compilerState.getSourceText(script);
+            var enclosingScopeContext = TypeScript.findEnclosingScopeAt(this.logger, script, sourceText, pos, /*isMemberCompletion*/false);
+            if (enclosingScopeContext == null) {
+                this.logger.log("No context found at the specified location.");
+                return null;
+            }
+
+            var getNameFromSymbol = (symbol: TypeScript.Symbol) => {
+                if (symbol != null && symbol.name != "_anonymous" /* see TypeChecker.anon*/) {
+                    return symbol.name;
+                }
+                return "";
+            }
+
+            var getDocCommentFromSymbol = (symbol: TypeScript.Symbol) => {
+                if (symbol != null) {
+                    return TypeScript.Comment.getDocCommentText(symbol.getDocComments());
+                }
+
+                return "";
+            }
+
+            var convertSignatureGroupToSignatureInfo = (symbol: TypeScript.Symbol, isNew: bool, group: TypeScript.SignatureGroup) => {
                 var result = new FormalSignatureInfo();
                 result.isNew = false;
-                result.name = name;
+                result.name = getNameFromSymbol(symbol);
+                result.docComment = getDocCommentFromSymbol(symbol);
                 result.openParen = (group.flags & TypeScript.SignatureFlags.IsIndexer ? "[" : "(");
                 result.closeParen = (group.flags & TypeScript.SignatureFlags.IsIndexer ? "]" : ")");
 
@@ -933,13 +975,15 @@ module Services {
                     .filter(signature => !(hasOverloads && signature === group.definitionSignature && !this.compilerState.getCompilationSettings().canCallDefinitionSignature))
                     .forEach(signature => {
                         var signatureGroupInfo = new FormalSignatureItemInfo();
-                        signatureGroupInfo.returnType = (signature.returnType === null ? "any" : signature.returnType.type.getScopedTypeName(/*scope*/null));
+                        signatureGroupInfo.docComment = (signature.declAST != null) ? TypeScript.Comment.getDocCommentText(signature.declAST.getDocComments()) : "";
+                        signatureGroupInfo.returnType = (signature.returnType === null ? "any" : signature.returnType.type.getScopedTypeName(enclosingScopeContext.getScope()));
                         signature.parameters.forEach((p, i) => {
                             var signatureParameterInfo = new FormalParameterInfo();
                             signatureParameterInfo.isVariable = (signature.hasVariableArgList) && (i === signature.parameters.length - 1);
                             signatureParameterInfo.isOptional = p.isOptional();
                             signatureParameterInfo.name = p.name;
-                            signatureParameterInfo.type = p.getType().getScopedTypeName(/*scope*/null);
+                            signatureParameterInfo.docComment = p.getParameterDocComments();
+                            signatureParameterInfo.type = p.getType().getScopedTypeName(enclosingScopeContext.getScope());
                             signatureGroupInfo.parameters.push(signatureParameterInfo);
                         });
                         result.signatureGroup.push(signatureGroupInfo);
@@ -982,7 +1026,7 @@ module Services {
                 return group.signatures.indexOf(ast.signature);
             };
 
-            var getTargetSymbolName = (callExpr: TypeScript.CallExpression) => {
+            var getTargetSymbolWithName = (callExpr: TypeScript.CallExpression) => {
                 var sym: TypeScript.Symbol = null;
                 if ((<any>callExpr.target).sym != null) {
                     sym = (<any>callExpr.target).sym;
@@ -991,37 +1035,48 @@ module Services {
                 }
 
                 if (sym != null) {
-                    if (sym.kind() == TypeScript.SymbolKind.Type) {
-                        if ((<TypeScript.TypeSymbol>sym).isMethod || (<TypeScript.TypeSymbol>sym).isClass() || (<TypeScript.TypeSymbol>sym).isFunction()) {
-                            if (sym.name != null && sym.name != "_anonymous" /* see TypeChecker.anon*/) {
-                                return sym.name;
-                            }
-                        }
-                    } else if (sym.kind() == TypeScript.SymbolKind.Parameter) {
-                        return sym.name;
+                    if (sym.kind() == TypeScript.SymbolKind.Type &&
+                        ((<TypeScript.TypeSymbol>sym).isMethod || (<TypeScript.TypeSymbol>sym).isClass() || (<TypeScript.TypeSymbol>sym).isFunction()) &&
+                        (sym.name != null)) {
+                        return sym;
+                    }
+                    else if (sym.kind() == TypeScript.SymbolKind.Parameter) {
+                        return sym;
                     }
                     else if (sym.kind() == TypeScript.SymbolKind.Variable) {
-                        return sym.name;
+                        return sym;
                     }
                     else if (sym.kind() == TypeScript.SymbolKind.Field) {
-                        return sym.name;
+                        return sym;
                     }
                 }
 
-                return "";
+                return null;
             };
-
-            var name = getTargetSymbolName(callExpr);
+            
+            var symbol = getTargetSymbolWithName(callExpr);
             var result = new SignatureInfo();
             if (callExpr.nodeType === TypeScript.NodeType.Call && callExpr.target.type.call !== null) {
-                result.formal = convertSignatureGroupToSignatureInfo(name, /*isNew:*/false, callExpr.target.type.call);
+                result.formal = convertSignatureGroupToSignatureInfo(symbol, /*isNew:*/false, callExpr.target.type.call);
                 result.actual = convertCallExprToActualSignatureInfo(callExpr, pos);
                 result.activeFormal = getSignatureIndex(callExpr, callExpr.target.type.call);
             }
             else if (callExpr.nodeType === TypeScript.NodeType.New && callExpr.target.type.construct !== null) {
-                result.formal = convertSignatureGroupToSignatureInfo(name, /*isNew:*/true, callExpr.target.type.construct);
+                result.formal = convertSignatureGroupToSignatureInfo(symbol, /*isNew:*/true, callExpr.target.type.construct);
                 result.actual = convertCallExprToActualSignatureInfo(callExpr, pos);
                 result.activeFormal = getSignatureIndex(callExpr, callExpr.target.type.construct);
+            }
+            else if (callExpr.target.nodeType === TypeScript.NodeType.Super && callExpr.target.type.symbol && callExpr.target.type.symbol.declAST) {
+                var classType = callExpr.target.type.symbol.declAST.type;
+                if (classType && classType.construct !== null) {
+                    result.formal = convertSignatureGroupToSignatureInfo(symbol, /*isNew:*/true, classType.construct);
+                    result.actual = convertCallExprToActualSignatureInfo(callExpr, pos);
+                    result.activeFormal = getSignatureIndex(callExpr, classType.construct);
+                }
+                else {
+                    this.logger.log("No signature group found for the target class type constructor");
+                    return null;
+                }
             }
             else {
                 this.logger.log("No signature group found for the target of the call expression");
@@ -1084,7 +1139,7 @@ module Services {
             this.minimalRefresh();
 
             var syntaxAST = this._getScriptSyntaxAST(fileName);
-            var manager = new BraceMathingManager(syntaxAST);
+            var manager = new BraceMatchingManager(syntaxAST);
             return manager.getBraceMatchingAtPosition(position);
         }
 
@@ -1360,6 +1415,20 @@ module Services {
                     entry.name = x.name;
                     entry.type = x.type;
                     entry.kind = this.getSymbolElementKind(x.sym);
+                    var type = x.sym.getType();
+                    if (type && type.isClass() && type.symbol.name == x.name) {
+                        entry.docComment = TypeScript.Comment.getDocCommentText(type.getDocComments());
+                    } else if (x.sym.declAST && x.sym.declAST.nodeType == TypeScript.NodeType.FuncDecl &&
+                        type.call && type.call.signatures.length > 1) {
+                        // Overload method - combine docComments from all the signatures
+                        entry.docComment = TypeScript.Comment.getDocCommentTextOfSignatures(type.call.signatures);
+                    } else {
+                        if (x.sym.kind() == TypeScript.SymbolKind.Parameter) {
+                            entry.docComment = (<TypeScript.ParameterSymbol>x.sym).getParameterDocComments();
+                        } else {
+                            entry.docComment = TypeScript.Comment.getDocCommentText(x.sym.getDocComments());
+                        }
+                    }
                     entry.kindModifiers = this.getSymbolElementKindModifiers(x.sym);
                     result.entries.push(entry);
                 });
@@ -1561,46 +1630,48 @@ module Services {
         public getFormattingEditsForRange(fileName: string, minChar: number, limChar: number, options: FormatCodeOptions): TextEdit[] {
             this.minimalRefresh();
 
-            if (this.logger.information()) {
-                this.logger.log("options.InsertSpaceAfterCommaDelimiter=" + options.InsertSpaceAfterCommaDelimiter);
-                this.logger.log("options.InsertSpaceAfterSemicolonInForStatements=" + options.InsertSpaceAfterSemicolonInForStatements);
-                this.logger.log("options.InsertSpaceBeforeAndAfterBinaryOperators=" + options.InsertSpaceBeforeAndAfterBinaryOperators);
-                this.logger.log("options.InsertSpaceAfterKeywordsInControlFlowStatements=" + options.InsertSpaceAfterKeywordsInControlFlowStatements);
-                this.logger.log("options.InsertSpaceAfterFunctionKeywordForAnonymousFunctions=" + options.InsertSpaceAfterFunctionKeywordForAnonymousFunctions);
-                this.logger.log("options.InsertSpaceAfterOpeningAndBeforeClosingNonemptyParenthesis=" + options.InsertSpaceAfterOpeningAndBeforeClosingNonemptyParenthesis);
-                this.logger.log("options.PlaceOpenBraceOnNewLineForFunctions=" + options.PlaceOpenBraceOnNewLineForFunctions);
-                this.logger.log("options.PlaceOpenBraceOnNewLineForControlBlocks=" + options.PlaceOpenBraceOnNewLineForControlBlocks);
-            }
-
             // Ensure rules are initialized and up to date wrt to formatting options
             this.formattingRulesProvider.ensureUptodate(options);
 
             var syntaxAST = this._getScriptSyntaxAST(fileName);
             var manager = new Formatting.FormattingManager(syntaxAST, this.formattingRulesProvider, options);
-            var result = manager.formatRange(minChar, limChar);
+            var result = manager.FormatSelection(minChar, limChar);
+
+           if (this.logger.information()) {
+               this.logFormatCodeOptions(options);
+               this.logEditResults(syntaxAST, result)
+            }
+
+            return result;
+        }
+
+        public getFormattingEditsForDocument(fileName: string, minChar: number, limChar: number, options: FormatCodeOptions): TextEdit[] {
+            this.minimalRefresh();
+            // Ensure rules are initialized and up to date wrt to formatting options
+            this.formattingRulesProvider.ensureUptodate(options);
+
+            var syntaxAST = this._getScriptSyntaxAST(fileName);
+            var manager = new Formatting.FormattingManager(syntaxAST, this.formattingRulesProvider, options);
+            var result = manager.FormatDocument(minChar, limChar);
 
             if (this.logger.information()) {
-                var logSourceText = (text: string) => {
-                    var textLines = text.replace(/^\s+|\s+$/g, "").replace(/\r\n?/g, "\n").split(/\n/);
-                    for (var i = 0; i < textLines.length; i++) {
-                        var textLine = textLines[i];
-                        var msg = "line #" + i + "(length=" + textLine.length + "): \"" + textLine + "\"";
-                        this.logger.log(msg);
-                    }
-                }
+               this.logEditResults(syntaxAST, result)
+            }
 
-                var sourceText = syntaxAST.getSourceText();
-                logSourceText(sourceText.getText(0, sourceText.getLength()));
-                for (var i = 0; i < result.length; i++) {
-                    var edit = result[i];
-                    var oldSourceText = sourceText.getText(edit.minChar, edit.limChar);
-                    var text = "edit #" + i + ": minChar=" + edit.minChar + ", " +
-                        "limChar=" + edit.limChar + ", " +
-                        "oldText=\"" + TypeScript.stringToLiteral(oldSourceText, 30) + "\", " +
-                        "textLength=" + edit.text.length + ", " +
-                        "text=\"" + TypeScript.stringToLiteral(edit.text, 30) + "\"";
-                    this.logger.log(text);
-                }
+            return result;
+        }
+
+        public getFormattingEditsOnPaste(fileName: string, minChar: number, limChar: number, options: FormatCodeOptions): TextEdit[] {
+            this.minimalRefresh();
+            // Ensure rules are initialized and up to date wrt to formatting options
+            this.formattingRulesProvider.ensureUptodate(options);
+
+            var syntaxAST = this._getScriptSyntaxAST(fileName);
+            var manager = new Formatting.FormattingManager(syntaxAST, this.formattingRulesProvider, options);
+            var result = manager.FormatOnPaste(minChar, limChar);
+
+            if (this.logger.information()) {
+               this.logEditResults(syntaxAST, result)
             }
 
             return result;
@@ -1621,6 +1692,11 @@ module Services {
                 var syntaxAST = this._getScriptSyntaxAST(fileName);
                 var manager = new Formatting.FormattingManager(syntaxAST, this.formattingRulesProvider, options);
                 return manager.FormatOnSemicolon(position);
+            }
+            else if (key === "\n") {
+                var syntaxAST = this._getScriptSyntaxAST(fileName);
+                var manager = new Formatting.FormattingManager(syntaxAST, this.formattingRulesProvider, options);
+                return manager.FormatOnEnter(position);
             }
             return []; //TextEdit.createInsert(minChar, "/* format was invoked here!*/")];
         }
@@ -1788,6 +1864,13 @@ module Services {
 
             var unitIndex = this.compilerState.getUnitIndex(fileName);
             return this.compilerState.getErrorEntries(maxCount, (u, e) => { return u === unitIndex; });
+        }
+
+        /// Emit
+        public getEmitOutput(fileName: string): IOutputFile[] {
+            this.refresh();
+
+            return this.compilerState.getEmitOutput(fileName);
         }
 
         private getTypeInfoAtPosition(pos: number, script: TypeScript.AST): {
@@ -1981,7 +2064,7 @@ module Services {
         // of an AST node referencing a known declaration kind.
         //
         private getDeclNodeElementKindModifiers(ast: TypeScript.AST): string {
-            var addMofifier = (result: string, testValue: bool, value: string): string {
+            var addModifier = (result: string, testValue: bool, value: string): string => {
                 if (!testValue)
                     return result;
 
@@ -1995,49 +2078,49 @@ module Services {
 
             var typeDeclToKindModifiers = (decl: TypeScript.InterfaceDeclaration): string => {
                 var result = ScriptElementKindModifier.none;
-                result = addMofifier(result, decl.isExported(), ScriptElementKindModifier.exportedModifier);
-                result = addMofifier(result, decl.isAmbient(), ScriptElementKindModifier.ambientModifier);
+                result = addModifier(result, decl.isExported(), ScriptElementKindModifier.exportedModifier);
+                result = addModifier(result, decl.isAmbient(), ScriptElementKindModifier.ambientModifier);
                 return result;
             }
 
             var classDeclToKindModifiers = (decl: TypeScript.ClassDeclaration): string => {
                 var result = ScriptElementKindModifier.none;
-                result = addMofifier(result, decl.isExported(), ScriptElementKindModifier.exportedModifier);
-                result = addMofifier(result, decl.isAmbient(), ScriptElementKindModifier.ambientModifier);
+                result = addModifier(result, decl.isExported(), ScriptElementKindModifier.exportedModifier);
+                result = addModifier(result, decl.isAmbient(), ScriptElementKindModifier.ambientModifier);
                 return result;
             }
 
             var moduleDeclToKindModifiers = (decl: TypeScript.ModuleDeclaration): string => {
                 var result = ScriptElementKindModifier.none;
-                result = addMofifier(result, decl.isExported(), ScriptElementKindModifier.exportedModifier);
-                result = addMofifier(result, decl.isAmbient(), ScriptElementKindModifier.ambientModifier);
+                result = addModifier(result, decl.isExported(), ScriptElementKindModifier.exportedModifier);
+                result = addModifier(result, decl.isAmbient(), ScriptElementKindModifier.ambientModifier);
                 return result;
             }
 
             var varDeclToKindModifiers = (decl: TypeScript.VarDecl): string => {
                 var result = ScriptElementKindModifier.none;
-                result = addMofifier(result, decl.isExported(), ScriptElementKindModifier.exportedModifier);
-                result = addMofifier(result, decl.isAmbient(), ScriptElementKindModifier.ambientModifier);
-                result = addMofifier(result, decl.isPublic(), ScriptElementKindModifier.publicMemberModifier);
-                result = addMofifier(result, decl.isPrivate(), ScriptElementKindModifier.privateMemberModifier);
-                result = addMofifier(result, decl.isStatic(), ScriptElementKindModifier.staticModifier);
+                result = addModifier(result, decl.isExported(), ScriptElementKindModifier.exportedModifier);
+                result = addModifier(result, decl.isAmbient(), ScriptElementKindModifier.ambientModifier);
+                result = addModifier(result, decl.isPublic(), ScriptElementKindModifier.publicMemberModifier);
+                result = addModifier(result, decl.isPrivate(), ScriptElementKindModifier.privateMemberModifier);
+                result = addModifier(result, decl.isStatic(), ScriptElementKindModifier.staticModifier);
                 return result;
             }
 
             var argDeclToKindModifiers = (decl: TypeScript.ArgDecl): string => {
                 var result = ScriptElementKindModifier.none;
-                result = addMofifier(result, decl.isPublic(), ScriptElementKindModifier.publicMemberModifier);
-                result = addMofifier(result, decl.isPrivate(), ScriptElementKindModifier.privateMemberModifier);
+                result = addModifier(result, decl.isPublic(), ScriptElementKindModifier.publicMemberModifier);
+                result = addModifier(result, decl.isPrivate(), ScriptElementKindModifier.privateMemberModifier);
                 return result;
             }
 
             var funcDeclToKindModifiers = (decl: TypeScript.FuncDecl): string => {
                 var result = ScriptElementKindModifier.none;
-                result = addMofifier(result, decl.isExported(), ScriptElementKindModifier.exportedModifier);
-                result = addMofifier(result, decl.isAmbient(), ScriptElementKindModifier.ambientModifier);
-                result = addMofifier(result, decl.isPublic(), ScriptElementKindModifier.publicMemberModifier);
-                result = addMofifier(result, decl.isPrivate(), ScriptElementKindModifier.privateMemberModifier);
-                result = addMofifier(result, decl.isStatic(), ScriptElementKindModifier.staticModifier);
+                result = addModifier(result, decl.isExported(), ScriptElementKindModifier.exportedModifier);
+                result = addModifier(result, decl.isAmbient(), ScriptElementKindModifier.ambientModifier);
+                result = addModifier(result, decl.isPublic(), ScriptElementKindModifier.publicMemberModifier);
+                result = addModifier(result, decl.isPrivate(), ScriptElementKindModifier.privateMemberModifier);
+                result = addModifier(result, decl.isStatic(), ScriptElementKindModifier.staticModifier);
                 return result;
             }
 
@@ -2319,5 +2402,45 @@ module Services {
 
             return null;
         }
+
+                private logFormatCodeOptions(options: FormatCodeOptions) {
+            if (this.logger.information()) {
+                this.logger.log("options.InsertSpaceAfterCommaDelimiter=" + options.InsertSpaceAfterCommaDelimiter);
+                this.logger.log("options.InsertSpaceAfterSemicolonInForStatements=" + options.InsertSpaceAfterSemicolonInForStatements);
+                this.logger.log("options.InsertSpaceBeforeAndAfterBinaryOperators=" + options.InsertSpaceBeforeAndAfterBinaryOperators);
+                this.logger.log("options.InsertSpaceAfterKeywordsInControlFlowStatements=" + options.InsertSpaceAfterKeywordsInControlFlowStatements);
+                this.logger.log("options.InsertSpaceAfterFunctionKeywordForAnonymousFunctions=" + options.InsertSpaceAfterFunctionKeywordForAnonymousFunctions);
+                this.logger.log("options.InsertSpaceAfterOpeningAndBeforeClosingNonemptyParenthesis=" + options.InsertSpaceAfterOpeningAndBeforeClosingNonemptyParenthesis);
+                this.logger.log("options.PlaceOpenBraceOnNewLineForFunctions=" + options.PlaceOpenBraceOnNewLineForFunctions);
+                this.logger.log("options.PlaceOpenBraceOnNewLineForControlBlocks=" + options.PlaceOpenBraceOnNewLineForControlBlocks);
+            }
+        }
+
+        private logEditResults(syntaxAST: ScriptSyntaxAST, result: Services.TextEdit[]) {
+            if (this.logger.information()) {
+                var logSourceText = (text: string) => {
+                    var textLines = text.replace(/^\s+|\s+$/g, "").replace(/\r\n?/g, "\n").split(/\n/);
+                    for (var i = 0; i < textLines.length; i++) {
+                        var textLine = textLines[i];
+                        var msg = "line #" + i + "(length=" + textLine.length + "): \"" + textLine + "\"";
+                        this.logger.log(msg);
+                    }
+                }
+
+                var sourceText = syntaxAST.getSourceText();
+                logSourceText(sourceText.getText(0, sourceText.getLength()));
+                for (var i = 0; i < result.length; i++) {
+                    var edit = result[i];
+                    var oldSourceText = sourceText.getText(edit.minChar, edit.limChar);
+                    var text = "edit #" + i + ": minChar=" + edit.minChar + ", " +
+                        "limChar=" + edit.limChar + ", " +
+                        "oldText=\"" + TypeScript.stringToLiteral(oldSourceText, 30) + "\", " +
+                        "textLength=" + edit.text.length + ", " +
+                        "text=\"" + TypeScript.stringToLiteral(edit.text, 30) + "\"";
+                    this.logger.log(text);
+                }
+            }
+        }
+
     }
 }

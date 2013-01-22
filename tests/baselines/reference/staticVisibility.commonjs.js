@@ -6,12 +6,11 @@ var C1 = (function () {
         b();
         C1.b();
     }
-    C1.s = undefined;
     C1.b = function b() {
         v = 1;
         this.p = 0;
         C1.s = 1;
-    }
+    };
     return C1;
 })();
 var C2 = (function () {

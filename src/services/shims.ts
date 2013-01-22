@@ -1,5 +1,17 @@
-// Copyright (c) Microsoft. All rights reserved. Licensed under the Apache License, Version 2.0. 
-// See LICENSE.txt in the project root for complete license information.
+﻿//﻿
+// Copyright (c) Microsoft Corporation.  All rights reserved.
+// 
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
 
 ///<reference path='typescriptServices.ts' />
 
@@ -32,6 +44,8 @@ module Services {
         getCompletionsAtPosition(fileName: string, pos: number, isMemberCompletion: bool);
         getImplementorsAtPosition(fileName: string, pos: number): string;
         getFormattingEditsForRange(fileName: string, minChar: number, limChar: number, options: string/*Services.FormatCodeOptions*/): string;
+        getFormattingEditsForDocument(fileName: string, minChar: number, limChar: number, options: string/*Services.FormatCodeOptions*/): string;
+        getFormattingEditsOnPaste(fileName: string, minChar: number, limChar: number, options: string/*Services.FormatCodeOptions*/): string;
         getFormattingEditsAfterKeystroke(fileName: string, position: number, key: string, options: string/*Services.FormatCodeOptions*/): string;
         getNavigateToItems(searchValue: string): string;
         getScriptLexicalStructure(fileName: string): string;
@@ -372,13 +386,37 @@ module Services {
                 });
         }
 
-        /// FORMAT SELECTION/DOCUMENT
+        /// FORMAT SELECTION
         public getFormattingEditsForRange(fileName: string, minChar: number, limChar: number, options: string/*Services.FormatCodeOptions*/): string {
             return this.forwardJSONCall(
                 "getFormattingEditsForRange(\"" + fileName + "\", " + minChar + ", " + limChar + ")",
                 () => {
                     var localOptions: Services.FormatCodeOptions = JSON.parse(options);
                     var edits = this.languageService.getFormattingEditsForRange(fileName, minChar, limChar, localOptions);
+                    var result = _resultToJSON(edits);
+                    return result;
+                });
+        }
+
+        /// FORMAT DOCUMENT
+        public getFormattingEditsForDocument(fileName: string, minChar: number, limChar: number, options: string/*Services.FormatCodeOptions*/): string {
+            return this.forwardJSONCall(
+                "getFormattingEditsForDocument(\"" + fileName + "\", " + minChar + ", " + limChar + ")",
+                () => {
+                    var localOptions: Services.FormatCodeOptions = JSON.parse(options);
+                    var edits = this.languageService.getFormattingEditsForDocument(fileName, minChar, limChar, localOptions);
+                    var result = _resultToJSON(edits);
+                    return result;
+                });
+        }
+
+        /// FORMAT ON PASTE
+        public getFormattingEditsOnPaste(fileName: string, minChar: number, limChar: number, options: string/*Services.FormatCodeOptions*/): string {
+            return this.forwardJSONCall(
+                "getFormattingEditsOnPaste(\"" + fileName + "\", " + minChar + ", " + limChar + ")",
+                () => {
+                    var localOptions: Services.FormatCodeOptions = JSON.parse(options);
+                    var edits = this.languageService.getFormattingEditsOnPaste(fileName, minChar, limChar, localOptions);
                     var result = _resultToJSON(edits);
                     return result;
                 });
@@ -451,6 +489,17 @@ module Services {
                 () => {
                     this.languageService.logSyntaxAST(fileName);
                     return null;
+                });
+        }
+
+        /// Emit
+        public getEmitOutput(fileName: string): string {
+            return this.forwardJSONCall(
+                "getEmitOutput(\"" + fileName + "\")",
+                () => {
+                    var output = this.languageService.getEmitOutput(fileName);
+                    var result = _resultToJSON(output);
+                    return result;
                 });
         }
 

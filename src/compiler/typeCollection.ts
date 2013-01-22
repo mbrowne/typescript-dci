@@ -1,5 +1,17 @@
-// Copyright (c) Microsoft. All rights reserved. Licensed under the Apache License, Version 2.0. 
-// See LICENSE.txt in the project root for complete license information.
+﻿//﻿
+// Copyright (c) Microsoft Corporation.  All rights reserved.
+// 
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
 
 ///<reference path='typescript.ts' />
 
@@ -102,7 +114,7 @@ module TypeScript {
                 var name = (<Identifier>alias).text;
                 var isDynamic = isQuoted(name);
 
-                var findSym = (id: string) {
+                var findSym = (id: string) => {
                     if (context.members) {
                         return context.members.lookup(name);
                     }
@@ -152,7 +164,6 @@ module TypeScript {
         var typeSymbol: TypeSymbol = null;
         var modType: ModuleType = null;
         var importDecl = <ImportDeclaration>ast;
-        var isExported = hasFlag(importDecl.varFlags, VarFlags.Exported);
 
         // REVIEW: technically, this call isn't strictly necessary, since we'll find the type during the call to resolveTypeMembers
         var aliasedModSymbol = findSymbolFromAlias(importDecl.alias, { topLevelScope: scopeChain, members: null, tcContext: context });
@@ -166,20 +177,22 @@ module TypeScript {
             }
         }
 
-        typeSymbol = new TypeSymbol(importDecl.id.text, importDecl.minChar,
+        typeSymbol = new TypeSymbol(importDecl.id.text, importDecl.id.minChar, importDecl.limChar - importDecl.minChar,
                                     context.checker.locationInfo.unitIndex, modType);
 
         typeSymbol.aliasLink = importDecl;
 
         if (context.scopeChain.moduleDecl) {
+            typeSymbol.flags |= SymbolFlags.ModuleMember;
             typeSymbol.declModule = context.scopeChain.moduleDecl;
         }
+
         typeSymbol.declAST = importDecl;
         importDecl.id.sym = typeSymbol;
         scopeChain.scope.enter(scopeChain.container, ast, typeSymbol,
-                                context.checker.errorReporter, isExported || isGlobal, true, false);
+                                context.checker.errorReporter, isGlobal, true, false);
         scopeChain.scope.enter(scopeChain.container, ast, typeSymbol,
-                                context.checker.errorReporter, isExported || isGlobal, false, false);
+                                context.checker.errorReporter, isGlobal, false, false);
         return true;
     }
 
@@ -213,8 +226,9 @@ module TypeScript {
                 modType.setHasImplementation();
             }
 
-            typeSymbol = new TypeSymbol(modName, moduleDecl.minChar,
+            typeSymbol = new TypeSymbol(modName, moduleDecl.name.minChar, modName.length,
                                         context.checker.locationInfo.unitIndex, modType);
+            typeSymbol.isDynamic = isQuoted(moduleDecl.prettyName);
 
             if (context.scopeChain.moduleDecl) {
                 typeSymbol.declModule = context.scopeChain.moduleDecl;
@@ -261,6 +275,7 @@ module TypeScript {
 
             typeSymbol.addLocation(moduleDecl.minChar);
             typeSymbol.expansions.push(modType);
+            typeSymbol.expansionsDeclAST.push(moduleDecl);
 
         }
         if (context.scopeChain.moduleDecl) {
@@ -347,7 +362,7 @@ module TypeScript {
             addPrototypeField(classType, classDecl, context);
             instanceType.members = new ScopedMembers(new DualStringHashTable(new StringHashTable(), new StringHashTable()));
             instanceType.ambientMembers = new ScopedMembers(new DualStringHashTable(new StringHashTable(), new StringHashTable()));
-            typeSymbol = new TypeSymbol(className, classDecl.minChar,
+            typeSymbol = new TypeSymbol(className, classDecl.name.minChar, className.length,
                                         context.checker.locationInfo.unitIndex, classType);
             typeSymbol.declAST = classDecl;
             typeSymbol.instanceType = instanceType;
@@ -431,7 +446,8 @@ module TypeScript {
         if (interfaceSymbol == null) {
             interfaceType = new Type();
             interfaceSymbol = new TypeSymbol(interfaceName,
-                                        ast.minChar,
+                                        interfaceDecl.name.minChar,
+                                        interfaceName.length,
                                         context.checker.locationInfo.unitIndex,
                                         interfaceType);
             interfaceType.symbol = interfaceSymbol;
@@ -477,7 +493,7 @@ module TypeScript {
             var field = new ValueLocation();
             var isPrivate = hasFlag(argDecl.varFlags, VarFlags.Private);
             var fieldSymbol =
-                new FieldSymbol(argDecl.id.text, argDecl.minChar,
+                new FieldSymbol(argDecl.id.text, argDecl.id.minChar,
                                 context.checker.locationInfo.unitIndex,
                                 !hasFlag(argDecl.varFlags, VarFlags.Readonly),
                                 field);
@@ -530,7 +546,7 @@ module TypeScript {
 
             var field = new ValueLocation();
             var fieldSymbol =
-                new FieldSymbol(varDecl.id.text, varDecl.minChar,
+                new FieldSymbol(varDecl.id.text, varDecl.id.minChar,
                                 context.checker.locationInfo.unitIndex,
                                 (varDecl.varFlags & VarFlags.Readonly) == VarFlags.None,
                                 field);

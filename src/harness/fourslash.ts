@@ -1,3 +1,18 @@
+﻿//﻿
+// Copyright (c) Microsoft Corporation.  All rights reserved.
+// 
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+
 ///<reference path='..\compiler\typescript.ts' />
 ///<reference path='harness.ts' />
 ///<reference path='external\json2.ts' />
@@ -40,13 +55,18 @@ module FourSlash {
         };
     }
 
+    interface Marker {
+        fileName: string;
+        position: number;
+    }
+
     interface MarkerMap {
-        [index: string]: { fileName: string; position: number; };
+        [index: string]: Marker;
     }
 
     // List of allowed metadata names
     var fileMetadataNames = ['Filename'];
-    var globalMetadataNames = ['Module', 'Target']; // Note: Neither actually supported at the moment
+    var globalMetadataNames = ['Module', 'Target', 'BaselineFile']; // Note: Only BaselineFile is actually supported at the moment
 
     export var currentTestState: TestState = null;
 
@@ -61,14 +81,14 @@ module FourSlash {
         // The file that's currently 'opened'
         public activeFile: FourSlashFile = null;
 
-        constructor (public testData: FourSlashData) {
+        constructor(public testData: FourSlashData) {
             // Initialize the language service with all the scripts
             this.langSvc = new Harness.TypeScriptLS();
 
             for (var i = 0; i < testData.files.length; i++) {
                 this.langSvc.addScript(testData.files[i].name, testData.files[i].content, false);
             }
-            
+
             this.realLangSvc = this.langSvc.getLanguageService().languageService;
 
             // Open the first file by default
@@ -89,7 +109,7 @@ module FourSlash {
             this.currentCaretPosition = marker.position;
         }
 
-        public moveCaretRight(count ?= 1) {
+        public moveCaretRight(count? = 1) {
             this.currentCaretPosition += count;
             this.currentCaretPosition = Math.min(this.currentCaretPosition, this.langSvc.getScriptSourceLength(this.getActiveFileIndex()));
         }
@@ -102,28 +122,93 @@ module FourSlash {
             this.activeFile = fileToOpen;
         }
 
-        public verifyErrorExistsBetweenMarkers(startMarker: string, endMarker: string) {
-            var startPos = this.getMarkerByName(startMarker).position;
-            var endPos = this.getMarkerByName(endMarker).position;
-            var fileIndex = this.getScriptIndex(this.findFile(this.getMarkerByName(startMarker).fileName));
+        public verifyErrorExistsBetweenMarkers(startMarkerName: string, endMarkerName: string, negative: bool) {
+            var startMarker = this.getMarkerByName(startMarkerName);
+            var endMarker = this.getMarkerByName(endMarkerName);
+            var predicate = function (errorMinChar: number, errorLimChar: number, startPos: number, endPos: number) {
+                return ((errorMinChar === startPos) && (errorLimChar === endPos)) ? true : false;
+            };
+
+            var exists = this.anyErrorInRange(predicate, startMarker, endMarker);
             var errors = this.realLangSvc.getErrors(9999);
-            var exists = false;
-            errors.forEach(function (error: TypeScript.ErrorEntry) {
-                if (error.unitIndex != fileIndex) return;
-                if ((error.minChar === startPos) && (error.limChar === endPos)) exists = true;
-            });
-            if (!exists) {
-                IO.printLine("Expected error not found.  Error list is:");
-                errors.forEach(function (error: TypeScript.ErrorEntry) {
-                    IO.printLine("  minChar: " + error.minChar + ", limChar: " + error.limChar + ", message: " + error.message);
-                });
-                throw new Error("Error does not exist between markers: " + startMarker + ", " + endMarker);
+
+            if (exists != negative) {
+                this.printErrorLog(negative, errors);
+                throw new Error("Failure between markers: " + startMarkerName + ", " + endMarkerName);
             }
         }
 
-        public verifyMemberListContains(symbol: string) {
+        public verifyErrorExistsAfterMarker(markerName: string, negative: bool, after: bool) {
+
+            var marker: Marker = this.getMarkerByName(markerName);
+            var predicate: (errorMinChar: number, errorLimChar: number, startPos: number, endPos: number) => bool;
+
+            if (after) {
+                predicate = function (errorMinChar: number, errorLimChar: number, startPos: number, endPos: number) {
+                    return ((errorMinChar >= startPos) && (errorLimChar >= startPos)) ? true : false;
+                };
+            } else {
+                predicate = function (errorMinChar: number, errorLimChar: number, startPos: number, endPos: number) {
+                    return ((errorMinChar <= startPos) && (errorLimChar <= startPos)) ? true : false;
+                };
+            }
+
+            var exists = this.anyErrorInRange(predicate, marker);
+            var errors = this.realLangSvc.getErrors(9999);
+
+            if (exists != negative) {
+                this.printErrorLog(negative, errors);
+                throw new Error("Failure at marker: " + markerName);
+            }
+
+        }
+
+        private anyErrorInRange(predicate: (errorMinChar: number, errorLimChar: number, startPos: number, endPos: number) => bool, startMarker: Marker, endMarker?: Marker) {
+
+            var fileIndex = this.getScriptIndex(this.findFile(startMarker.fileName));
+            var errors = this.realLangSvc.getErrors(9999);
+            var exists = false;
+
+            var startPos = startMarker.position;
+            if (endMarker !== undefined) {
+                var endPos = endMarker.position;
+            }
+
+            errors.forEach(function (error: TypeScript.ErrorEntry) {
+                if (error.unitIndex != fileIndex) return;
+                if (predicate(error.minChar, error.limChar, startPos, endPos)) exists = true;
+            });
+
+            return exists;
+
+        }
+
+        private printErrorLog(expectErrors: bool, errors: TypeScript.ErrorEntry[]) {
+            if (expectErrors) {
+                IO.printLine("Expected error not found.  Error list is:");
+            } else {
+                IO.printLine("Unexpected error(s) found.  Error list is:");
+            }
+            errors.forEach(function (error: TypeScript.ErrorEntry) {
+                IO.printLine("  minChar: " + error.minChar + ", limChar: " + error.limChar + ", message: " + error.message + "\n");
+            });
+        }
+
+        public verifyNumberOfErrorsInCurrentFile(expected: number) {
+            var fileIndex = this.getScriptIndex(this.activeFile);
+            var errors = this.realLangSvc.getErrors(9999);
+            errors = errors.filter((error: TypeScript.ErrorEntry) => error.unitIndex == fileIndex);
+            var actual = errors.length;
+            if (actual != expected) {
+                var errorMsg = "Actual number of errors (" + actual + ") does not match expected number (" + expected + ")";
+                IO.printLine(errorMsg);
+                throw new Error(errorMsg);
+            }
+        }
+
+        public verifyMemberListContains(symbol: string, type?: string, docComment?: string) {
             var members = this.getMemberListAtCaret();
-            this.assertItemInList(members.entries.map(c => c.name), symbol);
+            this.assertItemInCompletionList(members.entries, symbol, type, docComment);
         }
 
         public verifyMemberListDoesNotContain(symbol: string) {
@@ -133,9 +218,49 @@ module FourSlash {
             }
         }
 
-        public verifyCompletionListContains(symbol: string) {
+        public verifyMemberListIsEmpty(negative: bool) {
+            var members = this.getMemberListAtCaret().entries;
+            if ((members.length === 0) && negative) {
+
+                throw new Error("Member list is empty at Caret");
+
+            } else if ((members.length !== 0) && !negative) {
+
+                var errorMsg = "\n" + "Member List contains: [" + members[0].name;
+                for (var i = 1; i < members.length; i++) {
+                    errorMsg += ", " + members[i].name;
+                }
+                errorMsg += "]\n";
+
+                IO.printLine(errorMsg);
+                throw new Error("Member list is not empty at Caret");
+
+            }
+        }
+
+        public verifyCompletionListIsEmpty(negative: bool) {
+            var completions = this.getCompletionListAtCaret().entries;
+            if ((completions.length === 0) && negative) {
+
+                throw new Error("Completion list is empty at Caret");
+
+            } else if ((completions.length !== 0) && !negative) {
+
+                var errorMsg = "\n" + "Completion List contains: [" + completions[0].name;
+                for (var i = 1; i < completions.length; i++) {
+                    errorMsg += ", " + completions[i].name;
+                }
+                errorMsg += "]\n";
+
+                IO.printLine(errorMsg);
+                throw new Error("Completion list is not empty at Caret");
+
+            }
+        }
+
+        public verifyCompletionListContains(symbol: string, type?: string, docComment?: string) {
             var completions = this.getCompletionListAtCaret();
-            this.assertItemInList(completions.entries.map(c => c.name), symbol);
+            this.assertItemInCompletionList(completions.entries, symbol, type, docComment);
         }
 
         public verifyCompletionListDoesNotContain(symbol: string) {
@@ -153,9 +278,17 @@ module FourSlash {
             return this.realLangSvc.getCompletionsAtPosition(this.activeFile.name, this.currentCaretPosition, false);
         }
 
-        public verifyQuickInfo(expectedTypeName: string) {
+        public verifyQuickInfo(expectedTypeName: string, negative: number) {
             var actualQuickInfo = this.realLangSvc.getTypeAtPosition(this.activeFile.name, this.currentCaretPosition);
-            assert.equal(actualQuickInfo.memberName.toString(), expectedTypeName);
+            var actualQuickInfoString = actualQuickInfo.memberName.toString();
+            if (actualQuickInfo.docComment != "") {
+                actualQuickInfoString += "\n" + actualQuickInfo.docComment;
+            }
+            if (negative) {
+                assert.notEqual(actualQuickInfoString, expectedTypeName);
+            } else {
+                assert.equal(actualQuickInfoString, expectedTypeName);
+            }
         }
 
         public verifyCurrentParameterIsVariable(isVariable: bool) {
@@ -164,6 +297,10 @@ module FourSlash {
 
         public verifyCurrentParameterHelpName(name: string) {
             assert.equal(this.getActiveParameter().name, name);
+        }
+
+        public verifyCurrentParameterHelpDocComment(docComment: string) {
+            assert.equal(this.getActiveParameter().docComment, docComment);
         }
 
         public verifyCurrentParameterHelpType(typeName: string) {
@@ -179,6 +316,11 @@ module FourSlash {
         public verifyCurrentSignatureHelpReturnType(returnTypeName: string) {
             var actualReturnType = this.getActiveSignatureHelp().returnType;
             assert.equal(actualReturnType, returnTypeName);
+        }
+
+        public verifyCurrentSignatureHelpDocComment(docComment: string) {
+            var actualDocComment = this.getActiveSignatureHelp().docComment;
+            assert.equal(actualDocComment, docComment);
         }
 
         public verifyCurrentSignatureHelpCount(expected: number) {
@@ -220,8 +362,36 @@ module FourSlash {
             // Same logic as in getActiveSignatureHelp - this value might be -1 until a parameter value actually gets typed
             var currentParam = help.actual.currentParameter;
             if (currentParam === -1) currentParam = 0;
-            
+
             return currentSig.parameters[currentParam];
+        }
+
+        public getBreakpointStatementLocation(pos: number) {
+            var spanInfo = this.realLangSvc.getBreakpointStatementAtPosition(this.activeFile.name, pos);
+            var resultString = "\n**Pos: " + pos + " SpanInfo: " + JSON2.stringify(spanInfo) + "\n** Statement: ";
+            if (spanInfo !== null) {
+                resultString = resultString + this.activeFile.content.substr(spanInfo.minChar, spanInfo.limChar - spanInfo.minChar);
+            }
+            return resultString;
+        }
+
+        public baselineCurrentFileBreakpointLocations() {
+            Harness.Baseline.runBaseline(
+                "Breakpoint Locations for " + this.activeFile.name,
+                this.testData.globalOptions['BaselineFile'],
+                () => {
+                    var fileLength = this.langSvc.getScriptSourceLength(this.getActiveFileIndex());
+                    var resultString = "";
+                    for (var pos = 0; pos < fileLength; pos++) {
+                        resultString = resultString + this.getBreakpointStatementLocation(pos);
+                    }
+                    return resultString;
+                },
+                true /* run immediately */);
+        }
+
+        public printBreakpointLocation(pos: number) {
+            IO.printLine(this.getBreakpointStatementLocation(pos));
         }
 
         public printCurrentParameterHelp() {
@@ -264,6 +434,32 @@ module FourSlash {
         public printCompletionListMembers() {
             var completions = this.getCompletionListAtCaret();
             IO.printLine(JSON2.stringify(completions));
+        }
+
+        public deleteCharBehindMarker(count ?= 1) {
+
+            var opts = new Services.FormatCodeOptions();
+            var offset = this.currentCaretPosition;
+            var ch = "";
+
+            for (var i = 0; i < count; i++) {
+
+                offset--;
+                // Make the edit
+                this.langSvc.editScript(this.activeFile.name, offset, offset + 1, ch);
+                this.updateMarkersForEdit(this.activeFile.name, offset, offset + 1, ch);
+                
+
+                // Handle post-keystroke formatting
+                var edits = this.realLangSvc.getFormattingEditsAfterKeystroke(this.activeFile.name, offset, ch, opts);
+                offset += this.applyEdits(this.activeFile.name, edits);
+            }
+
+            // Move the caret to wherever we ended up
+            this.currentCaretPosition = offset;
+
+            this.fixCaretPosition();
+
         }
 
         // Enters lines of text at the current caret position
@@ -386,6 +582,14 @@ module FourSlash {
             }
         }
 
+        private getBOF(): number {
+            return 0;
+        }
+
+        private getEOF(): number {
+            return this.langSvc.getScriptSourceLength(this.getActiveFileIndex())
+        }
+
         // Get the text of the entire line the caret is currently at
         private getCurrentLineContent() {
             // The current caret position (in line/col terms)
@@ -413,13 +617,51 @@ module FourSlash {
             return this.langSvc.positionToLineCol(this.activeFile.name, this.currentCaretPosition);
         }
 
-        private assertItemInList(items: any[], value: any) {
-            var index = items.indexOf(value);
-            if (index === -1) {
-                var itemsDigest = items.slice(0, 10);
-                if (items.length > 10) itemsDigest.push('...');
-                throw new Error('Expected "' + value + '" to be in list [' + items.map(elem => '"' + elem + '"').join(',') + ']');
+        private assertItemInCompletionList(completionList: Services.CompletionEntry[], name: string, type?: string, docComment?: string) {
+            var items: { name: string; type: string; docComment: string; }[] = completionList.map(element => {
+                return {
+                    name: element.name,
+                    type: element.type,
+                    docComment: element.docComment
+                };
+            });
+
+            for (var i = 0; i < items.length; i++) {
+                var item = items[i];
+                if (item.name == name) {
+                    if (docComment != undefined) {
+                        assert.equal(item.docComment, docComment);
+                    }
+                    if (type != undefined) {
+                        assert.equal(item.type, type);
+                    }
+                    return;
+                }
             }
+
+            var getItemString = (item: { name: string; type: string; docComment: string; }) => {
+                if (docComment == undefined && type == undefined) {
+                    return item.name;
+                }
+
+                var returnString = "\n{ name: " + item.name;
+                if (type != undefined) {
+                    returnString += ",type: " + item.type;
+                }
+                if (docComment != undefined) {
+                    returnString += ",docComment: " + item.docComment;
+                }
+                returnString += " }"
+
+                return returnString;
+            };
+
+            var itemsDigest = items.slice(0, 10);
+            var itemsString = items.map(elem => getItemString(elem)).join(",");
+            if (items.length > 10) {
+                itemsString += ', ...';
+            }
+            throw new Error('Expected "' + getItemString({ name: name, type: type, docComment: docComment }) + '" to be in list [' + itemsString + ']');
         }
 
         private getScriptIndex(file: FourSlashFile) {
@@ -508,11 +750,7 @@ module FourSlash {
         // Parse out the files and their metadata
         var testData = parseTestData(content);
 
-        // Log any bugs associated with the test
-        var bugs = content.match(/\bbug (\d+)/i);
-        if (bugs) {
-            bugs.forEach(bug => assert.bug(bug));
-        }
+        assert.bugs(content);
 
         currentTestState = new TestState(testData);
 
@@ -520,12 +758,12 @@ module FourSlash {
         if (fsCompiler === undefined) {
             // Set up the compiler
             var settings = new TypeScript.CompilationSettings();
-            settings.outputMany = false;
+            settings.outputOption = "fourslash.js";
             settings.resolve = true;
             fsCompiler = new TypeScript.TypeScriptCompiler(fsErrors, new TypeScript.NullLogger(), settings);
             
             // TODO: Figure out how to make the reference tags in the input file resolve correctly?
-            var tsFn = './tests/ls/fourslash/fourslash.ts';
+            var tsFn = './tests/cases/fourslash/fourslash.ts';
             fsCompiler.addUnit(IO.readFile(tsFn), tsFn);
             fsCompiler.addUnit(content, mockFilename);
             fsCompiler.addUnit(Harness.Compiler.libText, 'lib.d.ts', true);
@@ -538,7 +776,15 @@ module FourSlash {
 
         var result = '';
         fsCompiler.typeCheck();
-        fsCompiler.emit((s) => fsOutput);
+
+        var emitterIOHost: TypeScript.EmitterIOHost = {
+            createFile: (s) => fsOutput,
+            directoryExists: (s: string) => false,
+            fileExists: (s: string) => true,
+            resolvePath: (s: string)=>s
+        }
+
+        fsCompiler.emit(emitterIOHost);
         if (fsErrors.lines.length > 0) {
             throw new Error('Error compiling ' + filename + ': ' + fsErrors.lines.join('\r\n'));
         }
@@ -574,10 +820,7 @@ module FourSlash {
         // Split up the input file by line
         // Note: IE JS engine incorrectly handles consecutive delimiters here when using RegExp split, so
         // we have to string-based splitting instead and try to figure out the delimiting chars
-        var lines = contents.split('\r\n');
-        if (lines.length === 1) {
-            lines = contents.split('\n');
-        }
+        var lines = contents.split('\n');
 
         var markers: MarkerMap = {};
         var markerNames: string[] = [];
@@ -589,6 +832,11 @@ module FourSlash {
 
         for (var i = 0; i < lines.length; i++) {
             var line = lines[i];
+            var lineLength = line.length;
+            
+            if (lineLength > 0 && line.charAt(lineLength - 1) == '\r') {
+                line = line.substr(0, lineLength - 1);
+            }
 
             if (line.substr(0, 4) === '////') {
                 // Subfile content line

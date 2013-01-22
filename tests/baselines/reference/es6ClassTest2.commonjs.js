@@ -114,10 +114,9 @@ var SuperChild = (function (_super) {
 var Statics = (function () {
     function Statics() { }
     Statics.foo = 1;
-    Statics.bar = "";
     Statics.baz = function baz() {
         return "";
-    }
+    };
     return Statics;
 })();
 var stat = new Statics();

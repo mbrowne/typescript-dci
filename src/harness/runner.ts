@@ -1,5 +1,17 @@
-// Copyright (c) Microsoft. All rights reserved. Licensed under the Apache License, Version 2.0. 
-// See LICENSE.txt in the project root for complete license information.
+﻿//﻿
+// Copyright (c) Microsoft Corporation.  All rights reserved.
+// 
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
 
 ///<reference path='..\compiler\optionsParser.ts' />
 ///<reference path='..\compiler\io.ts'/>
@@ -8,6 +20,11 @@
 ///<reference path='dumpAST-baselining.ts'/>
 ///<reference path='exec.ts'/>
 ///<reference path='diff.ts'/>
+///<reference path='..\..\tests\runners\runnerfactory.ts' />
+///<reference path='..\..\tests\runners\compiler\runner.ts' />
+///<reference path='..\..\tests\runners\fourslash\fsrunner.ts' />
+///<reference path='..\..\tests\runners\projects\runner.ts' />
+///<reference path='..\..\tests\runners\unittest\unittestrunner.ts' />
 
 declare var IO: IIO;
 declare var Exec: IExec;
@@ -49,7 +66,7 @@ class ConsoleLogger extends Harness.Logger {
     }
 
     public start() {
-        IO.printLine("Running " + files.length + " files");
+        IO.printLine("Running tests" + (iterations > 1 ? " "  + iterations + " times" : "") + (reverse ? " in reverse." : "."));
     }
 
     public end() {
@@ -58,7 +75,7 @@ class ConsoleLogger extends Harness.Logger {
         IO.printLine('');
         IO.printLine(this.errorString);
         IO.printLine('');
-        
+
         IO.printLine('Scenarios: ' + (this.passCounts['Scenario'] || 0) + ' passed, ' + (this.failCounts['Scenario'] || 0) + ' failed.');
         IO.printLine('Testcases: ' + (this.passCounts['Testcase'] || 0) + ' passed, ' + (this.failCounts['Testcase'] || 0) + ' failed.');
         IO.printLine('  Blocked: ' + this.blockedScenarioCount);
@@ -112,7 +129,7 @@ class ConsoleLogger extends Harness.Logger {
         } else {
             this.failCounts.Scenario++;
         }
-        
+
         if (scenario.bugs && scenario.bugs.length > 0) {
             this.blockedScenarioCount++;
         }
@@ -128,7 +145,7 @@ class JSONLogger extends Harness.Logger {
     private root = [];
     private scenarioStack: Harness.IScenarioMetadata[] = [];
 
-    constructor (public path: string) {
+    constructor(public path: string) {
         super();
     }
 
@@ -174,75 +191,64 @@ class JSONLogger extends Harness.Logger {
     }
 }
 
-function runTests(tests: string[]) {
-    var outfile = new Harness.Compiler.WriterAggregator()
-      , outerr = new Harness.Compiler.WriterAggregator()
-      , compiler = <TypeScript.TypeScriptCompiler>new TypeScript.TypeScriptCompiler(outerr)
-      , code;
+function runTests(tests: RunnerBase[]) {
 
-    compiler.parser.errorRecovery = true;
-    compiler.addUnit(Harness.Compiler.libText, "lib.d.ts", true);
-
-    for (var i = 0; i < tests.length; i++) {
-        try {
-            compiler.addUnit(IO.readFile(tests[i]), tests[i]);
-        } catch (e) {
-            IO.printLine('FATAL ERROR COMPILING TEST: ' + tests[i]);
-            throw e;
-        }
+    if (reverse) {
+        tests = tests.reverse();
     }
 
-    compiler.typeCheck();
-    compiler.emitToOutfile(outfile);
-
-    code = outfile.lines.join("\n") + ";";
-
-    if (typeof require !== "undefined") {
-
-        var vm = require('vm');
-        vm.runInNewContext(code,
-            {
-                require: require,
-                TypeScript: TypeScript,
-                process: process,
-                describe: describe,
-                it: it,
-                assert: assert,
-                Harness: Harness,
-                IO: IO,
-                Exec: Exec,
-                Services: Services,
-                DumpAST: DumpAST,
-                Formatting: Formatting,
-                Diff: Diff,
-                FourSlash: FourSlash
-            },
-            "generated_test_code.js"
-        );
-    } else {
-        eval(code);
+    for (var i = iterations; i > 0; i--) {
+        for (var j = 0; j < tests.length; j++) {
+            tests[j].runTests();
+        }
     }
 
     run();
 }
 
-var files: string[] = [];
+var runners: RunnerBase[] = [];
+var reverse: bool = false;
+var iterations: number = 1;
+
 var opts = new OptionsParser(IO);
 
-opts.option('compiler', {
-    set: function () { files = IO.dir("tests/compiler", /\.ts$/) }
+opts.flag('compiler', {
+    set: function () {
+        runners.push(new UnitTestRunner('compiler'));
+        runners.push(new CompilerBaselineRunner());
+        runners.push(new ProjectRunner());
+    }
 });
 
-opts.option('ls', {
-    set: function () { files = IO.dir("tests/ls", /\.ts$/) }
+opts.flag('project', {
+    set: function () {
+        runners.push(new ProjectRunner());
+    }
 });
 
-opts.option('services', {
-    set: function () { files = IO.dir("tests/services", /\.ts$/) }
+opts.flag('fourslash', {
+    set: function () {
+        runners.push(new FourslashRunner());
+    }
 });
 
-opts.option('harness', {
-    set: function () => { files = IO.dir("tests/harness", /\.ts$/) }
+opts.flag('ls', {
+    set: function () {
+        runners.push(new UnitTestRunner('ls'));
+        runners.push(new FourslashRunner());
+    }
+});
+
+opts.flag('services', {
+    set: function () {
+        runners.push(new UnitTestRunner('services'));
+    }
+});
+
+opts.flag('harness', {
+    set: function () => {
+        runners.push(new UnitTestRunner('harness'));
+    }
 });
 
 opts.option('dump', {
@@ -256,21 +262,51 @@ opts.option('root', {
         Harness.userSpecifiedroot = str;
     }
 });
+
+opts.flag('reverse', {
+    experimental: true,
+    set: function () {
+        reverse = true;
+    }
+});
+
+opts.option('iterations', {
+    experimental: true,
+    set: function (str) {
+        var val = parseInt(str);
+        iterations = val < 1 ? 1 : val;
+    }
+});
+
 opts.parse(IO.arguments)
 
-if (opts.unnamed.length === 0 && files.length === 0) {
-    files = IO.dir(Harness.userSpecifiedroot + "tests/compiler", /\.ts$/)
-            .concat(IO.dir(Harness.userSpecifiedroot + "tests/ls", /\.ts$/))
-            .concat(IO.dir(Harness.userSpecifiedroot + "tests/services", /\.ts$/))
-            .concat(IO.dir(Harness.userSpecifiedroot + "tests/projects", /\.ts$/))
-            .concat(IO.dir(Harness.userSpecifiedroot + "tests/flags", /\.ts$/));
-} else {
-    for (var i = 0; i < opts.unnamed.length; i++) {
-        files.push(Harness.userSpecifiedroot + opts.unnamed[i]);
+if (runners.length === 0) {
+    if (opts.unnamed.length === 0) {
+        // compiler
+        runners.push(new UnitTestRunner('compiler'));
+        runners.push(new CompilerBaselineRunner());
+        runners.push(new ProjectRunner());
+
+        // language services
+        runners.push(new UnitTestRunner('ls'));
+        runners.push(new FourslashRunner());
+
+        // services
+        runners.push(new UnitTestRunner('services'));
+
+        // samples
+        runners.push(new UnitTestRunner('samples'));
+    } else {
+        var runnerFactory = new RunnerFactory();
+        var tests = opts.unnamed[0].split(' ');
+        for (var i = 0; i < tests.length; i++) {
+            runnerFactory.addTest(tests[i]);
+        }
+        runners = runnerFactory.getRunners();
     }
 }
 
 var c = new ConsoleLogger();
 Harness.registerLogger(c);
-runTests(files);
+runTests(runners);
 

@@ -1,6 +1,17 @@
-// Copyright (c) Microsoft. All rights reserved. Licensed under the Apache License, Version 2.0. 
-// See LICENSE.txt in the project root for complete license information.
-
+﻿//﻿
+// Copyright (c) Microsoft Corporation.  All rights reserved.
+// 
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
 ///<reference path='typescriptServices.ts' />
 
 module Services {
@@ -9,8 +20,8 @@ module Services {
     // Used to help with incremental behavior of language service.
     //
     export class ScriptMap {
-        private map: TypeScript.StringHashTable; 
-        
+        private map: TypeScript.StringHashTable;
+
         constructor() {
             // script id => ScriptMapEntry
             this.map = new TypeScript.StringHashTable();
@@ -50,8 +61,7 @@ module Services {
             public hostUnitIndex: number,
             public id: string,
             public version: number,
-            public isResident: bool) 
-        {
+            public isResident: bool) {
             this._cachedSourceText = null;
             this._sourceText = null;
         }
@@ -79,7 +89,7 @@ module Services {
     // set of scripts handled by the host changes.
     //
     export class HostCache {
-        
+
         private map: TypeScript.StringHashTable;
         private array: HostCacheEntry[];
 
@@ -218,6 +228,24 @@ module Services {
             else {
                 unitErrors.typeCheckErrors.push(entry);
             }
+        }
+    }
+
+    class TextWriter implements ITextWriter {
+        public text: string;
+        constructor(public name: string, public useUTF8encoding: bool) {
+            this.text = "";
+        }
+
+        public Write(s) {
+            this.text += s;
+        }
+
+        public WriteLine(s) {
+            this.text += s + '\n';
+        }
+
+        public Close() {
         }
     }
 
@@ -399,7 +427,6 @@ module Services {
         }
 
         private createCompiler() {
-            var outfile = { Write: (s) => { }, WriteLine: (s) => { }, Close: () => { } };
             var outerr = { Write: (s) => { }, WriteLine: (s) => { }, Close: () => { } };
 
             // Create and initialize compiler
@@ -725,6 +752,44 @@ module Services {
             var script = parser.parse(sourceText, fileName, 0);
 
             return new ScriptSyntaxAST(this.logger, script, sourceText);
+        }
+
+        public getEmitOutput(fileName: string): IOutputFile[] {
+            var unitIndex = this.compilerCache.getUnitIndex(fileName);
+            if (unitIndex < 0) {
+                throw new Error("Interal error: No AST found for file \"" + fileName + "\".");
+            }
+
+            var result: IOutputFile[] = [];
+
+            // Check for parse errors
+            var errors = this.errorCollector.fileMap[unitIndex];
+            if (errors !== undefined && errors.parseErrors.length > 0) {
+                return result;
+            }
+
+
+            var emitterIOHost = {
+                createFile: (fileName: string, useUTF8encoding?: bool = false) => {
+                    var outputFile = new TextWriter(fileName, useUTF8encoding);
+                    result.push(outputFile);
+                    return outputFile;
+                },
+                directoryExists: (fname: string) => true,
+                fileExists: (fname: string) => false,
+                resolvePath: (fname: string) => fname
+            };
+
+            // Call the emitter
+            var script = <TypeScript.Script>this.compiler.scripts.members[unitIndex];
+            this.compiler.parseEmitOption(emitterIOHost)
+            this.compiler.emitUnit(script);
+            // Only emit declarations if there are no type errors
+            if (errors == undefined || errors.typeCheckErrors.length == 0) {
+                this.compiler.emitDeclarationsUnit(script);
+            }
+
+            return result;
         }
     }
 }

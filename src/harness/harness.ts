@@ -1,5 +1,17 @@
-// Copyright (c) Microsoft. All rights reserved. Licensed under the Apache License, Version 2.0. 
-// See LICENSE.txt in the project root for complete license information.
+﻿//﻿
+// Copyright (c) Microsoft Corporation.  All rights reserved.
+// 
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
 
 ///<reference path='..\compiler\io.ts'/>
 ///<reference path='..\compiler\typescript.ts'/>
@@ -72,6 +84,14 @@ module Harness {
         export function bug(id: string) {
             if (bugIds.indexOf(id) < 0) {
                 bugIds.push(id);
+            }
+        }
+
+        // If there are any bugs in the test code, mark the scenario as impacted appropriately
+        export function bugs(content: string) {
+            var bugs = content.match(/\bbug (\d+)/i);
+            if (bugs) {
+                bugs.forEach(bug => assert.bug(bug));
             }
         }
 
@@ -153,7 +173,7 @@ module Harness {
             }
         }
 
-        export function arrayContainsOnce(arr: any[], filter: (item: any) =>bool) {
+        export function arrayContainsOnce(arr: any[], filter: (item: any) => bool) {
             var foundCount = 0;
 
             for (var i = 0; i < arr.length; i++) {
@@ -167,9 +187,31 @@ module Harness {
         }
     }
 
+    // Splits the given string on \r\n or on only \n if that fails
+    export function splitContentByNewlines(content: string) {
+        // Split up the input file by line
+        // Note: IE JS engine incorrectly handles consecutive delimiters here when using RegExp split, so
+        // we have to string-based splitting instead and try to figure out the delimiting chars
+        var lines = content.split('\r\n');
+        if (lines.length === 1) {
+            lines = content.split('\n');
+        }
+        return lines;
+    }
+
     // Reads a file under tests
     export function readFile(path: string) {
-        return IO.readFile(Harness.userSpecifiedroot + "tests/" + path);
+
+        if (path.indexOf('tests') < 0) {
+            path = "tests/" + path;
+        }
+
+        var content = IO.readFile(Harness.userSpecifiedroot + path);
+        if (content == null) {
+            throw new Error("failed to read file at: '" + Harness.userSpecifiedroot + path + "'");
+        }
+
+        return content;
     }
 
     // Logger
@@ -206,7 +248,7 @@ module Harness {
     export function registerLogger(logger: ILogger) {
         loggers.push(logger);
     }
-    export function emitLog(field: string, ... params: any[]) {
+    export function emitLog(field: string, ...params: any[]) {
         for (var i = 0; i < loggers.length; i++) {
             if (typeof loggers[i][field] === 'function') {
                 loggers[i][field].apply(loggers[i], params);
@@ -219,7 +261,7 @@ module Harness {
         (e?: Error): void;
     }
     export class Runnable {
-        constructor (public description: string, public block: any) { }
+        constructor(public description: string, public block: any) { }
 
         // The current stack of Runnable objects
         static currentStack: Runnable[] = [];
@@ -308,7 +350,7 @@ module Harness {
         public description: string;
         public block;
 
-        constructor (description: string, block: any) {
+        constructor(description: string, block: any) {
             super(description, block);
             this.description = description;
             this.block = block;
@@ -351,7 +393,7 @@ module Harness {
         public description: string;
         public block;
 
-        constructor (description: string, block: any) {
+        constructor(description: string, block: any) {
             super(description, block);
             this.description = description;
             this.block = block;
@@ -370,7 +412,7 @@ module Harness {
                 if (e) {
                     that.passed = false;
                     that.error = e;
-                    var metadata: IScenarioMetadata = { id: undefined, desc: this.description, pass: false, bugs: assert.bugIds};
+                    var metadata: IScenarioMetadata = { id: undefined, desc: this.description, pass: false, bugs: assert.bugIds };
                     // Report all bugs affecting this scenario
                     assert.bugIds.forEach(desc => emitLog('bug', metadata, desc));
                     emitLog('scenarioEnd', metadata, e);
@@ -410,7 +452,7 @@ module Harness {
         }
     }
     export class Run extends Runnable {
-        constructor () {
+        constructor() {
             super('Test Run', null);
         }
 
@@ -649,7 +691,7 @@ module Harness {
             }
 
             public Close() {
-                this.lines.push(this.currentLine);
+                if (this.currentLine.length > 0) { this.lines.push(this.currentLine); }
                 this.currentLine = "";
             }
 
@@ -659,20 +701,74 @@ module Harness {
             }
         }
 
+        // Mimics having multiple files, later concatenated to a single file.
+        export class EmitterIOHost implements TypeScript.EmitterIOHost {
+
+            private fileCollection = {};
+
+            // create file gets the whole path to create, so this works as expected with the --out parameter
+            public createFile(s: string, useUTF8?: bool): ITextWriter {
+
+                if (this.fileCollection[s]) {
+                    return <ITextWriter>this.fileCollection[s];
+                }
+
+                var writer = new Harness.Compiler.WriterAggregator();
+                this.fileCollection[s] = writer;
+                return writer;
+            }
+
+            public directoryExists(s: string) { return false; }
+            public fileExists(s: string) { return typeof this.fileCollection[s] !== 'undefined'; }
+            public resolvePath(s: string) { return s; }
+
+            public reset() { this.fileCollection = {}; }
+
+            public toArray(): { filename: string; file: WriterAggregator; }[] {
+                var result: { filename: string; file: WriterAggregator; }[] = [];
+
+                for (var p in this.fileCollection) {
+                    if (this.fileCollection.hasOwnProperty(p)) {
+                        var current = <Harness.Compiler.WriterAggregator>this.fileCollection[p];
+                        if (current.lines.length > 0) {
+                            if (p !== '0.js') { current.lines.unshift('////[' + p + ']'); }
+                            result.push({ filename: p, file: this.fileCollection[p] });
+                        }
+                    }
+                }
+
+                return result;
+            }
+        }
+
         var libFolder: string = global['WScript'] ? TypeScript.filePath(global['WScript'].ScriptFullName) : (__dirname + '/');
         export var libText = IO ? IO.readFile(libFolder + "lib.d.ts") : '';
 
-        var stdout = new WriterAggregator();
+        var stdout = new EmitterIOHost();
         var stderr = new WriterAggregator();
-        var currentUnit = 0;
-        var maxUnit = 0;
 
-        export var compiler: TypeScript.TypeScriptCompiler;
+        export function isDeclareFile(filename: string) {
+            return /\.d\.ts$/.test(filename);
+        }
+
+        export function makeDefaultCompilerForTest(c?: TypeScript.TypeScriptCompiler) {
+            var compiler = c || new TypeScript.TypeScriptCompiler(stderr);
+            compiler.parser.errorRecovery = true;
+            compiler.settings.codeGenTarget = TypeScript.CodeGenTarget.ES5;
+            compiler.settings.controlFlow = true;
+            compiler.settings.controlFlowUseDef = true;
+            compiler.parseEmitOption(stdout);
+            TypeScript.moduleGenTarget = TypeScript.ModuleGenTarget.Synchronous;
+            compiler.addUnit(Harness.Compiler.libText, "lib.d.ts", true);
+            return compiler;
+        }
+
+        var compiler: TypeScript.TypeScriptCompiler;
         recreate();
 
         // Types
         export class Type {
-            constructor (public type, public code, public identifier) { }
+            constructor(public type, public code, public identifier) { }
 
             public normalizeToArray(arg: any) {
                 if ((Array.isArray && Array.isArray(arg)) || arg instanceof Array)
@@ -807,14 +903,14 @@ module Harness {
             public string: Type;
             public bool: Type;
 
-            constructor () {
+            constructor() {
                 this.any = this.get('var x : any', 'x');
                 this.number = this.get('var x : number', 'x');
                 this.string = this.get('var x : string', 'x');
                 this.bool = this.get('var x : bool', 'x');
             }
 
-            public get(code: string, identifier: string) {
+            public get (code: string, identifier: string) {
                 var errors = null;
                 compileString(code, 'test.ts', function (compilerResult) {
                     errors = compilerResult.errors;
@@ -823,14 +919,28 @@ module Harness {
                 if (errors.length > 0)
                     throw new Error("Type definition contains errors: " + errors.join(","));
 
-                // REVIEW: For a multi-file test, this won't work
-                var script = compiler.scripts.members[1];
-                var enclosingScopeContext = TypeScript.findEnclosingScopeAt(new TypeScript.NullLogger(), <TypeScript.Script>script, new TypeScript.StringSourceText(code), 0, false);
-                var entries = new TypeScript.ScopeTraversal(compiler).getScopeEntries(enclosingScopeContext);
-                for (var i = 0; i < entries.length; i++) {
-                    if (entries[i].name === identifier) {
-                        return new Type(entries[i].type, code, identifier);
+                var matchingIdentifiers = [];
+
+                // This will find the requested identifier in the first script where it's present, a naive search of each member in each script,
+                // which means this won't play nicely if the same identifier is used in multiple units, but it will enable this to work on multi-file tests.
+                // m = 1 because the first script will always be lib.d.ts which we don't want to search.                                
+                for (var m = 1; m < compiler.scripts.members.length; m++) {
+                    var script = compiler.scripts.members[m];
+                    var enclosingScopeContext = TypeScript.findEnclosingScopeAt(new TypeScript.NullLogger(), <TypeScript.Script>script, new TypeScript.StringSourceText(code), 0, false);
+                    var entries = new TypeScript.ScopeTraversal(compiler).getScopeEntries(enclosingScopeContext);
+
+                    for (var i = 0; i < entries.length; i++) {
+                        if (entries[i].name === identifier) {
+                            matchingIdentifiers.push(new Type(entries[i].type, code, identifier));
+                        }
                     }
+                }
+
+                if (matchingIdentifiers.length === 0) {
+                    throw new Error("Could not find an identifier " + identifier + " in any known scopes");
+                }
+                else {
+                    return matchingIdentifiers[0];
                 }
             }
 
@@ -843,40 +953,64 @@ module Harness {
             }
         }
 
-        export function generateDeclFile(code: string, verifyNoDeclFile: bool): string {
+        export function generateDeclFile(code: string, verifyNoDeclFile: bool, unitName?: string, compilationContext?: Harness.Compiler.CompilationContext, references?: TypeScript.IFileReference[]): string {
             reset();
 
             compiler.settings.generateDeclarationFiles = true;
-            var oldOutputMany = compiler.settings.outputMany;
+            var oldOutputOption = compiler.settings.outputOption;
+            var oldEmitterIOHost = compiler.emitSettings.ioHost;
             try {
-                addUnit(code);
+                if (compilationContext && compilationContext.preCompile) {
+                    compilationContext.preCompile();
+                }
+
+                addUnit(code, unitName, false, false, references);
                 compiler.reTypeCheck();
 
                 var outputs = {};
 
-                compiler.settings.outputMany = true;
-                compiler.emitDeclarationFile((fn: string) => {
-                    outputs[fn] = new Harness.Compiler.WriterAggregator();
-                    return outputs[fn];
-                });
+                compiler.settings.outputOption = "";
+                compiler.parseEmitOption(
+                    {
+                        createFile: (fn: string) => {
+                            outputs[fn] = new Harness.Compiler.WriterAggregator();
+                            return outputs[fn];
+                        },
+                        directoryExists: (path: string) => true,
+                        fileExists: (path: string) => true,
+                        resolvePath: (path: string) => path
+                    });
+                compiler.emitDeclarations();
 
+                var results: string = null;
                 for (var fn in outputs) {
                     if (fn.indexOf('.d.ts') >= 0) {
                         var writer = <Harness.Compiler.WriterAggregator>outputs[fn];
                         writer.Close();
-                        if (verifyNoDeclFile) {
+                        results = writer.lines.join('\n');
+                        if (verifyNoDeclFile && results != "") {
                             throw new Error('Compilation should not produce ' + fn);
                         }
-                        return writer.lines.join('\n');
                     }
                 }
 
+                if (results) {
+                    return results;
+                }
+
                 if (!verifyNoDeclFile) {
-                    throw new Error('Compilation did not produced .d.ts files');
+                    throw new Error('Compilation did not produce .d.ts files');
                 }
             } finally {
                 compiler.settings.generateDeclarationFiles = false;
-                compiler.settings.outputMany = oldOutputMany;
+                compiler.settings.outputOption = oldOutputOption;
+                compiler.parseEmitOption(oldEmitterIOHost);
+                if (compilationContext && compilationContext.postCompile) {
+                    compilationContext.postCompile();
+                }
+
+                var uName = unitName || '0.ts';
+                compiler.updateUnit('', uName, false/*setRecovery*/);
             }
 
             return '';
@@ -887,8 +1021,12 @@ module Harness {
             public code: string;
             public errors: CompilerError[];
 
-            constructor (codeLines: string[], errorLines: string[], public scripts: TypeScript.Script[]) {
-                this.code = codeLines.join("\n")
+            // fileResults is an array of a string for the filename and an ITextWriter with its code
+            constructor(public fileResults: { filename: string; file: WriterAggregator; }[], errorLines: string[], public scripts: TypeScript.Script[]) {
+                var lines = [];
+                fileResults.forEach(v => lines = lines.concat(v.file.lines));
+                this.code = lines.join("\n")
+
                 this.errors = [];
 
                 for (var i = 0; i < errorLines.length; i++) {
@@ -914,7 +1052,7 @@ module Harness {
 
         // Compiler Error.
         export class CompilerError {
-            constructor (public file: string,
+            constructor(public file: string,
                     public line: number,
                     public column: number,
                     public message: string) { }
@@ -925,93 +1063,306 @@ module Harness {
         }
 
         export function recreate() {
-            compiler = new TypeScript.TypeScriptCompiler(stderr);
-            compiler.parser.errorRecovery = true;
-            compiler.settings.codeGenTarget = TypeScript.CodeGenTarget.ES5;
-            compiler.settings.controlFlow = true;
-            compiler.settings.controlFlowUseDef = true;
-            TypeScript.moduleGenTarget = TypeScript.ModuleGenTarget.Synchronous;
-            compiler.addUnit(libText, 'lib.d.ts', true);
+            compiler = makeDefaultCompilerForTest();
             compiler.typeCheck();
-            currentUnit = 0;
-            maxUnit = 0;
         }
+
         export function reset() {
             stdout.reset();
             stderr.reset();
 
-            for (var i = 0; i < currentUnit; i++) {
-                compiler.updateUnit('', i + '.ts', false/*setRecovery*/);
+            var files = compiler.units.map((value) => value.filename);
+
+            for (var i = 0; i < files.length; i++) {
+                var fname = files[i];
+                compiler.updateUnit('', fname, false/*setRecovery*/);
             }
 
             compiler.errorReporter.hasErrors = false;
-            currentUnit = 0;
         }
 
-        export function addUnit(code: string, isResident?: bool, isDeclareFile?: bool) {
+        // Defines functions to invoke before compiling a piece of code and a post compile action intended to clean up the
+        // effects of preCompile, preferably with something lighter weight than a full recreate()
+        export interface CompilationContext {
+            filename: string;
+            preCompile: () => void;
+            postCompile: () => void;
+        }
+
+        export function addUnit(code: string, unitName?: string, isResident?: bool, isDeclareFile?: bool, references?: TypeScript.IFileReference[]) {
             var script: TypeScript.Script = null;
-            if (currentUnit >= maxUnit) {
-                script = compiler.addUnit(code, currentUnit++ + (isDeclareFile ? '.d.ts' : '.ts'), isResident);
-                maxUnit++;
-            } else {
-                var filename = currentUnit + (isDeclareFile ? '.d.ts' : '.ts');
-                compiler.updateUnit(code, filename, false/*setRecovery*/);
+            var uName = unitName || '0' + (isDeclareFile ? '.d.ts' : '.ts');
 
-                for (var i = 0; i < compiler.units.length; i++) {
-                    if (compiler.units[i].filename === filename)
-                        script = <TypeScript.Script>compiler.scripts.members[i];
+            for (var i = 0; i < compiler.units.length; i++) {
+                if (compiler.units[i].filename === uName) {
+                    compiler.updateUnit(code, uName, false/*setRecovery*/);
+                    script = <TypeScript.Script>compiler.scripts.members[i];
                 }
-
-                currentUnit++;
+            }
+            if (!script) {
+                script = compiler.addUnit(code, uName, isResident, references);
             }
 
             return script;
         }
 
-        export function compileUnit(path: string, callback: (res: CompilerResult) => void , settingsCallback?: () => void ) {
-            if (settingsCallback) {
-                settingsCallback();
-            }
+        export function updateUnit(code: string, unitName: string, setRecovery?: bool) {
+            compiler.updateUnit(code, unitName, setRecovery);
+        }
+
+        export function compileFile(path: string, callback: (res: CompilerResult) => void , settingsCallback?: (settings?: TypeScript.CompilationSettings) => void , context?: CompilationContext, references?: TypeScript.IFileReference[]) {
             path = switchToForwardSlashes(path);
-            compileString(readFile(path), path.match(/[^\/]*$/)[0], callback);
+            var filename = path.match(/[^\/]*$/)[0];
+            var code = readFile(path);            
+
+            compileUnit(code, filename, callback, settingsCallback, context, references);
         }
-        export function compileUnits(callback: (res: Compiler.CompilerResult) => void, settingsCallback?: () => void ) {
-            reset();
+
+        export function compileUnit(code: string, filename: string, callback: (res: CompilerResult) => void, settingsCallback?: (settings?: TypeScript.CompilationSettings) => void, context?: CompilationContext, references?: TypeScript.IFileReference[]) {
+            // not recursive
+            function clone/* <T> */(source: any, target: any) {
+                for (var prop in source) {
+                    target[prop] = source[prop];
+                }
+            }
+
+            var oldCompilerSettings = new TypeScript.CompilationSettings();
+            clone(compiler.settings, oldCompilerSettings);
+            var oldEmitSettings = new TypeScript.EmitOptions(compiler.settings);
+            clone(compiler.emitSettings, oldEmitSettings);
+
+            var oldModuleGenTarget = TypeScript.moduleGenTarget;
+
             if (settingsCallback) {
-                settingsCallback();
-            } 
-            
-            compiler.reTypeCheck();
-            compiler.emitToOutfile(stdout);
-
-            callback(new CompilerResult(stdout.lines, stderr.lines, []));
-            
-            recreate();
-            reset();
+                settingsCallback(compiler.settings);
+                compiler.emitSettings = new TypeScript.EmitOptions(compiler.settings);
+            }
+            try {
+                compileString(code, filename, callback, context, references);
+            } finally {
+                // If settingsCallback exists, assume that it modified the global compiler instance's settings in some way.
+                // So that a test doesn't have side effects for tests run after it, restore the compiler settings to their previous state.
+                if (settingsCallback) {
+                    compiler.settings = oldCompilerSettings;
+                    compiler.emitSettings = oldEmitSettings;
+                    TypeScript.moduleGenTarget = oldModuleGenTarget;
+                }
+            }
         }
-        export function compileString(code: string, unitName: string, callback: (res: Compiler.CompilerResult) => void , refreshUnitsForLSTests? = false) {
+
+        export function compileUnits(units: TestCaseParser.TestUnitData[], callback: (res: Compiler.CompilerResult) => void , settingsCallback?: () => void ) {
+            var lastUnit = units[units.length - 1];
+            var basePath = 'tests/cases/compiler/';
+            var unitPath = switchToForwardSlashes(basePath + lastUnit.name).match(/[^\/]*$/)[0];
+
+            var dependencies = units.slice(0, units.length - 1);
+            var compilationContext = Harness.Compiler.defineCompilationContextForTest(unitPath, dependencies);
+
+            compileUnit(lastUnit.content, unitPath, callback, settingsCallback, compilationContext, lastUnit.references);            
+        }
+
+        export function compileString(code: string, unitName: string, callback: (res: Compiler.CompilerResult) => void , context?: CompilationContext, references?: TypeScript.IFileReference[]) {
             var scripts: TypeScript.Script[] = [];
-
-            // TODO: How to overload?
-            if (typeof unitName === 'function') {
-                callback = <(res: CompilerResult) => void >(<any>unitName);
-                unitName = 'test.ts';
-            }
-
+            
             reset();
 
-            // Some command-line tests may pollute the global namespace, which could interfere with
-            // with language service testing.
-            // In the case of LS tests, make sure that we refresh the first unit, and not try to update it
-            if (refreshUnitsForLSTests) {
-                maxUnit = 0;
+            if (context) {
+                context.preCompile();
             }
 
-            scripts.push(addUnit(code));
-            compiler.reTypeCheck();
-            compiler.emitToOutfile(stdout);
+            // for single file tests just add them as using the old '0.ts' naming scheme
+            var uName = context ? unitName : '0.ts';
+            scripts.push(addUnit(code, uName, false, Harness.Compiler.isDeclareFile(unitName), references));
 
-            callback(new CompilerResult(stdout.lines, stderr.lines, scripts));
+            compiler.reTypeCheck();
+            compiler.emit(stdout);
+
+            // output decl file
+            compiler.emitDeclarations();
+
+            if (context) {
+                context.postCompile();
+            }
+
+            callback(new CompilerResult(stdout.toArray(), stderr.lines, scripts));
+        }
+
+        // Returns a set of functions which can be later executed to add and remove given dependencies to the compiler so that
+        // a file can be successfully compiled. These functions will add/remove named units and code to the compiler for each dependency.
+        export function defineCompilationContextForTest(filename: string, dependencies: TestCaseParser.TestUnitData[]): CompilationContext {
+            // if the given file has no dependencies, there is no context to return, it can be compiled without additional work
+            if (dependencies.length == 0) {
+                return null;
+            } else {
+                var addedFiles = [];
+                var precompile = () => {
+                    // REVIEW: if any dependency has a triple slash reference then does postCompile potentially have to do a recreate since we can't update references with updateUnit?
+                    // easy enough to do if so, prefer to avoid the recreate cost until it proves to be an issue
+                    dependencies.forEach(dep => {
+                        addUnit(dep.content, dep.name, false, Harness.Compiler.isDeclareFile(dep.name));
+                        addedFiles.push(dep.name);
+                    });
+                };
+                var postcompile = () => {
+                    addedFiles.forEach(file => {
+                        Harness.Compiler.updateUnit('', file, false/*setRecovery*/);
+                    });
+                };
+                var context = {
+                    filename: filename,
+                    preCompile: precompile,
+                    postCompile: postcompile
+                };
+                return context;
+            }
+        }
+    }
+
+    // Parses the test cases files 
+    // extracts options and individual files in a multifile test
+    export module TestCaseParser {
+
+        // all the necesarry information to set the 
+        // right compiler settings
+        export interface CompilerSetting {
+            flag: string;
+            value: string;
+        }
+
+        // All the necessary information to turn a multi file test into useful units for later compilation
+        export interface TestUnitData {
+            content: string;
+            name: string;
+            originalFilePath: string;
+            references: TypeScript.IFileReference[];
+        }
+
+        // Regex for parsing options in the format "@Alpha: Value of any sort"
+        private optionRegex = /^[\/]{2}\s*@(\w+):\s*(\S*)/gm;  // multiple matches on multiple lines
+
+        // List of allowed metadata names
+        var fileMetadataNames = ["filename", "comments", "declaration", "module", "nolib", "sourcemap", "target", "out", ];
+
+        function isMultiFileTest(code: string) {
+            return (code.indexOf('// @Filename') != -1);
+        }
+
+        function extractCompilerSettings(content: string): CompilerSetting[] {
+
+            var opts = [];
+
+            var match;
+            while ((match = optionRegex.exec(content)) != null) {
+                opts.push({ flag: match[1], value: match[2] });
+            }
+
+            return opts;
+        }
+
+        // Given a test file containing // @Filename directives, return an array of named units of code to be added to an existing compiler instance
+        export function makeUnitsFromTest(code: string, filename: string): { settings: CompilerSetting[]; testUnitData: TestUnitData[]; } {
+
+            var settings = extractCompilerSettings(code);
+
+            if (!isMultiFileTest(code)) {
+                return { settings: settings, testUnitData: [{ content: code, name: filename, originalFilePath: filename, references: [] }] };
+            } else {
+
+                // List of all the subfiles we've parsed out
+                var files: TestUnitData[] = [];
+
+                var lines = splitContentByNewlines(code);
+
+                // Stuff related to the subfile we're parsing
+                var currentFileContent: string = null;
+                var currentFileOptions = {};
+                var currentFileName = null;
+
+                var refs: TypeScript.IFileReference[] = null;
+                for (var i = 0; i < lines.length; i++) {
+                    var line = lines[i];
+                    var isTripleSlashReference = /[\/]{3}\s*<reference path/.test(line);
+                    var testMetaData = optionRegex.exec(line);
+                    // Triple slash references need to be tracked as they are added to the compiler as an additional parameter to addUnit
+                    if (isTripleSlashReference) {
+                        var isRef = line.match(/reference\spath='(\w*_?\w*\.?d?\.ts)'/);
+                        if (isRef) {
+                            var ref = {
+                                minChar: 0,
+                                limChar: 0,
+                                path: isRef[1],
+                                isResident: false
+                            };
+
+                            if (!refs) {
+                                refs = [];
+                            }
+                            refs.push(ref);
+                        }
+                    } else if (testMetaData) {
+                        // Comment line, check for global/file @options and record them
+                        optionRegex.lastIndex = 0;
+                        var fileNameIndex = fileMetadataNames.indexOf(testMetaData[1].toLowerCase());
+                        if (fileNameIndex == -1) {
+                            throw new Error('Unrecognized metadata name "' + testMetaData[1] + '". Available file metadata names are: ' + fileMetadataNames.join(', '));
+                        } else if (fileNameIndex == 0) {
+                            currentFileOptions[testMetaData[1]] = testMetaData[2];
+                        } else {
+                            continue;
+                        }
+
+                        // New metadata statement after having collected some code to go with the previous metadata
+                        if (currentFileName) {
+                            // Store result file
+                            var newTestFile =
+                                {
+                                    content: currentFileContent,
+                                    name: currentFileName,
+                                    fileOptions: currentFileOptions,
+                                    originalFilePath: filename,
+                                    references: refs
+                                };
+                            files.push(newTestFile);
+
+                            // Reset local data
+                            currentFileContent = null;
+                            currentFileOptions = {};
+                            currentFileName = testMetaData[2];
+                            refs = null;
+                        } else {
+                            // First metadata marker in the file
+                            currentFileName = testMetaData[2];
+                        }
+                    } else {
+                        // Subfile content line
+                        // Append to the current subfile content, inserting a newline needed
+                        if (currentFileContent === null) {
+                            currentFileContent = '';
+                        } else {
+                            // End-of-line
+                            currentFileContent = currentFileContent + '\n';
+                        }
+                        currentFileContent = currentFileContent + line;
+                    }
+                }
+
+                // EOF, push whatever remains
+                var newTestFile =
+                    {
+                        content: currentFileContent,
+                        name: currentFileName,
+                        fileOptions: currentFileOptions,
+                        originalFilePath: filename,
+                        references: refs || []
+                    };
+                files.push(newTestFile);
+
+                if (files.length < 2) {
+                    throw new Error("Only parsed 0 or 1 units out of a supposed multi file test. \'" + filename + "\'");
+                }
+
+                return { settings: settings, testUnitData: files };
+            }
         }
     }
 
@@ -1019,7 +1370,7 @@ module Harness {
         public version: number;
         public editRanges: { length: number; editRange: TypeScript.ScriptEditRange; }[] = [];
 
-        constructor (public name: string, public content: string, public isResident: bool, public maxScriptVersions: number) {
+        constructor(public name: string, public content: string, public isResident: bool, public maxScriptVersions: number) {
             this.version = 1;
         }
 
@@ -1417,94 +1768,127 @@ module Harness {
         }
 
         export function reset() {
-            IO.deleteFile(reportFilename);
+            if (IO.fileExists(reportFilename)) {
+                IO.deleteFile(reportFilename);
+            }
+        }
+
+        function prepareBaselineReport(): string {
+            var reportContent = htmlLeader;
+            // Delete the baseline-report.html file if needed
+            if (IO.fileExists(reportFilename)) {
+                reportContent = IO.readFile(reportFilename);
+                reportContent = reportContent.replace(htmlTrailer, '');
+            } else {
+                reportContent = htmlLeader;
+            }
+            return reportContent;
+        }
+
+        function generateActual(actualFilename: string, generateContent: () => string): string {
+            // Create folders if needed
+            IO.createDirectory(IO.dirName(IO.dirName(actualFilename)));
+            IO.createDirectory(IO.dirName(actualFilename));
+
+            // Delete the actual file in case it fails
+            if (IO.fileExists(actualFilename)) {
+                IO.deleteFile(actualFilename);
+            }
+
+            var actual = generateContent();
+
+            if (actual === undefined) {
+                throw new Error('The generated content was "undefined". Return "null" if no baselining is required."');
+            }
+
+            // Store the content in the 'local' folder so we
+            // can accept it later (manually)
+            if (actual !== null) {
+                IO.writeFile(actualFilename, actual);
+            }
+
+            return actual;
+        }
+
+        function compareToBaseline(actual: string, relativeFilename: string, opts: BaselineOptions) {
+            // actual is now either undefined (the generator had an error), null (no file requested),
+            // or some real output of the function
+            if (actual === undefined) {
+                // Nothing to do
+                return;
+            }
+
+            var refFilename = referencePath(relativeFilename);
+
+            if (actual === null) {
+                actual = '<no content>';
+            }
+
+            var expected = '<no content>';
+            if (IO.fileExists(refFilename)) {
+                expected = IO.readFile(refFilename);
+            }
+
+            var lineEndingSensitive = opts && opts.LineEndingSensitive;
+
+            if (!lineEndingSensitive) {
+                expected = expected.replace(/\r\n?/g, '\n')
+                actual = actual.replace(/\r\n?/g, '\n')
+            }
+
+            return { expected: expected, actual: actual };
+        }
+
+        function writeComparison(expected: string, actual: string, relativeFilename: string, actualFilename: string, descriptionForDescribe: string, reportContentSoFar: string) {
+            if (expected != actual) {
+                // Overwrite & issue error
+                var errMsg = 'The baseline file ' + relativeFilename + ' has changed. Please refer to baseline-report.html and ';
+                errMsg += 'either fix the regression (if unintended) or run nmake baseline-accept (if intended).'
+
+                var refFilename = referencePath(relativeFilename);
+
+                // Append diff to the report
+                var diff = new Diff.StringDiff(expected, actual);
+                var header = '<h2>' + descriptionForDescribe + '</h2>';
+                header += '<h4>Left file: ' + actualFilename + '; Right file: ' + refFilename + '</h4>';
+                var trailer = '<hr>';
+                reportContentSoFar = reportContentSoFar + header + '<div class="code">' + diff.mergedHtml + '</div>' + trailer + htmlTrailer;
+                IO.writeFile(reportFilename, reportContentSoFar);
+
+                throw new Error(errMsg);
+            }
         }
 
         export function runBaseline(
             descriptionForDescribe: string,
             relativeFilename: string,
             generateContent: () => string,
+            runImmediately? = false,
             opts?: BaselineOptions) {
 
-            describe(descriptionForDescribe, () => {
-                var reportContent = htmlLeader;
-                // Delete the baseline-report.html file if needed
-                if (IO.fileExists(reportFilename)) {
-                    reportContent = IO.readFile(reportFilename);
-                    reportContent = reportContent.replace(htmlTrailer, '');
-                } else {
-                    reportContent = htmlLeader;
-                }
+            var actual = <string>undefined;
+            var actualFilename = localPath(relativeFilename);
 
-                var actual = <string>undefined;
-                var actualFilename = localPath(relativeFilename);
+            if (runImmediately) {
+                var reportContent = prepareBaselineReport();
+                var actual = generateActual(actualFilename, generateContent);
+                var comparison = compareToBaseline(actual, relativeFilename, opts);
+                writeComparison(comparison.expected, comparison.actual, relativeFilename, actualFilename, descriptionForDescribe, reportContent);
+            } else {
+                describe(descriptionForDescribe, () => {
+                    var reportContent = prepareBaselineReport();
+                    var actual: string;
 
-                it('Can generate the content without error', () => {
-                    // Create folders if needed
-                    IO.createDirectory(IO.dirName(IO.dirName(actualFilename)));
-                    IO.createDirectory(IO.dirName(actualFilename));
+                    it('Can generate the content without error', () => {
+                        actual = generateActual(actualFilename, generateContent);
+                    });
 
-                    // Delete the actual file in case it fails
-                    if (IO.fileExists(actualFilename)) {
-                        IO.deleteFile(actualFilename);
-                    }
-
-                    actual = generateContent();
-
-                    if (actual === undefined) {
-                        throw new Error('The generated content was "undefined". Return "null" if no baselining is required."');
-                    }
-
-                    // Store the content in the 'local' folder so we
-                    // can accept it later (manually)
-                    if (actual !== null) {
-                        IO.writeFile(localPath(relativeFilename), actual);
-                    }
+                    it('Matches the baseline file', () => {
+                        var comparison = compareToBaseline(actual, relativeFilename, opts);
+                        writeComparison(comparison.expected, comparison.actual, relativeFilename, actualFilename, descriptionForDescribe, reportContent);
+                    });
                 });
-
-                it('Matches the baseline file', () => {
-                    // actual is now either undefined (the generator had an error), null (no file requested),
-                    // or some real output of the function
-                    if (actual === undefined) {
-                        // Nothing to do
-                        return;
-                    }
-
-                    var refFilename = referencePath(relativeFilename);
-
-                    if (actual === null) {
-                        actual = '<no content>';
-                    }
-
-                    var expected = '<no content>';
-                    if (IO.fileExists(refFilename)) {
-                        expected = IO.readFile(refFilename);
-                    }
-
-                    var lineEndingSensitive = opts && opts.LineEndingSensitive;
-
-                    if (!lineEndingSensitive) {
-                        expected = expected.replace(/\r\n?/g, '\n')
-                        actual = actual.replace(/\r\n?/g, '\n')
-                    }
-
-                    if (expected != actual) {
-                        // Overwrite & issue error
-                        var errMsg = 'The baseline file ' + relativeFilename + ' has changed. Please refer to baseline-report.html and ';
-                        errMsg += 'either fix the regression (if unintended) or run nmake baseline-accept (if intended).'
-
-                        // Append diff to the report
-                        var diff = new Diff.StringDiff(expected, actual);
-                        var header = '<h2>' + descriptionForDescribe + '</h2>';
-                        header += '<h4>Left file: ' + actualFilename + '; Right file: ' + refFilename + '</h4>';
-                        var trailer = '<hr>';
-                        reportContent = reportContent + header + '<div class="code">' + diff.mergedHtml + '</div>' + trailer + htmlTrailer;
-                        IO.writeFile(reportFilename, reportContent);
-
-                        throw new Error(errMsg);
-                    }
-                });
-            });
+            }
         }
     }
 
