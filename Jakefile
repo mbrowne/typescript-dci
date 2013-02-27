@@ -159,6 +159,7 @@ function prependFile(prefixFile, destinationFile) {
 	fs.renameSync(temp, destinationFile);
 }
 
+var useDebugMode = false;
 /* Compiles a file from a list of sources
 	* @param outFile: the target file name
 	* @param sources: an array of the names of the source files
@@ -170,9 +171,12 @@ function compileFile(outFile, sources, prereqs, prefixes, useBuiltCompiler) {
 	file(outFile, prereqs, function() {
 		var dir = useBuiltCompiler ? builtLocalDirectory : LKGDirectory;
 		var cmd = (process.env.TYPESCRIPT_HOST || "Node") + " " + dir + "tsc.js -cflowu " + sources.join(" ") + " -out " + outFile;
+		if (useDebugMode) {
+			cmd = cmd + " -sourcemap -fullSourceMapPath";
+		}
 		console.log(cmd);
 		jake.exec([cmd], function() {
-			if (prefixes) {
+			if (!useDebugMode && prefixes) {
 				for (var i in prefixes) {
 					prependFile(prefixes[i], outFile);
 				}
@@ -206,6 +210,16 @@ compileFile(serviceFile, compilerSources.concat(servicesSources), [builtLocalDir
 // Local target to build the compiler and services
 desc("Builds the full compiler and services");
 task("local", libraryTargets.concat([typescriptFile, tscFile, serviceFile]));
+
+// Local target to build the compiler and services
+desc("Emit debug mode files with sourcemaps");
+task("setDebugMode", function() {
+    useDebugMode = true;
+});
+
+// Local target to build the compiler and services
+desc("Builds the full compiler and services in debug mode");
+task("local-debug", ["setDebugMode", "local"]);
 
 // Set the default task to "local"
 task("default", ["local"]);
@@ -253,7 +267,7 @@ task("tests", [run, serviceFile].concat(libraryTargets), function() {
 
 var localBaseline = "tests/baselines/local/";
 var refBaseline = "tests/baselines/reference/";
-desc("Runs the tests using the built run.js file. Syntax is jake :runtests[host, testFile]. Both parameters are optional.");
+desc("Runs the tests using the built run.js file. Syntax is jake runtests. Optional parameters 'host=' and 'tests='. Both parameters are optional.");
 task("runtests", ["tests", builtTestDirectory], function() {
 	// Clean the local baselines directory
 	if (fs.exists(localBaseline)) {
@@ -261,8 +275,9 @@ task("runtests", ["tests", builtTestDirectory], function() {
 	}
 	jake.mkdirP(localBaseline);
 	host = process.env.host || process.env.TYPESCRIPT_HOST || "Node";
-	test = process.env.test || "";
-	var cmd = host + " " + run + " " + test;
+	tests = process.env.test || process.env.tests;
+	tests = tests ? tests.split(',').join(' ') : ([].slice.call(arguments).join(' ') || "");
+	var cmd = host + " " + run + " " + tests;
 	console.log(cmd);
 	var ex = jake.createExec([cmd]);
 	// Add listeners for output and error

@@ -73,21 +73,21 @@ module FourSlashInterface {
 
         // Verifies the member list contains the specified symbol. The
         // member list is brought up if necessary
-        public memberListContains(symbol: string, type?: string, docComment?: string) {
+        public memberListContains(symbol: string, type?: string, docComment?: string, fullSymbolName?: string, kind?: string) {
             if (this.negative) {
                 FourSlash.currentTestState.verifyMemberListDoesNotContain(symbol);
             } else {
-                FourSlash.currentTestState.verifyMemberListContains(symbol, type, docComment);
+                FourSlash.currentTestState.verifyMemberListContains(symbol, type, docComment, fullSymbolName, kind);
             }
         }
 
         // Verifies the completion list contains the specified symbol. The
         // completion list is brought up if necessary
-        public completionListContains(symbol: string, type?: string, docComment?: string) {
+        public completionListContains(symbol: string, type?: string, docComment?: string, fullSymbolName?: string, kind?: string) {
             if (this.negative) {
                 FourSlash.currentTestState.verifyCompletionListDoesNotContain(symbol);
             } else {
-                FourSlash.currentTestState.verifyCompletionListContains(symbol, type, docComment);
+                FourSlash.currentTestState.verifyCompletionListContains(symbol, type, docComment, fullSymbolName, kind);
             }
         }
 
@@ -119,8 +119,8 @@ module FourSlashInterface {
             FourSlash.currentTestState.verifyErrorExistsAfterMarker(markerName, !this.negative, false);
         }
 
-        public quickInfoIs(typeName: string) {
-            FourSlash.currentTestState.verifyQuickInfo(typeName, this.negative);
+        public quickInfoIs(typeName: string, docComment?: string, symbolName?: string, kind?: string) {
+            FourSlash.currentTestState.verifyQuickInfo(typeName, this.negative, docComment, symbolName, kind);
         }
 
     }
@@ -167,16 +167,16 @@ module FourSlashInterface {
             FourSlash.currentTestState.verifyCurrentParameterHelpType(expected);
         }
 
-        public currentQuickInfoType(expected: string) {
-            FourSlash.currentTestState.verifyQuickInfoType(expected);
-        }
-
         public numberOfErrorsInCurrentFile(expected: number) {
             FourSlash.currentTestState.verifyNumberOfErrorsInCurrentFile(expected);
         }
 
         public baselineCurrentFileBreakpointLocations() {
             FourSlash.currentTestState.baselineCurrentFileBreakpointLocations();
+        }
+
+        public nameOrDottedNameSpanTextIs(text: string) {
+            FourSlash.currentTestState.verifyCurrentNameOrDottedNameSpanText(text);
         }
     }
     

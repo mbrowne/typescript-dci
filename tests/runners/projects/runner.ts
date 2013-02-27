@@ -14,7 +14,7 @@ class HarnessHost implements TypeScript.IResolverHost {
         var resolvedPaths: any = {};
 
         var postResolutionError =
-            function (errorFile: string, errorMessage: string) {
+            function (errorFile: string, line: number, col: number, errorMessage: string) {
                 TypeScript.CompilerDiagnostics.debugPrint("Could not resolve file '" + errorFile + "'" + (errorMessage == "" ? "" : ": " + errorMessage));
             }
 
@@ -1459,6 +1459,31 @@ class ProjectRunner extends RunnerBase {
                     , inputFiles: ['commands.ts']
                     , collectedFiles: ['fs.ts', 'server.ts', 'commands.ts']
                     , outputFiles: ['fs.js', 'server.js', 'commands.js']
+                    , verifyEmitFiles: true
+                    , skipRun: true
+            });
+
+
+            tests.push({
+                scenario: "Visibility of type used across modules"
+                    , projectRoot: 'tests/cases/projects/InvalidReferences'
+                    , inputFiles: ['main.ts']
+                    , collectedFiles: ['main.ts']
+                    , outputFiles: ['main.js']
+                    , verifyEmitFiles: false
+                    , skipRun: true
+                    , errors: [TypeScript.switchToForwardSlashes(IO.resolvePath(Harness.userSpecifiedroot)) + '/tests/cases/projects/InvalidReferences/main.ts(1,1): Incorrect reference: File contains reference to itself.'
+                        , TypeScript.switchToForwardSlashes(IO.resolvePath(Harness.userSpecifiedroot)) + '/tests/cases/projects/InvalidReferences/main.ts(2,1): Incorrect reference: referenced file: "nonExistingFile1.ts" cannot be resolved.'
+                        , TypeScript.switchToForwardSlashes(IO.resolvePath(Harness.userSpecifiedroot)) + '/tests/cases/projects/InvalidReferences/main.ts(3,1): Incorrect reference: referenced file: "nonExistingFile2.ts" cannot be resolved.']
+            });
+
+            tests.push({
+                scenario: "Prologue emit"
+                    , projectRoot: 'tests/cases/projects/PrologueEmit'
+                    , inputFiles: ['globalThisCapture.ts', '__extends.ts']
+                    , collectedFiles: ['globalThisCapture.ts', '__extends.ts']
+                    , outputFiles: ['out.js']
+                    , outputOption: 'out.js'
                     , verifyEmitFiles: true
                     , skipRun: true
             });

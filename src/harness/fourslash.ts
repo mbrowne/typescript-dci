@@ -77,6 +77,7 @@ module FourSlash {
 
         // The current caret position in the active file
         public currentCaretPosition = 0;
+        public lastKnownMarker: string = "";
 
         // The file that's currently 'opened'
         public activeFile: FourSlashFile = null;
@@ -105,7 +106,7 @@ module FourSlash {
             if (marker.position === -1 || marker.position > this.langSvc.getScriptSourceLength(this.getActiveFileIndex())) {
                 throw new Error('Marker "' + name + '" has been invalidated by unrecoverable edits to the file.');
             }
-
+            this.lastKnownMarker = name;
             this.currentCaretPosition = marker.position;
         }
 
@@ -206,11 +207,11 @@ module FourSlash {
             }
         }
 
-        public verifyMemberListContains(symbol: string, type?: string, docComment?: string) {
+        public verifyMemberListContains(symbol: string, type?: string, docComment?: string, fullSymbolName?: string, kind?: string) {
             var members = this.getMemberListAtCaret();
-            this.assertItemInCompletionList(members.entries, symbol, type, docComment);
+            this.assertItemInCompletionList(members.entries, symbol, type, docComment, fullSymbolName, kind);
         }
-
+        
         public verifyMemberListDoesNotContain(symbol: string) {
             var members = this.getMemberListAtCaret();
             if (members.entries.filter(e => e.name == symbol).length !== 0) {
@@ -258,9 +259,9 @@ module FourSlash {
             }
         }
 
-        public verifyCompletionListContains(symbol: string, type?: string, docComment?: string) {
+        public verifyCompletionListContains(symbol: string, type?: string, docComment?: string, fullSymbolName?: string, kind?: string) {
             var completions = this.getCompletionListAtCaret();
-            this.assertItemInCompletionList(completions.entries, symbol, type, docComment);
+            this.assertItemInCompletionList(completions.entries, symbol, type, docComment, fullSymbolName, kind);
         }
 
         public verifyCompletionListDoesNotContain(symbol: string) {
@@ -278,16 +279,34 @@ module FourSlash {
             return this.realLangSvc.getCompletionsAtPosition(this.activeFile.name, this.currentCaretPosition, false);
         }
 
-        public verifyQuickInfo(expectedTypeName: string, negative: number) {
+        public verifyQuickInfo(expectedTypeName: string, negative: number, docComment?: string, symbolName?: string, kind?: string) {
             var actualQuickInfo = this.realLangSvc.getTypeAtPosition(this.activeFile.name, this.currentCaretPosition);
-            var actualQuickInfoString = actualQuickInfo.memberName.toString();
-            if (actualQuickInfo.docComment != "") {
-                actualQuickInfoString += "\n" + actualQuickInfo.docComment;
-            }
+            var actualQuickInfoMemberName = actualQuickInfo ? actualQuickInfo.memberName.toString() : "";
+            var actualQuickInfoDocComment = actualQuickInfo ? actualQuickInfo.docComment : "";
+            var actualQuickInfoSymbolName = actualQuickInfo ? actualQuickInfo.fullSymbolName : "";
+            var actualQuickInfoKind = actualQuickInfo ? actualQuickInfo.kind : "";
             if (negative) {
-                assert.notEqual(actualQuickInfoString, expectedTypeName);
+                assert.notEqual(actualQuickInfoMemberName, expectedTypeName);
+                if (docComment != undefined) {
+                    assert.notEqual(actualQuickInfoDocComment, docComment);
+                }
+                if (symbolName != undefined) {
+                    assert.notEqual(actualQuickInfoSymbolName, symbolName);
+                }
+                if (kind != undefined) {
+                    assert.notEqual(actualQuickInfoKind, kind);
+                }
             } else {
-                assert.equal(actualQuickInfoString, expectedTypeName);
+                assert.equal(actualQuickInfoMemberName, expectedTypeName);
+                if (docComment != undefined) {
+                    assert.equal(actualQuickInfoDocComment, docComment);
+                }
+                if (symbolName != undefined) {
+                    assert.equal(actualQuickInfoSymbolName, symbolName);
+                }
+                if (kind != undefined) {
+                    assert.equal(actualQuickInfoKind, kind);
+                }
             }
         }
 
@@ -307,12 +326,6 @@ module FourSlash {
             assert.equal(this.getActiveParameter().type, typeName);
         }
 
-        public verifyQuickInfoType(expected: string) {
-            var memberName = this.realLangSvc.getTypeAtPosition(this.activeFile.name, this.currentCaretPosition).memberName;
-            var typeName = memberName.toString();
-            assert.equal(typeName, expected);
-        }
-
         public verifyCurrentSignatureHelpReturnType(returnTypeName: string) {
             var actualReturnType = this.getActiveSignatureHelp().returnType;
             assert.equal(actualReturnType, returnTypeName);
@@ -325,7 +338,8 @@ module FourSlash {
 
         public verifyCurrentSignatureHelpCount(expected: number) {
             var help = this.realLangSvc.getSignatureAtPosition(this.activeFile.name, this.currentCaretPosition);
-            assert.equal(help.formal.signatureGroup.length, expected);
+            var actual = help && help.formal ? help.formal.signatureGroup.length : 0;
+            assert.equal(actual, expected);
         }
 
         public verifySignatureHelpPresent(shouldBePresent = true) {
@@ -582,6 +596,22 @@ module FourSlash {
             }
         }
 
+        public verifyCurrentNameOrDottedNameSpanText(text: string) {
+            var span = this.realLangSvc.getNameOrDottedNameSpan(this.activeFile.name, this.currentCaretPosition, this.currentCaretPosition);
+            if (span === null) {
+                throw new Error('verifyCurrentNameOrDottedNameSpanText\n' +
+                           '\tExpected: "' + text + '"\n' +
+                           '\t  Actual: null');
+            }
+
+            var actual = this.langSvc.getScriptSourceText(this.getActiveFileIndex(), span.minChar, span.limChar);
+            if (actual !== text) {
+                throw new Error('verifyCurrentNameOrDottedNameSpanText\n' +
+                               '\tExpected: "' + text + '"\n' +
+                               '\t  Actual: "' + actual + '"');
+            }
+        }
+
         private getBOF(): number {
             return 0;
         }
@@ -617,12 +647,14 @@ module FourSlash {
             return this.langSvc.positionToLineCol(this.activeFile.name, this.currentCaretPosition);
         }
 
-        private assertItemInCompletionList(completionList: Services.CompletionEntry[], name: string, type?: string, docComment?: string) {
-            var items: { name: string; type: string; docComment: string; }[] = completionList.map(element => {
+        private assertItemInCompletionList(completionList: Services.CompletionEntry[], name: string, type?: string, docComment?: string, fullSymbolName?: string, kind?: string) {
+            var items: { name: string; type: string; docComment: string; fullSymbolName: string;  kind: string; }[] = completionList.map(element => {
                 return {
                     name: element.name,
                     type: element.type,
-                    docComment: element.docComment
+                    docComment: element.docComment,
+                    fullSymbolName: element.fullSymbolName,
+                    kind: element.kind
                 };
             });
 
@@ -635,12 +667,18 @@ module FourSlash {
                     if (type != undefined) {
                         assert.equal(item.type, type);
                     }
+                    if (fullSymbolName != undefined) {
+                        assert.equal(item.fullSymbolName, fullSymbolName);
+                    }
+                    if (kind != undefined) {
+                        assert.equal(item.kind, kind);
+                    }
                     return;
                 }
             }
 
-            var getItemString = (item: { name: string; type: string; docComment: string; }) => {
-                if (docComment == undefined && type == undefined) {
+            var getItemString = (item: { name: string; type: string; docComment: string; fullSymbolName: string; kind: string; }) => {
+                if (docComment == undefined && type == undefined && fullSymbolName == undefined && kind == undefined) {
                     return item.name;
                 }
 
@@ -650,6 +688,12 @@ module FourSlash {
                 }
                 if (docComment != undefined) {
                     returnString += ",docComment: " + item.docComment;
+                }
+                if (fullSymbolName != undefined) {
+                    returnString += ",fullSymbolName: " + item.fullSymbolName;
+                }
+                if (kind != undefined) {
+                    returnString += ",kind: " + item.kind;
                 }
                 returnString += " }"
 
@@ -661,7 +705,7 @@ module FourSlash {
             if (items.length > 10) {
                 itemsString += ', ...';
             }
-            throw new Error('Expected "' + getItemString({ name: name, type: type, docComment: docComment }) + '" to be in list [' + itemsString + ']');
+            throw new Error('Expected "' + getItemString({ name: name, type: type, docComment: docComment, fullSymbolName: fullSymbolName, kind: kind }) + '" to be in list [' + itemsString + ']');
         }
 
         private getScriptIndex(file: FourSlashFile) {
@@ -753,6 +797,11 @@ module FourSlash {
         assert.bugs(content);
 
         currentTestState = new TestState(testData);
+        var oldThrowAssertError = assert.throwAssertError;
+        assert.throwAssertError = (error: Error) => {
+            error.message = "Marker: " + currentTestState.lastKnownMarker + "\n" + error.message;
+            throw error;
+        }
 
         var mockFilename = 'test_input.ts';
         if (fsCompiler === undefined) {
@@ -793,6 +842,7 @@ module FourSlash {
 
         // Compile and execute the test
         eval(result);
+        assert.throwAssertError = oldThrowAssertError;
     }
 
     function chompLeadingSpace(content: string) {
