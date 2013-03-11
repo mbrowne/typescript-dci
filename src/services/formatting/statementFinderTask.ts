@@ -30,7 +30,7 @@ module Formatting {
                 var startPos = -1;
                 var node = parseCursor.SeekToOffset(this.semicolonPoint.position, /*excludeEndOffset*/ true);
 
-                while (node && node.Kind !== AuthorParseNodeKind.apnkEmpty && node.nodeType !== TypeScript.NodeType.List) {
+                while (node && node.Kind !== AuthorParseNodeKind.apnkEmpty && node.Kind !== AuthorParseNodeKind.apnkEmptyNode && node.nodeType !== TypeScript.NodeType.List) {
                     if ((node.EndOffset - 1) === this.semicolonPoint.position) {
                         startPos = node.StartOffset;
                     }
