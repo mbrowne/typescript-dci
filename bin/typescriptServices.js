@@ -32639,7 +32639,7 @@ var Formatting;
  {
                 var startPos = -1;
                 var node = parseCursor.SeekToOffset(this.semicolonPoint.position, true);
-                while(node && node.Kind !== Formatting.AuthorParseNodeKind.apnkEmpty && node.nodeType !== TypeScript.NodeType.List) {
+                while(node && node.Kind !== Formatting.AuthorParseNodeKind.apnkEmpty && node.Kind !== Formatting.AuthorParseNodeKind.apnkEmptyNode && node.nodeType !== TypeScript.NodeType.List) {
                     if((node.EndOffset - 1) === this.semicolonPoint.position) {
                         startPos = node.StartOffset;
                     }
