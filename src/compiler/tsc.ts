@@ -114,7 +114,7 @@ class BatchCompiler {
     public compilationEnvironment: TypeScript.CompilationEnvironment;
     public resolvedEnvironment: TypeScript.CompilationEnvironment = null;
     public hasResolveErrors: boolean = false;
-    public compilerVersion = "0.9.0.0";
+    public compilerVersion = "0.9.0.alpha";
     public printedVersion = false;
     public errorReporter: ErrorReporter = null;
 
