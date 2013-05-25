@@ -1389,7 +1389,7 @@ module TypeScript {
 
         public resolveFunctionTypeSignature(funcDeclAST: FunctionDeclaration, enclosingDecl: PullDecl, context: PullTypeResolutionContext): PullTypeSymbol {
             var funcDeclSymbolAndDiagnostics = this.getSymbolAndDiagnosticsForAST(funcDeclAST);
-            var funcDeclSymbol = funcDeclSymbolAndDiagnostics && <PullFunctionTypeSymbol>funcDeclSymbolAndDiagnostics.symbol;
+            var funcDeclSymbol = funcDeclSymbolAndDiagnostics && <PullTypeSymbol>funcDeclSymbolAndDiagnostics.symbol;
 
             if (!funcDeclSymbol) {
                 var semanticInfo = this.semanticInfoChain.getUnit(this.unitPath);
@@ -1414,7 +1414,7 @@ module TypeScript {
                     binder.bindFunctionTypeDeclarationToPullSymbol(functionDecl);
                 }
 
-                funcDeclSymbol = <PullFunctionTypeSymbol>functionDecl.getSymbol();
+                funcDeclSymbol = <PullTypeSymbol>functionDecl.getSymbol();
             }
 
             var signature = funcDeclSymbol.getKind() === PullElementKind.ConstructorType ? funcDeclSymbol.getConstructSignatures()[0] : funcDeclSymbol.getCallSignatures()[0];
@@ -1552,7 +1552,7 @@ module TypeScript {
                 binder.setUnit(this.unitPath);
                 binder.bindObjectTypeDeclarationToPullSymbol(interfaceDecl);
 
-                interfaceSymbol = <PullFunctionTypeSymbol>interfaceDecl.getSymbol();
+                interfaceSymbol = <PullTypeSymbol>interfaceDecl.getSymbol();
             }
 
             if (interfaceDeclAST.members) {
@@ -2018,7 +2018,7 @@ module TypeScript {
 
             var funcDecl: PullDecl = this.getDeclForAST(funcDeclAST);
 
-            var funcSymbol = <PullFunctionTypeSymbol>funcDecl.getSymbol();
+            var funcSymbol = <PullTypeSymbol>funcDecl.getSymbol();
 
             var signature: PullSignatureSymbol = funcDecl.getSpecializingSignatureSymbol();
 
@@ -2162,7 +2162,7 @@ module TypeScript {
             var accessorSymbol = <PullAccessorSymbol> funcDecl.getSymbol();
 
             var getterSymbol = accessorSymbol.getGetter();
-            var getterTypeSymbol = <PullFunctionTypeSymbol>getterSymbol.getType();
+            var getterTypeSymbol = <PullTypeSymbol>getterSymbol.getType();
 
             var signature: PullSignatureSymbol = getterTypeSymbol.getCallSignatures()[0];
 
@@ -2283,7 +2283,7 @@ module TypeScript {
             var accessorSymbol = <PullAccessorSymbol> funcDecl.getSymbol();
 
             var setterSymbol = accessorSymbol.getSetter();
-            var setterTypeSymbol = <PullFunctionTypeSymbol>setterSymbol.getType();
+            var setterTypeSymbol = <PullTypeSymbol>setterSymbol.getType();
 
             var signature: PullSignatureSymbol = setterTypeSymbol.getCallSignatures()[0];
 
@@ -3212,7 +3212,7 @@ module TypeScript {
 
             var shouldContextuallyType = inContextuallyTypedAssignment;
 
-            var assigningFunctionTypeSymbol: PullFunctionTypeSymbol = null;
+            var assigningFunctionTypeSymbol: PullTypeSymbol = null;
             var assigningFunctionSignature: PullSignatureSymbol = null;
 
             if (funcDeclAST.returnTypeAnnotation) {
@@ -3231,7 +3231,7 @@ module TypeScript {
 
             if (shouldContextuallyType) {
 
-                assigningFunctionTypeSymbol = <PullFunctionTypeSymbol>context.getContextualType();
+                assigningFunctionTypeSymbol = <PullTypeSymbol>context.getContextualType();
 
                 if (assigningFunctionTypeSymbol) {
                     this.resolveDeclaredSymbol(assigningFunctionTypeSymbol, enclosingDecl, context);
@@ -3262,7 +3262,7 @@ module TypeScript {
                 binder.setUnit(this.unitPath);
                 binder.bindFunctionExpressionToPullSymbol(functionDecl);
 
-                funcDeclSymbol = <PullFunctionTypeSymbol>functionDecl.getSymbol();
+                funcDeclSymbol = <PullTypeSymbol>functionDecl.getSymbol();
             }
 
             var signature = funcDeclSymbol.getType().getCallSignatures()[0];
@@ -4069,7 +4069,7 @@ module TypeScript {
                 }
             }
 
-            var signatures = isSuperCall ? (<PullFunctionTypeSymbol>targetTypeSymbol).getConstructSignatures() : (<PullFunctionTypeSymbol>targetTypeSymbol).getCallSignatures();
+            var signatures = isSuperCall ? (<PullTypeSymbol>targetTypeSymbol).getConstructSignatures() : (<PullFunctionTypeSymbol>targetTypeSymbol).getCallSignatures();
 
             if (!signatures.length && (targetTypeSymbol.getKind() == PullElementKind.ConstructorType)) {
                 diagnostics = this.addDiagnostic(diagnostics,

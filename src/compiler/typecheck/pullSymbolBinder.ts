@@ -1652,7 +1652,7 @@ module TypeScript {
             }
 
             if (functionSymbol) {
-                functionTypeSymbol = <PullFunctionTypeSymbol>functionSymbol.getType();
+                functionTypeSymbol = <PullTypeSymbol>functionSymbol.getType();
                 parentHadSymbol = true;
             }
 
@@ -1716,7 +1716,7 @@ module TypeScript {
                 //}
 
                 //if (!functionTypeSymbol) {
-                    functionTypeSymbol = new PullFunctionTypeSymbol();
+                functionTypeSymbol = new PullTypeSymbol("", PullElementKind.FunctionType);
                 //}
 
                 functionSymbol.setType(functionTypeSymbol);
@@ -1851,7 +1851,7 @@ module TypeScript {
                                     (<PullFunctionExpressionDecl>functionExpressionDeclaration).getFunctionExpressionName() :
                                     functionExpressionDeclaration.getName();
             var functionSymbol: PullSymbol = new PullSymbol(functionName, PullElementKind.Function);
-            var functionTypeSymbol = new PullFunctionTypeSymbol();
+            var functionTypeSymbol = new PullTypeSymbol("", PullElementKind.FunctionType);
 
             functionSymbol.setType(functionTypeSymbol);
 
@@ -1914,7 +1914,7 @@ module TypeScript {
             this.bindParameterSymbols(<FunctionDeclaration>this.semanticInfo.getASTForDecl(functionExpressionDeclaration), functionTypeSymbol, signature);
 
             // add the implicit call member for this function type
-            functionTypeSymbol.addSignature(signature);
+            functionTypeSymbol.addCallSignature(signature);
 
             var childDecls = functionExpressionDeclaration.getChildDecls();
 
@@ -1933,7 +1933,7 @@ module TypeScript {
             // 1. Test for existing decl - if it exists, use its symbol
             // 2. If no other decl exists, create a new symbol and use that one
 
-            var functionTypeSymbol = new PullFunctionTypeSymbol();
+            var functionTypeSymbol = new PullTypeSymbol("", PullElementKind.FunctionType);
 
             functionTypeDeclaration.setSymbol(functionTypeSymbol);
             functionTypeSymbol.addDeclaration(functionTypeDeclaration);
@@ -1990,7 +1990,7 @@ module TypeScript {
             this.bindParameterSymbols(<FunctionDeclaration>this.semanticInfo.getASTForDecl(functionTypeDeclaration), functionTypeSymbol, signature);
 
             // add the implicit call member for this function type
-            functionTypeSymbol.addSignature(signature);
+            functionTypeSymbol.addCallSignature(signature);
 
             this.popParent();
         }
@@ -2015,7 +2015,7 @@ module TypeScript {
             var cleanedPreviousDecls = false;
 
             var methodSymbol: PullSymbol = null;
-            var methodTypeSymbol: PullFunctionTypeSymbol = null;
+            var methodTypeSymbol: PullTypeSymbol = null;
 
             var linkKind = isPrivate ? SymbolLinkKind.PrivateMember : SymbolLinkKind.PublicMember;
 
@@ -2052,7 +2052,7 @@ module TypeScript {
             }
 
             if (methodSymbol) {
-                methodTypeSymbol = <PullFunctionTypeSymbol>methodSymbol.getType();
+                methodTypeSymbol = methodSymbol.getType();
                 parentHadSymbol = true;
             }
 
@@ -2107,7 +2107,7 @@ module TypeScript {
             }
 
             if (!methodTypeSymbol) {
-                methodTypeSymbol = new PullFunctionTypeSymbol();
+                methodTypeSymbol = new PullTypeSymbol("", PullElementKind.FunctionType);
                 methodSymbol.setType(methodTypeSymbol);
             }
 
@@ -2243,7 +2243,7 @@ module TypeScript {
             this.bindParameterSymbols(<FunctionDeclaration>this.semanticInfo.getASTForDecl(methodDeclaration), methodTypeSymbol, signature);
 
             // add the implicit call member for this function type
-            methodTypeSymbol.addSignature(signature);
+            methodTypeSymbol.addCallSignature(signature);
 
             if (!isSignature) {
                 var childDecls = methodDeclaration.getChildDecls();
@@ -2640,7 +2640,7 @@ module TypeScript {
 
             var accessorSymbol: PullAccessorSymbol = null;
             var getterSymbol: PullSymbol = null;
-            var getterTypeSymbol: PullFunctionTypeSymbol = null;
+            var getterTypeSymbol: PullTypeSymbol = null;
 
             if (!isStatic) {
                 accessorSymbol = <PullAccessorSymbol>parent.findMember(funcName, false);
@@ -2679,7 +2679,7 @@ module TypeScript {
 
             // we have an accessor we can use...
             if (accessorSymbol && getterSymbol) {
-                getterTypeSymbol = <PullFunctionTypeSymbol>getterSymbol.getType();
+                getterTypeSymbol = getterSymbol.getType();
                 parentHadSymbol = true;
             }
 
@@ -2718,7 +2718,7 @@ module TypeScript {
 
             if (!getterSymbol) {
                 getterSymbol = new PullSymbol(funcName, PullElementKind.Function);
-                getterTypeSymbol = new PullFunctionTypeSymbol();
+                getterTypeSymbol = new PullTypeSymbol("", PullElementKind.FunctionType);
 
                 getterSymbol.setType(getterTypeSymbol);
 
@@ -2780,7 +2780,7 @@ module TypeScript {
             }
 
             // add the implicit call member for this function type
-            getterTypeSymbol.addSignature(signature);
+            getterTypeSymbol.addCallSignature(signature);
 
             if (!isSignature) {
                 var childDecls = getAccessorDeclaration.getChildDecls();
@@ -2823,7 +2823,7 @@ module TypeScript {
 
             var accessorSymbol: PullAccessorSymbol = null;
             var setterSymbol: PullSymbol = null;
-            var setterTypeSymbol: PullFunctionTypeSymbol = null;
+            var setterTypeSymbol: PullTypeSymbol = null;
 
             if (!isStatic) {
                 accessorSymbol = <PullAccessorSymbol>parent.findMember(funcName, false);
@@ -2862,7 +2862,7 @@ module TypeScript {
 
             // we have an accessor we can use...
             if (accessorSymbol && setterSymbol) {
-                setterTypeSymbol = <PullFunctionTypeSymbol>setterSymbol.getType();
+                setterTypeSymbol = setterSymbol.getType();
                 parentHadSymbol = true;
             }
 
@@ -2902,7 +2902,7 @@ module TypeScript {
 
             if (!setterSymbol) {
                 setterSymbol = new PullSymbol(funcName, PullElementKind.Function);
-                setterTypeSymbol = new PullFunctionTypeSymbol();
+                setterTypeSymbol = new PullTypeSymbol("", PullElementKind.FunctionType);
 
                 setterSymbol.setType(setterTypeSymbol);
 
@@ -2965,7 +2965,7 @@ module TypeScript {
             }
 
             // add the implicit call member for this function type
-            setterTypeSymbol.addSignature(signature);
+            setterTypeSymbol.addCallSignature(signature);
 
             if (!isSignature) {
                 var childDecls = setAccessorDeclaration.getChildDecls();
