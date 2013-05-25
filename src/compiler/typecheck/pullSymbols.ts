@@ -2269,15 +2269,6 @@ module TypeScript {
         }
     }
 
-    // PULLTODO: Unify concepts of constructor method and container
-    // type instance types
-    export class PullClassTypeSymbol extends PullTypeSymbol {
-
-        constructor(name: string) {
-            super(name, PullElementKind.Class);
-        }
-    }
-
     // represents the module "namespace" type
     export class PullContainerTypeSymbol extends PullTypeSymbol {
         public instanceSymbol: PullSymbol = null;
@@ -3166,7 +3157,7 @@ module TypeScript {
 
         nSpecializationsCreated++;
 
-        newType = typeToSpecialize.isClass() ? new PullClassTypeSymbol(typeToSpecialize.getName()) :
+        newType = typeToSpecialize.isClass() ? new PullTypeSymbol(typeToSpecialize.getName(), PullElementKind.Class) :
                     isArray ? new PullArrayTypeSymbol() :
                     typeToSpecialize.isTypeParameter() ? // watch out for replacing one tyvar with another
                         new PullTypeVariableSymbol(typeToSpecialize.getName(), (<PullTypeParameterSymbol>typeToSpecialize).isFunctionTypeParameter()) :
@@ -3530,7 +3521,7 @@ module TypeScript {
 
         // specialize the constructor and statics, if need be
         if (typeToSpecialize.isClass()) {
-            var constructorMethod = (<PullClassTypeSymbol>typeToSpecialize).getConstructorMethod();
+            var constructorMethod = (<PullTypeSymbol>typeToSpecialize).getConstructorMethod();
 
             // If we haven't yet resolved the constructor method, we need to resolve it *without* substituting
             // for any type variables, so as to avoid accidentally specializing the root declaration
@@ -3553,7 +3544,7 @@ module TypeScript {
                 //newConstructorType.addDeclaration(constructorDecls[i]);
             }
 
-            (<PullClassTypeSymbol>newType).setConstructorMethod(newConstructorMethod);
+            (<PullTypeSymbol>newType).setConstructorMethod(newConstructorMethod);
         }
 
         newType.setIsSpecialized();

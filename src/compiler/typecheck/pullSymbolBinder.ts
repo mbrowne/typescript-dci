@@ -491,7 +491,7 @@ module TypeScript {
             interfaceSymbol.recomputeIndexSignatures();
         }
 
-        private cleanClassSignatures(classSymbol: PullClassTypeSymbol) {
+        private cleanClassSignatures(classSymbol: PullTypeSymbol) {
             var callSigs = classSymbol.getCallSignatures();
             var constructSigs = classSymbol.getConstructSignatures();
             var indexSigs = classSymbol.getIndexSignatures();
@@ -534,7 +534,7 @@ module TypeScript {
         public bindClassDeclarationToPullSymbol(classDecl: PullDecl) {
 
             var className = classDecl.getName();
-            var classSymbol: PullClassTypeSymbol = null;
+            var classSymbol: PullTypeSymbol = null;
 
             var constructorSymbol: PullSymbol = null;
             var constructorTypeSymbol: PullConstructorTypeSymbol = null;
@@ -552,14 +552,14 @@ module TypeScript {
 
             if (parent) {
                 if (isExported) {
-                    classSymbol = <PullClassTypeSymbol>parent.findNestedType(className);
+                    classSymbol = parent.findNestedType(className);
 
                     if (!classSymbol) {
-                        classSymbol = <PullClassTypeSymbol>parent.findMember(className, false);
+                        classSymbol = <PullTypeSymbol>parent.findMember(className, false);
                     }
                 }
                 else {
-                    classSymbol = <PullClassTypeSymbol>parent.findContainedMember(className);
+                    classSymbol = <PullTypeSymbol>parent.findContainedMember(className);
 
                     if (classSymbol && (classSymbol.getKind() & acceptableSharedKind)) {
 
@@ -580,7 +580,7 @@ module TypeScript {
                 }
             }
             else {
-                classSymbol = <PullClassTypeSymbol>this.findSymbolInContext(className, acceptableSharedKind, []);
+                classSymbol = <PullTypeSymbol>this.findSymbolInContext(className, acceptableSharedKind, []);
             }
 
             if (classSymbol && (!(classSymbol.getKind() & acceptableSharedKind) || !this.reBindingAfterChange || this.symbolIsRedeclaration(classSymbol))) {
@@ -660,7 +660,7 @@ module TypeScript {
             }
 
             if (!parentHadSymbol) {
-                classSymbol = new PullClassTypeSymbol(className);
+                classSymbol = new PullTypeSymbol(className, PullElementKind.Class);
                 
                 if (!parent) {
                     this.semanticInfoChain.cacheGlobalSymbol(classSymbol, acceptableSharedKind);
@@ -696,7 +696,7 @@ module TypeScript {
                     specializations = classSymbol.getKnownSpecializations();
 
                     for (var i = 0; i < specializations.length; i++) {
-                        this.cleanClassSignatures(<PullClassTypeSymbol>specializations[i]);
+                        this.cleanClassSignatures(<PullTypeSymbol>specializations[i]);
                     }                 
                 }
             }
@@ -836,7 +836,7 @@ module TypeScript {
                 interfaceSymbol = parent.findNestedType(interfaceName);
             }
             else if (!(interfaceDecl.getFlags() & PullElementFlags.Exported)) {
-                interfaceSymbol = <PullClassTypeSymbol>this.findSymbolInContext(interfaceName, acceptableSharedKind, []);
+                interfaceSymbol = <PullTypeSymbol>this.findSymbolInContext(interfaceName, acceptableSharedKind, []);
             }
 
             if (interfaceSymbol && !(interfaceSymbol.getKind() & acceptableSharedKind)) {
@@ -1236,7 +1236,7 @@ module TypeScript {
                     // it's really an implicit class decl, so we need to set the type of the symbol to
                     // the constructor type
                     // Note that we would have already found the class symbol in the search above
-                    var classTypeSymbol: PullClassTypeSymbol = <PullClassTypeSymbol>variableSymbol;
+                    var classTypeSymbol: PullTypeSymbol = <PullTypeSymbol>variableSymbol;
 
                     // PULLTODO: In both this case and the case below, we should have already received the
                     // class or module symbol as the variableSymbol found above
@@ -1245,7 +1245,7 @@ module TypeScript {
 
                         for (var i = 0; i < members.length; i++) {
                             if ((members[i].getName() === declName) && (members[i].getKind() === PullElementKind.Class)) {
-                                classTypeSymbol = <PullClassTypeSymbol>members[i];
+                                classTypeSymbol = <PullTypeSymbol>members[i];
                                 break;
                             }
                         }
@@ -1261,14 +1261,14 @@ module TypeScript {
 
                                 for (var i = 0; i < childDecls.length; i++) {
                                     if (childDecls[i].getValueDecl() === variableDeclaration) {
-                                        classTypeSymbol = <PullClassTypeSymbol>childDecls[i].getSymbol();
+                                        classTypeSymbol = <PullTypeSymbol>childDecls[i].getSymbol();
                                     }
                                 }
                             }
                         }
 
                         if (!classTypeSymbol) {
-                            classTypeSymbol = <PullClassTypeSymbol>this.findSymbolInContext(declName, PullElementKind.SomeType, []);
+                            classTypeSymbol = <PullTypeSymbol>this.findSymbolInContext(declName, PullElementKind.SomeType, []);
                         }
                     }
 
@@ -1442,7 +1442,7 @@ module TypeScript {
 
 
                 if (!propertySymbol && this.reBindingAfterChange) {
-                    var classConstructor = (<PullClassTypeSymbol>parent).getConstructorMethod();
+                    var classConstructor = (<PullClassSymbol>parent).getConstructorMethod();
 
                     if (classConstructor) {
                         var classConstructorType = classConstructor.getType();
@@ -1484,7 +1484,7 @@ module TypeScript {
                 propertySymbol.setUnresolved();
             }
 
-            var classTypeSymbol: PullClassTypeSymbol;
+            var classTypeSymbol: PullTypeSymbol;
 
             if (!parentHadSymbol) {
                 propertySymbol = new PullSymbol(declName, declKind);
@@ -1502,7 +1502,7 @@ module TypeScript {
 
             if (parent && !parentHadSymbol) {
                 if (parent.isClass()) {
-                    classTypeSymbol = <PullClassTypeSymbol>parent;
+                    classTypeSymbol = <PullTypeSymbol>parent;
 
                     if (isStatic) {
                         this.staticClassMembers[this.staticClassMembers.length] = propertySymbol;
@@ -2029,7 +2029,7 @@ module TypeScript {
                 }
 
                 if (!methodSymbol && this.reBindingAfterChange) {
-                    var classConstructor = (<PullClassTypeSymbol>parent).getConstructorMethod();
+                    var classConstructor = (<PullTypeSymbol>parent).getConstructorMethod();
 
                     if (classConstructor) {
                         var classConstructorType = classConstructor.getType();
@@ -2268,7 +2268,7 @@ module TypeScript {
 
             var isSignature: boolean = (declFlags & PullElementFlags.Signature) !== 0;
 
-            var parent = <PullClassTypeSymbol>this.getParent(true);
+            var parent = <PullTypeSymbol>this.getParent(true);
 
             var parentHadSymbol = false;
             var cleanedPreviousDecls = false;

@@ -163,7 +163,8 @@ module TypeScript {
             return this._bloomFilter;
         }
 
-        public update(scriptSnapshot: IScriptSnapshot, version: number, isOpen: boolean, textChangeRange: TextChangeRange, settings: CompilationSettings): Document {
+        public update(scriptSnapshot: IScriptSnapshot, version: number, isOpen: boolean, textChangeRange: TextChangeRange, settings: CompilationSettings): Document {
+
             var oldScript = this.script;
             var oldSyntaxTree = this._syntaxTree;
 
@@ -1047,7 +1048,7 @@ module TypeScript {
 
                             if (foundAST.nodeType === NodeType.SuperExpression) {
                                 if (symbol.getKind() === PullElementKind.Class) {
-                                    callSignatures = (<PullClassTypeSymbol>symbol).getConstructorMethod().getType().getConstructSignatures();
+                                    callSignatures = (<PullTypeSymbol>symbol).getConstructorMethod().getType().getConstructSignatures();
                                 }
                             } else {
                                 callSignatures = callExpression.nodeType === NodeType.InvocationExpression ? typeSymbol.getCallSignatures() : typeSymbol.getConstructSignatures();

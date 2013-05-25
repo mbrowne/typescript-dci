@@ -419,7 +419,7 @@ module Services {
             return docComments;
         }
 
-        static getDefaultConstructorSymbolForDocComments(classSymbol: TypeScript.PullClassTypeSymbol) {
+        static getDefaultConstructorSymbolForDocComments(classSymbol: TypeScript.PullTypeSymbol) {
             if (classSymbol.getHasDefaultConstructor()) {
                 // get from parent if possible
                 var extendedTypes = classSymbol.getExtendedTypes();
