@@ -2525,45 +2525,6 @@ module TypeScript {
         public isDefinition() { return true; }
     }
 
-    export class PullConstructorTypeSymbol extends PullTypeSymbol {
-        private definitionSignature: PullDefinitionSignatureSymbol = null;
-
-        constructor() {
-            super("", PullElementKind.ConstructorType);
-        }
-
-        public isFunction() { return true; }
-        public isConstructor() { return true; }
-
-        public invalidate() {
-
-            this.definitionSignature = null;
-
-            super.invalidate();
-        }
-
-        public addSignature(signature: PullSignatureSymbol) {
-            this.addConstructSignature(signature);
-
-            if (signature.isDefinition()) {
-                this.definitionSignature = <PullDefinitionSignatureSymbol>signature;
-            }
-        }
-
-        public addTypeParameter(typeParameter: PullTypeParameterSymbol, doNotChangeContainer?: boolean) {
-
-            this.addMember(typeParameter, SymbolLinkKind.TypeParameter, doNotChangeContainer);
-
-            var constructSignatures = this.getConstructSignatures();
-
-            for (var i = 0; i < constructSignatures.length; i++) {
-                constructSignatures[i].addTypeParameter(typeParameter);
-            }
-        }
-
-        public getDefinitionSignature() { return this.definitionSignature; }
-    }
-
     export class PullTypeParameterSymbol extends PullTypeSymbol {
         private constraintLink: PullSymbolLink = null;
 

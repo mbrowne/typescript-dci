@@ -511,7 +511,7 @@ module TypeScript {
             classSymbol.recomputeIndexSignatures();
 
             var constructorSymbol = classSymbol.getConstructorMethod();
-            var constructorTypeSymbol = <PullConstructorTypeSymbol>(constructorSymbol ? constructorSymbol.getType() : null);
+            var constructorTypeSymbol = constructorSymbol ? constructorSymbol.getType() : null;
 
             if (constructorTypeSymbol) {
                 constructSigs = constructorTypeSymbol.getConstructSignatures();
@@ -537,7 +537,7 @@ module TypeScript {
             var classSymbol: PullTypeSymbol = null;
 
             var constructorSymbol: PullSymbol = null;
-            var constructorTypeSymbol: PullConstructorTypeSymbol = null;
+            var constructorTypeSymbol: PullTypeSymbol = null;
 
             var classAST = <ClassDeclaration>this.semanticInfo.getASTForDecl(classDecl);
             var parentHadSymbol = false;
@@ -609,7 +609,7 @@ module TypeScript {
                 }
 
                 constructorSymbol = classSymbol.getConstructorMethod();
-                constructorTypeSymbol = <PullConstructorTypeSymbol>constructorSymbol.getType();
+                constructorTypeSymbol = constructorSymbol.getType();
 
                 decls = constructorSymbol.getDeclarations();
 
@@ -719,11 +719,11 @@ module TypeScript {
 
             // even if we've already tried to set these, we want to try again after we've walked the class members
             constructorSymbol = classSymbol.getConstructorMethod();
-            constructorTypeSymbol = <PullConstructorTypeSymbol>(constructorSymbol ? constructorSymbol.getType() : null);
+            constructorTypeSymbol = constructorSymbol ? constructorSymbol.getType() : null;
 
             if (!constructorSymbol) {
                 constructorSymbol = new PullSymbol(className, PullElementKind.ConstructorMethod);
-                constructorTypeSymbol = new PullConstructorTypeSymbol();
+                constructorTypeSymbol = new PullTypeSymbol("", PullElementKind.ConstructorType);
 
                 constructorSymbol.setIsSynthesized();
 
@@ -791,7 +791,7 @@ module TypeScript {
                     typeParameter = new PullTypeParameterSymbol(typeParameters[i].getName(), false);
 
                     classSymbol.addMember(typeParameter, SymbolLinkKind.TypeParameter);
-                    constructorTypeSymbol.addTypeParameter(typeParameter, true);
+                    constructorTypeSymbol.addMember(typeParameter, SymbolLinkKind.TypeParameter);
                 }
                 else {
                     typeParameterDecls = typeParameter.getDeclarations();
@@ -1036,7 +1036,7 @@ module TypeScript {
             // 1. Test for existing decl - if it exists, use its symbol
             // 2. If no other decl exists, create a new symbol and use that one
 
-            var constructorTypeSymbol = new PullConstructorTypeSymbol();
+            var constructorTypeSymbol = new PullTypeSymbol("", PullElementKind.ConstructorType);
 
             constructorTypeDeclaration.setSymbol(constructorTypeSymbol);
             constructorTypeSymbol.addDeclaration(constructorTypeDeclaration);
@@ -1054,7 +1054,7 @@ module TypeScript {
             this.bindParameterSymbols(<FunctionDeclaration>this.semanticInfo.getASTForDecl(constructorTypeDeclaration), constructorTypeSymbol, signature);
 
             // add the implicit construct member for this function type
-            constructorTypeSymbol.addSignature(signature);
+            constructorTypeSymbol.addConstructSignature(signature);
 
             var typeParameters = constructorTypeDeclaration.getTypeParameters();
             var typeParameter: PullTypeParameterSymbol;
@@ -1067,7 +1067,7 @@ module TypeScript {
                 if (!typeParameter) {
                     typeParameter = new PullTypeParameterSymbol(typeParameters[i].getName(), false);
 
-                    constructorTypeSymbol.addTypeParameter(typeParameter);
+                    constructorTypeSymbol.addMember(typeParameter, SymbolLinkKind.TypeParameter);
                 }
                 else {
                     typeParameterDecls = typeParameter.getDeclarations();
@@ -2274,7 +2274,7 @@ module TypeScript {
             var cleanedPreviousDecls = false;
 
             var constructorSymbol: PullSymbol = parent.getConstructorMethod();
-            var constructorTypeSymbol: PullConstructorTypeSymbol = null;
+            var constructorTypeSymbol: PullTypeSymbol = null;
 
             var linkKind = SymbolLinkKind.ConstructorMethod;
 
@@ -2290,7 +2290,7 @@ module TypeScript {
 
             if (constructorSymbol) {
 
-                constructorTypeSymbol = <PullConstructorTypeSymbol>constructorSymbol.getType();
+                constructorTypeSymbol = constructorSymbol.getType();
 
                 if (this.reBindingAfterChange) {
                     // prune out-of-date decls...
@@ -2340,7 +2340,7 @@ module TypeScript {
 
             if (!constructorSymbol) {
                 constructorSymbol = new PullSymbol(constructorName, PullElementKind.ConstructorMethod);
-                constructorTypeSymbol = new PullConstructorTypeSymbol();
+                constructorTypeSymbol = new PullTypeSymbol("", PullElementKind.ConstructorType);
             }
 
             // Even if we're reusing the symbol, it would have been cleared by the call to invalidate above
@@ -2402,7 +2402,7 @@ module TypeScript {
                 constructSignature.setHasVariableParamList();
             }
 
-            constructorTypeSymbol.addSignature(constructSignature);
+            constructorTypeSymbol.addConstructSignature(constructSignature);
 
             if (!isSignature) {
                 var childDecls = constructorDeclaration.getChildDecls();
