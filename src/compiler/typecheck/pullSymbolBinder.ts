@@ -1042,7 +1042,8 @@ module TypeScript {
             constructorTypeSymbol.addDeclaration(constructorTypeDeclaration);
             this.semanticInfo.setSymbolAndDiagnosticsForAST(constructorTypeAST, SymbolAndDiagnostics.fromSymbol(constructorTypeSymbol));
 
-            var signature = new PullDefinitionSignatureSymbol(PullElementKind.ConstructSignature);
+            var signature = new PullSignatureSymbol(PullElementKind.ConstructSignature);
+            signature.setIsDefinition();
 
             if ((<FunctionDeclaration>constructorTypeAST).variableArgList) {
                 signature.setHasVariableParamList();
@@ -1778,7 +1779,11 @@ module TypeScript {
                 }
             }
 
-            var signature = isSignature ? new PullSignatureSymbol(PullElementKind.CallSignature) : new PullDefinitionSignatureSymbol(PullElementKind.CallSignature);
+            var signature = new PullSignatureSymbol(PullElementKind.CallSignature);
+
+            if (!isSignature) {
+                signature.setIsDefinition();
+            }
 
             signature.addDeclaration(functionDeclaration);
             functionDeclaration.setSignatureSymbol(signature);
@@ -1866,7 +1871,9 @@ module TypeScript {
 
             this.pushParent(functionTypeSymbol, functionExpressionDeclaration);
 
-            var signature = new PullDefinitionSignatureSymbol(PullElementKind.CallSignature);
+            var signature = new PullSignatureSymbol(PullElementKind.CallSignature);
+
+            signature.setIsDefinition();
 
             if (funcExpAST.variableArgList) {
                 signature.setHasVariableParamList();
@@ -1942,7 +1949,11 @@ module TypeScript {
             this.pushParent(functionTypeSymbol, functionTypeDeclaration);
 
             var isSignature: boolean = (declFlags & PullElementFlags.Signature) !== 0;
-            var signature = isSignature ? new PullSignatureSymbol(PullElementKind.CallSignature) : new PullDefinitionSignatureSymbol(PullElementKind.CallSignature);
+            var signature = new PullSignatureSymbol(PullElementKind.CallSignature);
+
+            if (!isSignature) {
+                signature.setIsDefinition();
+            }
 
             if (funcTypeAST.variableArgList) {
                 signature.setHasVariableParamList();
@@ -2179,7 +2190,11 @@ module TypeScript {
 
             var sigKind = PullElementKind.CallSignature;
 
-            var signature = isSignature ? new PullSignatureSymbol(sigKind) : new PullDefinitionSignatureSymbol(sigKind);
+            var signature = new PullSignatureSymbol(sigKind);
+
+            if (!isSignature) {
+                signature.setIsDefinition();
+            }
 
             if (methodAST.variableArgList) {
                 signature.setHasVariableParamList();
@@ -2389,7 +2404,11 @@ module TypeScript {
             }
 
             // add a call signature to the constructor method, and a construct signature to the parent class type
-            var constructSignature = isSignature ? new PullSignatureSymbol(PullElementKind.ConstructSignature) : new PullDefinitionSignatureSymbol(PullElementKind.ConstructSignature);
+            var constructSignature = new PullSignatureSymbol(PullElementKind.ConstructSignature);
+
+            if (!isSignature) {
+                constructSignature.setIsDefinition();
+            }
 
             constructSignature.setReturnType(parent);
 
@@ -2765,7 +2784,11 @@ module TypeScript {
                 getterTypeSymbol.recomputeCallSignatures();
             }
 
-            var signature = isSignature ? new PullSignatureSymbol(PullElementKind.CallSignature) : new PullDefinitionSignatureSymbol(PullElementKind.CallSignature);
+            var signature = new PullSignatureSymbol(PullElementKind.CallSignature);
+
+            if (!isSignature) {
+                signature.setIsDefinition();
+            }
 
             signature.addDeclaration(getAccessorDeclaration);
             getAccessorDeclaration.setSignatureSymbol(signature);
@@ -2949,7 +2972,11 @@ module TypeScript {
                 setterTypeSymbol.recomputeCallSignatures();
             }
 
-            var signature = isSignature ? new PullSignatureSymbol(PullElementKind.CallSignature) : new PullDefinitionSignatureSymbol(PullElementKind.CallSignature);
+            var signature = new PullSignatureSymbol(PullElementKind.CallSignature);
+
+            if (!isSignature) {
+                signature.setIsDefinition();
+            }
 
             signature.addDeclaration(setAccessorDeclaration);
             setAccessorDeclaration.setSignatureSymbol(signature);

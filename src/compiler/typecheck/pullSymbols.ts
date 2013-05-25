@@ -701,6 +701,7 @@ module TypeScript {
         }
     }
 
+    // REVIEW: Not yet used anywhere...
     export class PullExpressionSymbol extends PullSymbol {
         contributingSymbols: PullSymbol[] = [];
 
@@ -737,11 +738,14 @@ module TypeScript {
         private hasAGenericParameter = false;
         private stringConstantOverload: boolean = undefined;
 
+        private _isDefinition = false;
+
         constructor(kind: PullElementKind) {
             super("", kind);
         }
 
-        public isDefinition() { return false; }
+        public setIsDefinition() { this._isDefinition = true; }
+        public isDefinition() { return this._isDefinition; }
 
         public hasVariableParamList() { return this.hasVarArgs; }
         public setHasVariableParamList() { this.hasVarArgs = true; }
@@ -1193,8 +1197,8 @@ module TypeScript {
 
             return false;
         }
-        public isFunction() { return false; }
-        public isConstructor() { return false; }
+        public isFunction() { return (this.getKind() & PullElementKind.SomeFunction) != 0; }
+        public isConstructor() { return this.getKind() == PullElementKind.ConstructorType; }
         public isTypeParameter() { return false; }
         public isTypeVariable() { return false; }
         public isError() { return false; }
@@ -1295,6 +1299,16 @@ module TypeScript {
                     }
                     this.typeParameterLinks[this.typeParameterLinks.length] = link;
                     this.memberTypeParameterNameCache[memberSymbol.getName()] = memberSymbol;
+
+                    // if it's a constructor type, we need to add the type parameter to
+                    // each call signature
+                    if (this.isConstructor()) {
+                        var constructSignatures = this.getConstructSignatures();
+
+                        for (var i = 0; i < constructSignatures.length; i++) {
+                            constructSignatures[i].addTypeParameter(<PullTypeParameterSymbol>memberSymbol);
+                        }
+                    }
                 }
                 else {
                     if (!this.memberTypeNameCache) {
@@ -2519,10 +2533,6 @@ module TypeScript {
 
             super.invalidate();
         }
-    }
-
-    export class PullDefinitionSignatureSymbol extends PullSignatureSymbol {
-        public isDefinition() { return true; }
     }
 
     export class PullTypeParameterSymbol extends PullTypeSymbol {
