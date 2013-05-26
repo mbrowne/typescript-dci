@@ -50,6 +50,7 @@
 ///<reference path='typecheck\pullSymbolGraph.ts' />
 ///<reference path='typecheck\SemanticDiagnostic.ts' />
 ///<reference path='typecheck\pullHelpers.ts' />
+///<reference path='typecheck\pullTypeSpecialization.ts' />
 ///<reference path='syntaxTreeToAstVisitor.ts' />
 
 module TypeScript {

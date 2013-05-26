@@ -47,6 +47,7 @@ var compilerSources = [
 	"typecheck/pullSymbolGraph.ts",
 	"typecheck/SemanticDiagnostic.ts",
 	"typecheck/pullHelpers.ts",	
+	"typecheck/pullTypeSpecialization.ts",		
 	"syntaxTreeToAstVisitor.ts",
 	"typescript.ts"
 ].map(function (f) {
