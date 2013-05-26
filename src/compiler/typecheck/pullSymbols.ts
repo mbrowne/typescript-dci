@@ -1533,7 +1533,10 @@ module TypeScript {
         }
 
         public getTypeArguments(): PullTypeSymbol[] { return this.typeArguments; }
-        public setTypeArguments(typeArgs: PullTypeSymbol[]): void { this.typeArguments = typeArgs; }
+        public setTypeArguments(typeArgs: PullTypeSymbol[]): void {
+            Debug.assert(false, "tried to get type arguments of non-specialized type");
+            this.typeArguments = typeArgs;
+        }
 
         public addCallSignature(callSignature: PullSignatureSymbol): void {
 
@@ -2771,6 +2774,7 @@ module TypeScript {
     }
 
     export var nSpecializationsCreated = 0;
+    export var nSpecializedSignaturesCreated = 0;
 
     export function shouldSpecializeTypeParameterForTypeParameter(specialization: PullTypeParameterSymbol, typeToSpecialize: PullTypeParameterSymbol) {
         if (specialization == typeToSpecialize) {

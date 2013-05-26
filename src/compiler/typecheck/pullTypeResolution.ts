@@ -5212,6 +5212,10 @@ module TypeScript {
                 return false;
             }
 
+            if (s1.getTypeParameters().length != s2.getTypeParameters().length) {
+                return false;
+            }
+
             var s1Params = s1.getParameters();
             var s2Params = s2.getParameters();
 

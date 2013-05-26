@@ -711,7 +711,7 @@ module TypeScript {
         if (existingSpecialization) {
             return existingSpecialization;
         }
-
+        nSpecializationsCreated++;
         var substitutions = overrideType ? createOverrideSubstitutionMap((<PullSpecializedTypeSymbol>typeToSpecialize).getTypeSubstitutions(), typeParameters, overrideType) : createSubstitutionMap(substitutions, typeParameters, typeArguments);
         var targetTypeParameters = typeToSpecialize.getIsSpecialized() ? typeToSpecialize.getTypeArguments() : typeToSpecialize.getTypeParameters(); //typeToSpecialize.getIsSpecialized() ? typeToSpecialize.getTypeArguments() : typeParameters;
 
@@ -778,7 +778,7 @@ module TypeScript {
         if (existingSignature) {
             return existingSignature;
         }
-
+        nSpecializedSignaturesCreated++;
         var newSignature = new PullSpecializedSignatureSymbol(signatureToSpecialize, typeArguments);
 
         // specialize the return type
