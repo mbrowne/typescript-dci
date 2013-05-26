@@ -69,7 +69,7 @@ module TypeScript {
         }
 
         public isArray() {
-            return (this.declKind & PullElementKind.Array) != 0;
+            return this.name == "Array";
         }
 
         public isPrimitive() {
@@ -1145,6 +1145,7 @@ module TypeScript {
         private memberTypeNameCache: any = null;
         private memberTypeParameterNameCache: any = null;
         private containedMemberCache: any = null;
+        private _cachedElementType: PullTypeSymbol = null;
 
         private typeArguments: PullTypeSymbol[] = null;
 
@@ -1218,18 +1219,26 @@ module TypeScript {
         }
 
         public getType(): PullTypeSymbol { return this; }
+        public rootType(): PullTypeSymbol { return this; }
 
         public getArrayType(): PullTypeSymbol { return this.arrayType; }
 
         public getElementType(): PullTypeSymbol {
+            if (this._cachedElementType) {
+                return this._cachedElementType;
+            }
+
+            else;
+
             var arrayOfLinks = this.findOutgoingLinks(link => link.kind === SymbolLinkKind.ArrayOf);
 
             if (arrayOfLinks.length) {
-                return <PullTypeSymbol>arrayOfLinks[0].end;
+                this._cachedElementType = <PullTypeSymbol>arrayOfLinks[0].end;
             }
 
-            return null;
+            return this._cachedElementType;
         }
+
         public setArrayType(arrayType: PullTypeSymbol): void {
             this.arrayType = arrayType;
 
@@ -2730,135 +2739,6 @@ module TypeScript {
             var elementMemberName = this.elementType ? this.elementType.getMemberTypeNameEx(false, scopeSymbol, getPrettyTypeName) : MemberName.create("any");
             return MemberName.create(elementMemberName, "", "[]");
         }
-    }
-
-    // PULLTODO: This should be a part of the resolver class
-    export function specializeToArrayType(typeToReplace: PullTypeSymbol, typeToSpecializeTo: PullTypeSymbol, resolver: PullTypeResolver, context: PullTypeResolutionContext) {
-
-        var arrayInterfaceType = resolver.getCachedArrayType();
-
-        // For the time-being, only specialize interface types
-        // this way we can assume only public members and non-static methods
-        if (!arrayInterfaceType || (arrayInterfaceType.getKind() & PullElementKind.Interface) === 0) {
-            return null;
-        }
-
-        // PULLREVIEW: Accept both generic and non-generic arrays for now
-        if (arrayInterfaceType.isGeneric()) {
-            var enclosingDecl = arrayInterfaceType.getDeclarations()[0];
-            return specializeType(arrayInterfaceType, [typeToSpecializeTo], resolver, enclosingDecl, context);
-        }
-
-        if (typeToSpecializeTo.getArrayType()) {
-            return typeToSpecializeTo.getArrayType();
-        }
-
-        // PULLTODO: Recursive reference bug
-        var newArrayType: PullTypeSymbol = new PullArrayTypeSymbol();
-        newArrayType.addDeclaration(arrayInterfaceType.getDeclarations()[0]);
-
-        typeToSpecializeTo.setArrayType(newArrayType);
-        newArrayType.addOutgoingLink(typeToSpecializeTo, SymbolLinkKind.ArrayOf);
-
-        var field: PullSymbol = null;
-        var newField: PullSymbol = null;
-        var fieldType: PullTypeSymbol = null;
-
-        var method: PullSymbol = null;
-        var methodType: PullTypeSymbol = null;
-        var newMethod: PullSymbol = null;
-        var newMethodType: PullTypeSymbol = null;
-
-        var signatures: PullSignatureSymbol[] = null;
-        var newSignature: PullSignatureSymbol = null;
-
-        var parameters: PullSymbol[] = null;
-        var newParameter: PullSymbol = null;
-        var parameterType: PullTypeSymbol = null;
-
-        var returnType: PullTypeSymbol = null;
-        var newReturnType: PullTypeSymbol = null;
-
-        var members = arrayInterfaceType.getMembers();
-
-        for (var i = 0; i < members.length; i++) {
-            resolver.resolveDeclaredSymbol(members[i], null, context);
-
-            if (members[i].getKind() === PullElementKind.Method) { // must be a method
-                method = <PullTypeSymbol> members[i];
-
-                resolver.resolveDeclaredSymbol(method, null, context);
-
-                methodType = <PullTypeSymbol>method.getType();
-
-                newMethod = new PullSymbol(method.getName(), PullElementKind.Method);
-                newMethodType = new PullTypeSymbol("", PullElementKind.FunctionType);
-                newMethod.setType(newMethodType);
-
-                newMethod.addDeclaration(method.getDeclarations()[0]);
-
-                signatures = methodType.getCallSignatures();
-
-                // specialize each signature
-                for (var j = 0; j < signatures.length; j++) {
-
-                    newSignature = new PullSignatureSymbol(PullElementKind.CallSignature);
-                    newSignature.addDeclaration(signatures[j].getDeclarations()[0]);
-
-                    parameters = signatures[j].getParameters();
-                    returnType = signatures[j].getReturnType();
-
-                    if (returnType === typeToReplace) {
-                        newSignature.setReturnType(typeToSpecializeTo);
-                    }
-                    else {
-                        newSignature.setReturnType(returnType);
-                    }
-
-                    for (var k = 0; k < parameters.length; k++) {
-                        newParameter = new PullSymbol(parameters[k].getName(), parameters[k].getKind());
-
-                        parameterType = parameters[k].getType();
-
-                        if (parameterType === null) { continue; }
-
-
-                        if (parameterType === typeToReplace) {
-                            newParameter.setType(typeToSpecializeTo);
-                        }
-                        else {
-                            newParameter.setType(parameterType);
-                        }
-
-                        newSignature.addParameter(newParameter);
-                    }
-
-                    newMethodType.addCallSignature(newSignature);
-                }
-
-                newArrayType.addMember(newMethod, SymbolLinkKind.PublicMember);
-            }
-
-            else { // must be a field
-                field = members[i];
-
-                newField = new PullSymbol(field.getName(), field.getKind());
-                newField.addDeclaration(field.getDeclarations()[0]);
-
-                fieldType = field.getType();
-
-                if (fieldType === typeToReplace) {
-                    newField.setType(typeToSpecializeTo);
-                }
-                else {
-                    newField.setType(fieldType);
-                }
-
-                newArrayType.addMember(newField, SymbolLinkKind.PublicMember);
-            }
-        }
-        newArrayType.addOutgoingLink(arrayInterfaceType, SymbolLinkKind.ArrayType);
-        return newArrayType;
     }
 
     export function typeWrapsTypeParameter(type: PullTypeSymbol, typeParameter: PullTypeParameterSymbol) {

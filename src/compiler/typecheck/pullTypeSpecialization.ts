@@ -19,6 +19,27 @@ module TypeScript {
             return this._rootSymbol.getDeclarations();
         }
 
+        // abstract methods
+        public addDeclaration(decl: PullDecl) {
+            Debug.assert(false, "Invalid method call on specialized type");
+        }
+
+        public removeDeclaration() {
+            Debug.assert(false, "Invalid method call on specialized type");
+        }
+
+        public setContainer(containerSymbol: PullTypeSymbol) {
+            Debug.assert(false, "Invalid method call on specialized type");
+        }
+
+        public unsetContainer() {
+            Debug.assert(false, "Invalid method call on specialized type");
+        }
+
+        public unsetType() {
+            Debug.assert(false, "Invalid method call on specialized type");
+        }
+
     }
 
     export class PullSpecializedTypeSymbol extends PullTypeSymbol {
@@ -81,8 +102,12 @@ module TypeScript {
 
         public findMember(name: string, lookInParent?: boolean): PullSymbol {
 
+            if (!this._specializedMemberNameCache) {
+                this._specializedMemberNameCache = new BlockIntrinsics();
+            }
+
             if (this._specializedMemberNameCache[name]) {
-                return this._specializedMemberCache[name];
+                return this._specializedMemberNameCache[name];
             }
 
             var rootMember = this._rootType.findMember(name, lookInParent);
@@ -227,6 +252,14 @@ module TypeScript {
             return this._specializedConstructorMethod;
         }
 
+        public getElementType(): PullTypeSymbol {
+            if (!this.isArray()) {
+                return null;
+            }
+
+            return this._typeArguments[0];
+        }
+
         public invalidate() {
             this._specializedMemberNameCache = new BlockIntrinsics(); // name -> PullSpecializedValueSymbol
 
@@ -293,6 +326,22 @@ module TypeScript {
             return this._rootType.findTypeParameter(name);
         }
 
+        public getHasGenericMember(): boolean {
+            return this._rootType.getHasGenericMember();
+        }
+
+        public getHasGenericSignature(): boolean {
+            return this._rootType.getHasGenericSignature();
+        }
+
+        public getAssociatedContainerType(): PullTypeSymbol {
+            return this._rootType.getAssociatedContainerType();
+        }
+
+        public addSpecialization(specializedVersionOfThisType: PullTypeSymbol, substitutingTypes: PullTypeSymbol[]): void {
+            this._rootType.addSpecialization(specializedVersionOfThisType, substitutingTypes);
+        }
+
         // abstract members
         public addDeclaration(decl: PullDecl) {
             Debug.assert(false, "Invalid method call on specialized type");
@@ -317,28 +366,13 @@ module TypeScript {
         public setHasGenericSignature(): void {
             Debug.assert(false, "Invalid method call on specialized type");
         }
-        
-        public getHasGenericSignature(): boolean {
-            Debug.assert(false, "Invalid method call on specialized type");
-            return false;
-        }
 
         public setHasGenericMember(): void {
             Debug.assert(false, "Invalid method call on specialized type");
         }
-        
-        public getHasGenericMember(): boolean {
-            Debug.assert(false, "Invalid method call on specialized type");
-            return false;
-        }
 
         public setAssociatedContainerType(type: PullTypeSymbol): void {
             Debug.assert(false, "Invalid method call on specialized type");
-        }
-
-        public getAssociatedContainerType(): PullTypeSymbol {
-            Debug.assert(false, "Invalid method call on specialized type");
-            return null;
         }
 
         public addMember(memberSymbol: PullSymbol, linkKind: SymbolLinkKind, doNotChangeContainer?: boolean): void {
@@ -360,10 +394,6 @@ module TypeScript {
         public isFixed(): boolean {
             Debug.assert(false, "Invalid method call on specialized type");
             return false;
-        }
-
-        public addSpecialization(specializedVersionOfThisType: PullTypeSymbol, substitutingTypes: PullTypeSymbol[]): void {
-            Debug.assert(false, "Invalid method call on specialized type");
         }
 
         public invalidateSpecializations(): void {
@@ -478,6 +508,10 @@ module TypeScript {
             return this._rootSignature.getDeclarations();
         }
 
+        public isGeneric() {
+            return true;
+        }
+
         // root delegates
         public isDefinition() {
             return this._rootSignature.isDefinition();
@@ -493,6 +527,67 @@ module TypeScript {
 
         public getTypeParameters() {
             return this._rootSignature.getTypeParameters();
+        }
+
+        public findTypeParameter(name: string): PullTypeParameterSymbol {
+            return this._rootSignature.findTypeParameter(name);
+        }
+
+        public getSpecialization(typeArguments) {
+            return this._rootSignature.getSpecialization(typeArguments);
+        }
+
+        public getNonOptionalParameterCount() {
+            return this._rootSignature.getNonOptionalParameterCount();
+        }
+        public addSpecialization(signature: PullSignatureSymbol, typeArguments: PullTypeSymbol[]) {
+            this._rootSignature.addSpecialization(signature, typeArguments);
+        }
+
+
+        // abstract methods
+        public addDeclaration(decl: PullDecl) {
+            Debug.assert(false, "Invalid method call on specialized signature");
+        }
+
+        public removeDeclaration() {
+            Debug.assert(false, "Invalid method call on specialized signature");
+        }
+
+        public setContainer(containerSymbol: PullTypeSymbol) {
+            Debug.assert(false, "Invalid method call on specialized signature");
+        }
+
+        public unsetContainer() {
+            Debug.assert(false, "Invalid method call on specialized signature");
+        }
+
+        public unsetType() {
+            Debug.assert(false, "Invalid method call on specialized signature");
+        }
+
+        public setIsDefinition() {
+            Debug.assert(false, "Invalid method call on specialized signature");
+        }
+
+        public setHasVariableParamList() {
+            Debug.assert(false, "Invalid method call on specialized signature");
+        }
+
+        public setHasGenericParameter() {
+            Debug.assert(false, "Invalid method call on specialized signature");
+        }
+
+        public addTypeParameter(parameter: PullTypeParameterSymbol) {
+            Debug.assert(false, "Invalid method call on specialized signature");
+        }
+
+        public removeParameter(parameterSymbol: PullSymbol) {
+            Debug.assert(false, "Invalid method call on specialized signature");
+        }
+
+        public mimicSignature(signature: PullSignatureSymbol, resolver: PullTypeResolver) {
+            Debug.assert(false, "Invalid method call on specialized signature");
         }
     }
 
@@ -515,23 +610,23 @@ module TypeScript {
             return typeToSpecialize;
         }
 
+        if (typeToSpecialize.isTypeParameter()) {
+            if (typeArguments.length) {
+                return typeArguments[0];
+            }
+            else {
+
+            }
+        }
+
+        if (!typeParameters.length) {
+            return typeToSpecialize;
+        }
+
         var existingSpecialization = typeToSpecialize.getSpecialization(typeArguments);
 
         if (existingSpecialization) {
             return existingSpecialization;
-        }
-
-        var typeReplacementMap: any = {};
-
-        for (var i = 0; i < typeParameters.length; i++) {
-            typeReplacementMap[typeParameters[i].getSymbolID().toString()] = typeArguments[i];
-        }
-
-        if (typeToSpecialize.isTypeParameter()) {
-            var substitutedType: PullTypeSymbol = typeReplacementMap[typeToSpecialize.getSymbolID().toString()];
-            if (substitutedType) {
-                return substitutedType;
-            }
         }
 
         var specializedType = new PullSpecializedTypeSymbol(typeToSpecialize, typeArguments);
@@ -550,7 +645,7 @@ module TypeScript {
         var newSignature = new PullSpecializedSignatureSymbol(signatureToSpecialize, typeArguments);
 
         // specialize the return type
-        var newReturnType = new PullSpecializedTypeSymbol(signatureToSpecialize.getReturnType(), typeArguments);
+        var newReturnType = getSpecializedType(signatureToSpecialize.getReturnType(), signatureToSpecialize.getReturnType().getTypeParameters(), typeArguments);
 
         newSignature.setReturnType(newReturnType);
 

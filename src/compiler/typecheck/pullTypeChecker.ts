@@ -479,7 +479,7 @@ module TypeScript {
                     this.resolver.isTypeRefWithoutTypeArgs(<TypeReference>boundDeclAST.typeExpr)) {
 
                     this.postError(boundDeclAST.typeExpr.minChar, boundDeclAST.typeExpr.getLength(), typeCheckContext.scriptName, DiagnosticCode.Generic_type_references_must_include_all_type_arguments, null, enclosingDecl);
-                    typeExprSymbol = this.resolver.specializeTypeToAny(typeExprSymbol, enclosingDecl, this.context);
+                    typeExprSymbol = this.resolver.specializeTypeToAny(typeExprSymbol);
                 }
             }
 
