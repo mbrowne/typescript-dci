@@ -55,17 +55,23 @@ module TypeScript {
         private _specializedExtendedTypesCache: PullTypeSymbol[] = null;
         private _specializedImplementedTypesCache: PullTypeSymbol[] = null;
         private _specializedConstructorMethod: PullSymbol = null;
+        private _typeSubstitutionCache: any = null;
 
-        constructor(rootType: PullTypeSymbol, typeArguments: PullTypeSymbol[]) {
+        constructor(rootType: PullTypeSymbol, typeArguments: PullTypeSymbol[], substitutions: any) {
             super(rootType.getName(), rootType.getKind());
 
             this._rootType = rootType;
             this._typeArguments = typeArguments;
+            this._typeSubstitutionCache = substitutions;
 
             rootType.addSpecialization(this, typeArguments);
         }
 
         public isGeneric(): boolean {
+            return true;
+        }
+
+        public getIsSpecialized(): boolean {
             return true;
         }
 
@@ -75,6 +81,37 @@ module TypeScript {
 
         public rootType(): PullTypeSymbol {
             return this._rootType;
+        }
+
+        public getSubstitutionForType(type: PullTypeSymbol): PullTypeSymbol {
+            if (this._typeSubstitutionCache) {
+                var substitution = this._typeSubstitutionCache[type.getSymbolID().toString()]
+
+                if (substitution) {
+                    return substitution;
+                }
+            }
+
+            return type;
+        }
+
+        public addTypeSubstitutions(substitutions: any) {
+            if (!substitutions) {
+                return;
+            }
+
+            if (!this._typeSubstitutionCache) {
+                this._typeSubstitutionCache = substitutions;
+                return;
+            }
+
+            for (var sub in substitutions) {
+                this._typeSubstitutionCache[sub] = substitutions[sub];
+            }
+        }
+
+        public getTypeSubstitutions() {
+            return this._typeSubstitutionCache;
         }
 
         public getMembers(): PullSymbol[]{
@@ -91,7 +128,7 @@ module TypeScript {
                         this._specializedMemberCache[this._specializedMemberCache.length] = this._specializedMemberNameCache[rootMembers[i].getName()];
                     }
                     else {
-                        this._specializedMemberCache[this._specializedMemberCache.length] = getSpecializedMember(rootMembers[i], this._rootType.getTypeParameters(), this._typeArguments);
+                        this._specializedMemberCache[this._specializedMemberCache.length] = getSpecializedMember(rootMembers[i], this._rootType.getTypeParameters(), this._typeArguments, this._typeSubstitutionCache);
                         this._specializedMemberNameCache[rootMembers[i].getName()] = this._specializedMemberCache[this._specializedMemberCache.length - 1];
                     }
                 }
@@ -116,7 +153,7 @@ module TypeScript {
                 return null;
             }
 
-            var specializedMember = getSpecializedMember(rootMember, this._rootType.getTypeParameters(), this._typeArguments);
+            var specializedMember = getSpecializedMember(rootMember, this._rootType.getTypeParameters(), this._typeArguments, this._typeSubstitutionCache);
 
             if (!lookInParent) {
                 this._specializedMemberNameCache[name] = specializedMember;
@@ -142,7 +179,7 @@ module TypeScript {
                     this._specializedAllMembersCache[this._specializedAllMembersCache.length] = this._specializedMemberNameCache[allRootMembers[i].getName()];
                 }
                 else {
-                    this._specializedAllMembersCache[this._specializedAllMembersCache.length] = getSpecializedMember(allRootMembers[i], this._rootType.getTypeParameters(), this._typeArguments);
+                    this._specializedAllMembersCache[this._specializedAllMembersCache.length] = getSpecializedMember(allRootMembers[i], this._rootType.getTypeParameters(), this._typeArguments, this._typeSubstitutionCache);
                 }
             }
             
@@ -160,7 +197,7 @@ module TypeScript {
             var rootCallSignatures = this._rootType.getCallSignatures();
 
             for (var i = 0; i < rootCallSignatures.length; i++) {
-                this._specializedCallSignatureCache[this._specializedCallSignatureCache.length] = getSpecializedSignature(rootCallSignatures[i], this._rootType.getTypeParameters(), this._typeArguments);
+                this._specializedCallSignatureCache[this._specializedCallSignatureCache.length] = getSpecializedSignature(rootCallSignatures[i], this._rootType.getTypeParameters(), this._typeArguments, false, this._typeSubstitutionCache);
             }
 
             return this._specializedCallSignatureCache;
@@ -176,7 +213,7 @@ module TypeScript {
             var rootConstructSignatures = this._rootType.getConstructSignatures();
 
             for (var i = 0; i < rootConstructSignatures.length; i++) {
-                this._specializedConstructSignatureCache[this._specializedConstructSignatureCache.length] = getSpecializedSignature(rootConstructSignatures[i], this._rootType.getTypeParameters(), this._typeArguments);
+                this._specializedConstructSignatureCache[this._specializedConstructSignatureCache.length] = getSpecializedSignature(rootConstructSignatures[i], this._rootType.getTypeParameters(), this._typeArguments, false, this._typeSubstitutionCache);
             }
 
             return this._specializedConstructSignatureCache;
@@ -192,7 +229,7 @@ module TypeScript {
             var rootIndexSignatures = this._rootType.getIndexSignatures();
 
             for (var i = 0; i < rootIndexSignatures.length; i++) {
-                this._specializedIndexSignatureCache[this._specializedIndexSignatureCache.length] = getSpecializedSignature(rootIndexSignatures[i], this._rootType.getTypeParameters(), this._typeArguments);
+                this._specializedIndexSignatureCache[this._specializedIndexSignatureCache.length] = getSpecializedSignature(rootIndexSignatures[i], this._rootType.getTypeParameters(), this._typeArguments, false, this._typeSubstitutionCache);
             }
 
             return this._specializedIndexSignatureCache;
@@ -208,7 +245,7 @@ module TypeScript {
             var rootImplementedTypes = this._rootType.getImplementedTypes();
 
             for (var i = 0; i < rootImplementedTypes.length; i++) {
-                this._specializedImplementedTypesCache[this._specializedImplementedTypesCache.length] = getSpecializedType(rootImplementedTypes[i], rootImplementedTypes[i].getTypeParameters(), this._typeArguments);
+                this._specializedImplementedTypesCache[this._specializedImplementedTypesCache.length] = getSpecializedType(rootImplementedTypes[i], rootImplementedTypes[i].getTypeParameters(), this._typeArguments, false, this._typeSubstitutionCache);
             }
 
             return this._specializedImplementedTypesCache;
@@ -224,7 +261,7 @@ module TypeScript {
             var rootExtendedTypes = this._rootType.getExtendedTypes();
 
             for (var i = 0; i < rootExtendedTypes.length; i++) {
-                this._specializedExtendedTypesCache[this._specializedExtendedTypesCache.length] = getSpecializedType(rootExtendedTypes[i], rootExtendedTypes[i].getTypeParameters(), this._typeArguments);
+                this._specializedExtendedTypesCache[this._specializedExtendedTypesCache.length] = getSpecializedType(rootExtendedTypes[i], rootExtendedTypes[i].getTypeParameters(), this._typeArguments, false, this._typeSubstitutionCache);
             }
 
             return this._specializedExtendedTypesCache;
@@ -247,7 +284,7 @@ module TypeScript {
                 return null;
             }
 
-            this._specializedConstructorMethod = getSpecializedMember(rootConstructorMethod, rootConstructorMethod.getType().getTypeParameters(), this._typeArguments);
+            this._specializedConstructorMethod = getSpecializedMember(rootConstructorMethod, rootConstructorMethod.getType().getTypeParameters(), this._typeArguments, this._typeSubstitutionCache);
 
             return this._specializedConstructorMethod;
         }
@@ -592,11 +629,11 @@ module TypeScript {
     }
 
 
-    export function getSpecializedMember(symbolToSpecialize: PullSymbol, typeParameters: PullTypeSymbol[], typeArguments: PullTypeSymbol[]): PullSymbol {
+    export function getSpecializedMember(symbolToSpecialize: PullSymbol, typeParameters: PullTypeSymbol[], typeArguments: PullTypeSymbol[], substitutions: any): PullSymbol {
 
         var newValueSymbol = new PullSpecializedValueSymbol(symbolToSpecialize);
 
-        var newType = getSpecializedType(symbolToSpecialize.getType(), typeParameters, typeArguments);
+        var newType = getSpecializedType(symbolToSpecialize.getType(), typeParameters, typeArguments, false, substitutions);
 
         newValueSymbol.setType(newType);
 
@@ -605,22 +642,68 @@ module TypeScript {
         return newValueSymbol;
     }
 
-    export function getSpecializedType(typeToSpecialize: PullTypeSymbol, typeParameters: PullTypeSymbol[], typeArguments: PullTypeSymbol[]): PullTypeSymbol {
+    export function createSubstitutionMap(substitutions: any, typeParameters: PullTypeSymbol[], typeArguments: PullTypeSymbol[]) {
+
+        if (!typeParameters.length || !typeArguments.length || (typeParameters.length != typeArguments.length)) {
+            return substitutions;
+        }
+
+        if (!substitutions) {
+            substitutions = {};
+        }
+
+        for (var i = 0; i < typeParameters.length; i++) {
+            substitutions[typeParameters[i].getSymbolID().toString()] = typeArguments[i];
+        }
+
+        return substitutions;
+    }
+
+    export function createOverrideSubstitutionMap(substitutions: any, typeParameters: PullTypeSymbol[], overrideType: PullTypeSymbol) {
+
+        if (!substitutions) {
+            substitutions = {};
+        }
+        else {
+            for (var sub in substitutions) {
+                substitutions[sub] = overrideType;
+            }
+        }
+
+        for (var i = 0; i < typeParameters.length; i++) {
+            substitutions[typeParameters[i].getSymbolID().toString()] = overrideType;
+        }
+
+        return substitutions;
+    }
+
+
+    export function getSpecializedType(typeToSpecialize: PullTypeSymbol, typeParameters: PullTypeSymbol[], typeArguments: PullTypeSymbol[], atCallSite: boolean, substitutions: any, overrideType?: PullTypeSymbol): PullTypeSymbol {
         if (typeToSpecialize.isPrimitive() || !typeToSpecialize.isGeneric()) {
             return typeToSpecialize;
         }
 
         if (typeToSpecialize.isTypeParameter()) {
-            if (typeArguments.length) {
+
+            if (overrideType) {
+                return overrideType;
+            }
+
+            if (substitutions && substitutions[typeToSpecialize.getSymbolID().toString()]) {
+                return <PullTypeSymbol>substitutions[typeToSpecialize.getSymbolID().toString()];
+            }
+
+            if (typeArguments.length == 1 && (!(<PullTypeParameterSymbol>typeToSpecialize).isFunctionTypeParameter())) {
                 return typeArguments[0];
-            }
-            else {
 
+                //else if (substitutions && substitutions[typeToSpecialize.getSymbolID().toString()]) {
+                //    return <PullTypeSymbol>substitutions[typeToSpecialize.getSymbolID().toString()];
+                //}
             }
-        }
-
-        if (!typeParameters.length) {
             return typeToSpecialize;
+            //else {
+            //    Debug.assert(false, "Could not specialize type parameter");
+            //}
         }
 
         var existingSpecialization = typeToSpecialize.getSpecialization(typeArguments);
@@ -629,12 +712,66 @@ module TypeScript {
             return existingSpecialization;
         }
 
-        var specializedType = new PullSpecializedTypeSymbol(typeToSpecialize, typeArguments);
+        var substitutions = overrideType ? createOverrideSubstitutionMap((<PullSpecializedTypeSymbol>typeToSpecialize).getTypeSubstitutions(), typeParameters, overrideType) : createSubstitutionMap(substitutions, typeParameters, typeArguments);
+        var targetTypeParameters = typeToSpecialize.getIsSpecialized() ? typeToSpecialize.getTypeArguments() : typeToSpecialize.getTypeParameters(); //typeToSpecialize.getIsSpecialized() ? typeToSpecialize.getTypeArguments() : typeParameters;
 
-        return specializedType;
+        var typeParametersMatch = targetTypeParameters.length == typeParameters.length;
+
+        if (typeParametersMatch) {
+            for (var i = 0; i < typeParameters.length; i++) {
+                if (typeParameters[i] != targetTypeParameters[i]) {
+                    typeParametersMatch = false;
+                    break;
+                }
+            }
+        }
+
+        // if (typeToSpecialize.typeParameters == typeParameters) && typeArguments - specialize to type arguments
+        // if typeToSpecialize has no "wrapped" type parameters, specialize
+        if (typeParametersMatch && typeArguments.length) {
+            return new PullSpecializedTypeSymbol(typeToSpecialize, typeArguments, substitutions);
+        }
+
+        var targetSubstitutions: PullTypeSymbol[] = new Array<PullTypeSymbol>();
+
+        if (substitutions) {
+            for (var i = 0; i < targetTypeParameters.length; i++) {
+                if (substitutions[targetTypeParameters[i].getSymbolID().toString()]) {
+                    targetSubstitutions[i] = substitutions[targetTypeParameters[i].getSymbolID().toString()];
+                }
+                else {
+                    break;
+                }   
+            }
+        }
+
+        // if typeToSpecialize has no type Parameters - add substitution, re-specialize
+        // if (typeToSpecialize.typeParameters != typeParameters) && substitution - add substitution, re-specialize to type parameters
+
+        return new PullSpecializedTypeSymbol(typeToSpecialize, targetSubstitutions.length == targetTypeParameters.length ? targetSubstitutions : targetTypeParameters, substitutions);
+
+        //var targetTypeArguments = new Array<PullTypeSymbol>();
+        //var substitution: PullTypeSymbol = null;
+
+        //for (var i = 0; i < targetTypeParameters.length; i++) {
+        //    if (typeArguments.length) {
+        //        targetTypeArguments[i] = typeArguments[i];
+        //    }
+        //    else if (substitutions) {
+        //        substitution = substitutions[targetTypeParameters[i].getSymbolID().toString()];
+
+        //        if (substitution) {
+        //            targetTypeArguments[targetTypeArguments.length] = substitution;
+        //        }
+        //    }
+        //}
+
+        //var specializedType = new PullSpecializedTypeSymbol(typeToSpecialize, targetTypeArguments, substitutions);
+
+        //return specializedType;
     }
 
-    export function getSpecializedSignature(signatureToSpecialize: PullSignatureSymbol, typeParameters: PullTypeSymbol[], typeArguments: PullTypeSymbol[]): PullSignatureSymbol {
+    export function getSpecializedSignature(signatureToSpecialize: PullSignatureSymbol, typeParameters: PullTypeSymbol[], typeArguments: PullTypeSymbol[], atCallSite: boolean, substitutions: any): PullSignatureSymbol {
 
         var existingSignature = signatureToSpecialize.getSpecialization(typeArguments);
 
@@ -645,7 +782,7 @@ module TypeScript {
         var newSignature = new PullSpecializedSignatureSymbol(signatureToSpecialize, typeArguments);
 
         // specialize the return type
-        var newReturnType = getSpecializedType(signatureToSpecialize.getReturnType(), signatureToSpecialize.getReturnType().getTypeParameters(), typeArguments);
+        var newReturnType = getSpecializedType(signatureToSpecialize.getReturnType(), typeParameters/*signatureToSpecialize.getReturnType().getTypeParameters()*/, typeArguments, atCallSite, substitutions);
 
         newSignature.setReturnType(newReturnType);
 
@@ -657,7 +794,7 @@ module TypeScript {
 
         for (var i = 0; i < parametersToSpecialize.length; i++) {
             newParameter = new PullSpecializedValueSymbol(parametersToSpecialize[i]);
-            newParameterType = getSpecializedType(parametersToSpecialize[i].getType(), typeParameters, typeArguments);
+            newParameterType = getSpecializedType(parametersToSpecialize[i].getType(), typeParameters, typeArguments, false, substitutions);
 
             newParameter.setType(newParameterType);
 
