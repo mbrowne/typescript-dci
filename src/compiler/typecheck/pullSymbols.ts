@@ -1414,13 +1414,16 @@ module TypeScript {
                 return true;
             }
 
-            if (this.typeParameterLinks && this.typeArguments) {
-                if (!this.typeArguments.length || this.typeArguments.length < this.typeParameterLinks.length) {
+            var typeParameters = this.getTypeParameters();
+            var typeArguments = this.getTypeArguments();
+
+            if (typeParameters.length && typeArguments.length) {
+                if (typeArguments.length < typeParameters.length) {
                     return false;
                 }
 
-                for (var i = 0; i < this.typeArguments.length; i++) {
-                    if (!this.typeArguments[i].isFixed()) {
+                for (var i = 0; i < typeArguments.length; i++) {
+                    if (!typeArguments[i].isFixed()) {
                         return false;
                     }
                 }

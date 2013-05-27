@@ -729,8 +729,9 @@ module TypeScript {
                 this.logger.log("    Time in findSymbol: " + time_in_findSymbol);
                 this.logger.log("Find errors: " + (findErrorsEndTime - findErrorsStartTime));
                 this.logger.log("Symbols created: " + pullSymbolID);
-                this.logger.log("Specializationed types created: " + nSpecializationsCreated);
+                this.logger.log("Specialized types created: " + nSpecializationsCreated);
                 this.logger.log("Specialized signatures created: " + nSpecializedSignaturesCreated);
+                this.logger.log("Specialized members created: " + nSpecializedMembersCreated);
             } );
         }
 

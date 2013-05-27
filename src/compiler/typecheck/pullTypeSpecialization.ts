@@ -4,6 +4,9 @@
 ///<reference path='..\typescript.ts' />
 
 module TypeScript {
+
+    export var nSpecializedMembersCreated = 0;
+
     export class PullSpecializedValueSymbol extends PullSymbol {
         private _rootSymbol: PullSymbol;
 
@@ -11,6 +14,7 @@ module TypeScript {
             super(rootSymbol.getName(), rootSymbol.getKind());
 
             this._rootSymbol = rootSymbol;
+            nSpecializedMembersCreated++;
         }
 
         public getIsSpecialized() { return true; }
@@ -65,6 +69,7 @@ module TypeScript {
             this._typeSubstitutionCache = substitutions;
 
             rootType.addSpecialization(this, typeArguments);
+            nSpecializationsCreated++;
         }
 
         public isGeneric(): boolean {
@@ -428,11 +433,6 @@ module TypeScript {
             Debug.assert(false, "Invalid method call on specialized type");
         }
 
-        public isFixed(): boolean {
-            Debug.assert(false, "Invalid method call on specialized type");
-            return false;
-        }
-
         public invalidateSpecializations(): void {
             Debug.assert(false, "Invalid method call on specialized type");
         }
@@ -531,6 +531,7 @@ module TypeScript {
             this._typeArguments = typeArguments;
 
             this._rootSignature.addSpecialization(this, typeArguments);
+            nSpecializedSignaturesCreated++;
         }
 
         public rootSignature() {
@@ -693,6 +694,9 @@ module TypeScript {
         return substitutions;
     }
 
+    export function createSpecializedType(typeToSpecialize: PullTypeSymbol, typeArguments: PullTypeSymbol[], substitutions: any) {
+        return getSpecializedType(typeToSpecialize, typeToSpecialize.getTypeParameters(), typeArguments, false, substitutions);
+    }
 
     export function getSpecializedType(typeToSpecialize: PullTypeSymbol, typeParameters: PullTypeSymbol[], typeArguments: PullTypeSymbol[], atCallSite: boolean, substitutions: any, overrideType?: PullTypeSymbol): PullTypeSymbol {
         if (typeToSpecialize.isPrimitive() || !typeToSpecialize.isGeneric()) {
@@ -722,14 +726,42 @@ module TypeScript {
             //}
         }
 
-        var existingSpecialization = typeToSpecialize.getSpecialization(typeArguments);
+        var existingSpecializationForTypeArgs = typeToSpecialize.getSpecialization(typeArguments);
 
-        if (existingSpecialization) {
-            return existingSpecialization;
+        if (existingSpecializationForTypeArgs && overrideType) {
+            return existingSpecializationForTypeArgs;
         }
-        nSpecializationsCreated++;
+
         var substitutions = (overrideType && typeToSpecialize.getIsSpecialized()) ? createOverrideSubstitutionMap((<PullSpecializedTypeSymbol>typeToSpecialize).getTypeSubstitutions(), typeParameters, overrideType) : createSubstitutionMap(substitutions, typeParameters, typeArguments);
         var targetTypeParameters = typeToSpecialize.getIsSpecialized() ? typeToSpecialize.getTypeArguments() : typeToSpecialize.getTypeParameters(); //typeToSpecialize.getIsSpecialized() ? typeToSpecialize.getTypeArguments() : typeParameters;
+
+        var targetSubstitutions: PullTypeSymbol[] = new Array<PullTypeSymbol>();
+
+        if (substitutions) {
+            for (var i = 0; i < targetTypeParameters.length; i++) {
+                if (substitutions[targetTypeParameters[i].getSymbolID().toString()]) {
+                    targetSubstitutions[i] = substitutions[targetTypeParameters[i].getSymbolID().toString()];
+                }
+                else {
+                    break;
+                }
+            }
+        }
+
+        var targetTypeArguments = targetSubstitutions.length == targetTypeParameters.length ? targetSubstitutions : targetTypeParameters;
+
+        if (!targetTypeArguments.length && typeArguments.length) {
+            targetTypeArguments = typeArguments;
+        }
+
+        var existingSpecializationForType = typeToSpecialize.getSpecialization(targetTypeArguments);
+
+        if (existingSpecializationForType) {
+            return existingSpecializationForType;
+        }
+        else if (existingSpecializationForTypeArgs) {
+            return existingSpecializationForTypeArgs;
+        }
 
         var typeParametersMatch = targetTypeParameters.length == typeParameters.length;
 
@@ -746,31 +778,6 @@ module TypeScript {
         // if typeToSpecialize has no "wrapped" type parameters, specialize
         if (typeParametersMatch && typeArguments.length) {
             return new PullSpecializedTypeSymbol(typeToSpecialize, typeArguments, substitutions);
-        }
-
-        var targetSubstitutions: PullTypeSymbol[] = new Array<PullTypeSymbol>();
-
-        if (substitutions) {
-            for (var i = 0; i < targetTypeParameters.length; i++) {
-                if (substitutions[targetTypeParameters[i].getSymbolID().toString()]) {
-                    targetSubstitutions[i] = substitutions[targetTypeParameters[i].getSymbolID().toString()];
-                }
-                else {
-                    break;
-                }   
-            }
-        }
-
-        var targetTypeArguments = targetSubstitutions.length == targetTypeParameters.length ? targetSubstitutions : targetTypeParameters;
-
-        if (!targetTypeArguments.length && typeArguments.length) {
-            targetTypeArguments = typeArguments;
-        }
-
-        existingSpecialization = typeToSpecialize.getSpecialization(targetTypeArguments);
-
-        if (existingSpecialization) {
-            return existingSpecialization;
         }
 
         // if typeToSpecialize has no type Parameters - add substitution, re-specialize
@@ -806,7 +813,7 @@ module TypeScript {
         if (existingSignature) {
             return existingSignature;
         }
-        nSpecializedSignaturesCreated++;
+        
         var newSignature = new PullSpecializedSignatureSymbol(signatureToSpecialize, typeArguments);
 
         // specialize the return type

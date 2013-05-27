@@ -1508,7 +1508,7 @@ module TypeScript {
             else {
                 if (paramSymbol.getIsVarArg() && paramSymbol.getType()) {
                     if (this.cachedArrayInterfaceType) {
-                        context.setTypeInContext(paramSymbol, new PullSpecializedTypeSymbol(this.cachedArrayInterfaceType, [paramSymbol.getType()], null));
+                        context.setTypeInContext(paramSymbol, createSpecializedType(this.cachedArrayInterfaceType, [paramSymbol.getType()], null));
                     }
                     else {
                         context.setTypeInContext(paramSymbol, paramSymbol.getType());
@@ -1538,7 +1538,7 @@ module TypeScript {
             else {
                 if (paramSymbol.getIsVarArg() && paramSymbol.getType()) {
                     if (this.cachedArrayInterfaceType) {
-                        context.setTypeInContext(paramSymbol, new PullSpecializedTypeSymbol(this.cachedArrayInterfaceType, [paramSymbol.getType()], null));
+                        context.setTypeInContext(paramSymbol, createSpecializedType(this.cachedArrayInterfaceType, [paramSymbol.getType()], null));
                     }
                     else {
                         context.setTypeInContext(paramSymbol, paramSymbol.getType());
@@ -1705,7 +1705,7 @@ module TypeScript {
                         this.resolveDeclaredSymbol(this.cachedArrayInterfaceType, enclosingDecl, context);
                     }
 
-                    arraySymbol = new PullSpecializedTypeSymbol(this.cachedArrayInterfaceType, [typeDeclSymbol], null);
+                    arraySymbol = createSpecializedType(this.cachedArrayInterfaceType, [typeDeclSymbol], null);
 
                     if (!arraySymbol) {
                         arraySymbol = this.semanticInfoChain.anyTypeSymbol;
@@ -1717,7 +1717,7 @@ module TypeScript {
                         var existingArraySymbol = arraySymbol.getArrayType();
 
                         if (!existingArraySymbol) {
-                            arraySymbol = new PullSpecializedTypeSymbol(this.cachedArrayInterfaceType, [arraySymbol], null);
+                            arraySymbol = createSpecializedType(this.cachedArrayInterfaceType, [arraySymbol], null);
                         }
                         else {
                             arraySymbol = existingArraySymbol;
@@ -1868,7 +1868,7 @@ module TypeScript {
                 var defaultType = this.semanticInfoChain.anyTypeSymbol;
 
                 if (declSymbol.getIsVarArg() && this.cachedArrayInterfaceType) {
-                    defaultType = new PullSpecializedTypeSymbol(this.cachedArrayInterfaceType, [defaultType], null);
+                    defaultType = createSpecializedType(this.cachedArrayInterfaceType, [defaultType], null);
                 }
 
                 context.setTypeInContext(declSymbol, defaultType);
@@ -3082,7 +3082,7 @@ module TypeScript {
                     [context.postError(this.unitPath, genericTypeAST.minChar, genericTypeAST.getLength(), DiagnosticCode.Generic_type__0__requires_1_type_argument_s_, [genericTypeSymbol.toString(), genericTypeSymbol.getTypeParameters().length])]);
             }
 
-            var specializedSymbol = new PullSpecializedTypeSymbol(genericTypeSymbol, typeArgs, null);//specializeType(genericTypeSymbol, typeArgs, this, enclosingDecl, context, genericTypeAST);
+            var specializedSymbol = createSpecializedType(genericTypeSymbol, typeArgs, null);//new PullSpecializedTypeSymbol(genericTypeSymbol, typeArgs, null);//specializeType(genericTypeSymbol, typeArgs, this, enclosingDecl, context, genericTypeAST);
 
             // check constraints, if appropriate
             var typeConstraint: PullTypeSymbol = null;
@@ -3724,7 +3724,7 @@ module TypeScript {
                     this.resolveDeclaredSymbol(this.cachedArrayInterfaceType, enclosingDecl, context);
                 }
 
-                arraySymbol = new PullSpecializedTypeSymbol(this.cachedArrayInterfaceType, [elementType], null);
+                arraySymbol = createSpecializedType(this.cachedArrayInterfaceType, [elementType], null);
 
                 if (!arraySymbol) {
                     arraySymbol = this.semanticInfoChain.anyTypeSymbol;
@@ -4644,7 +4644,7 @@ module TypeScript {
                 // if it's a default constructor, and we have a type argument, we need to specialize
                 if (returnType && !signature.isGeneric() && returnType.isGeneric() && !returnType.getIsSpecialized()) {
                     if (typeArgs && typeArgs.length) {
-                        returnType = new PullSpecializedTypeSymbol(returnType, typeArgs, null);// specializeType(returnType, typeArgs, this, enclosingDecl, context, callEx);
+                        returnType = createSpecializedType(returnType, typeArgs, null);// specializeType(returnType, typeArgs, this, enclosingDecl, context, callEx);
                     }
                     else {
                         returnType = this.specializeTypeToAny(returnType);
@@ -4865,7 +4865,7 @@ module TypeScript {
                         var mergedArrayType = mergedET.getArrayType();
 
                         if (!mergedArrayType) {
-                            mergedArrayType = new PullSpecializedTypeSymbol(this.cachedArrayInterfaceType, [mergedET], null);
+                            mergedArrayType = createSpecializedType(this.cachedArrayInterfaceType, [mergedET], null);
                         }
 
                         return mergedArrayType;
