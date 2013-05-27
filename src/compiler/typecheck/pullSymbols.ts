@@ -2126,6 +2126,17 @@ module TypeScript {
         }
 
         public getScopedNameEx(scopeSymbol?: PullSymbol, useConstraintInName?: boolean, getPrettyTypeName?: boolean, getTypeParamMarkerInfo?: boolean) {
+
+            if (this.isArray()) {
+                var elementType = this.getElementType()
+                var elementMemberName = elementType ?
+                    (elementType.isArray() || elementType.isNamedTypeSymbol() ?
+                    elementType.getScopedNameEx(scopeSymbol, false, getPrettyTypeName, getTypeParamMarkerInfo) :
+                    elementType.getMemberTypeNameEx(false, scopeSymbol, getPrettyTypeName)) :
+                    MemberName.create("any");
+                return MemberName.create(elementMemberName, "", "[]");
+            }
+
             if (!this.isNamedTypeSymbol()) {
                 return this.getMemberTypeNameEx(true, scopeSymbol, getPrettyTypeName);
             }
@@ -2151,6 +2162,12 @@ module TypeScript {
         }
 
         public getMemberTypeNameEx(topLevel: boolean, scopeSymbol?: PullSymbol, getPrettyTypeName?: boolean): MemberName {
+            if (this.isArray()) {
+                var elementType = this.getElementType();
+                var elementMemberName = elementType ? elementType.getMemberTypeNameEx(false, scopeSymbol, getPrettyTypeName) : MemberName.create("any");
+                return MemberName.create(elementMemberName, "", "[]");
+            }
+
             var members = this.getMembers();
             var callSignatures = this.getCallSignatures();
             var constructSignatures = this.getConstructSignatures();

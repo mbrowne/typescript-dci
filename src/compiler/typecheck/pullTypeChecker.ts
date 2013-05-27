@@ -1146,9 +1146,7 @@ module TypeScript {
                         var extendedConstructorTypeProp = extendedConstructorType.findMember(propName);
                         if (extendedConstructorTypeProp) {
                             if (!extendedConstructorTypeProp.isResolved()) {
-                                var extendedClassAst = typeCheckContext.semanticInfo.getASTForSymbol(extendedType);
-                                var extendedClassDecl = typeCheckContext.semanticInfo.getDeclForAST(extendedClassAst);
-                                this.resolver.resolveDeclaredSymbol(extendedConstructorTypeProp, extendedClassDecl, resolutionContext);
+                                this.resolver.resolveDeclaredSymbol(extendedConstructorTypeProp, extendedType.getDeclarations()[0], resolutionContext);
                             }
 
                             // check if type of property is subtype of extended type's property type
