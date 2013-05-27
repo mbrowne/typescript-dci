@@ -6543,12 +6543,13 @@ module TypeScript {
 
             var cxt: PullContextualTypeContext = null;
             var hadProvisionalErrors = false;
-
             var parameters = signature.getParameters();
             var typeParameters = signature.getTypeParameters();
             var argContext = new ArgumentInferenceContext();
-
+            var anySig = this.specializeSignatureToAny(signature);
+            var anyParameters = anySig.getParameters();
             var parameterType: PullTypeSymbol = null;
+            var anyParameterType: PullTypeSymbol = null;
 
             // seed each type parameter with the undefined type, so that we can widen it to 'any'
             // if no inferences can be made
@@ -6567,6 +6568,7 @@ module TypeScript {
                 }
 
                 parameterType = parameters[i].getType();
+                anyParameterType = anyParameters[i].getType();
 
                 // account for varargs
                 if (signature.hasVariableParamList() && (i >= signature.getNonOptionalParameterCount() - 1) && parameterType.isArray()) {
@@ -6588,6 +6590,11 @@ module TypeScript {
                         context.pushContextualType(parameterType, true, substitutions);
 
                         var argSym = this.resolveAST(args.members[i], true, enclosingDecl, context).symbol;
+                        var anyArgType = this.specializeTypeToAny(argSym.getType());
+
+                        if (!this.sourceIsAssignableToTarget(anyArgType, anyParameterType, context)) {
+                            continue;
+                        }
 
                         this.relateTypeToTypeParameters(argSym.getType(), parameterType, false, argContext, enclosingDecl, context);
 
@@ -6601,6 +6608,11 @@ module TypeScript {
                 else {
                     context.pushContextualType(parameterType, true, {});
                     var argSym = this.resolveAST(args.members[i], true, enclosingDecl, context).symbol;
+                    var anyArgType = this.specializeTypeToAny(argSym.getType());
+
+                    if (!this.sourceIsAssignableToTarget(anyArgType, anyParameterType, context)) {
+                        continue;
+                    }
 
                     this.relateTypeToTypeParameters(argSym.getType(), parameterType, false, argContext, enclosingDecl, context);
 
@@ -6671,36 +6683,14 @@ module TypeScript {
                 argContext.addCandidateForInference(<PullTypeParameterSymbol>parameterType, expressionType, shouldFix);
                 return;
             }
-            //var parameterDeclarations = parameterType.getDeclarations();
-            //var expressionDeclarations = expressionType.getDeclarations();
-            //if (!parameterType.isArray() && parameterDeclarations.length && expressionDeclarations.length && parameterDeclarations[0].isEqual(expressionDeclarations[0]) && expressionType.isGeneric()) {
-            //    var typeParameters: PullTypeSymbol[] = parameterType.getIsSpecialized() ? parameterType.getTypeArguments() : parameterType.getTypeParameters();
-            //    var typeArguments: PullTypeSymbol[] = expressionType.getTypeArguments();
-
-            //    // If we're relating an out-of-order resolution of a function call within the body
-            //    // of a generic type's method, the relationship will actually be in reverse.
-            //    if (!typeArguments) {
-            //        typeParameters = parameterType.getTypeArguments();
-            //        typeArguments = expressionType.getIsSpecialized() ? expressionType.getTypeArguments() : expressionType.getTypeParameters();
-            //    }
-
-            //    if (typeParameters && typeArguments && typeParameters.length === typeArguments.length) {
-            //        for (var i = 0; i < typeParameters.length; i++) {
-            //            if (typeArguments[i] != typeParameters[i]) {
-            //                // relate and fix
-            //                this.relateTypeToTypeParameters(typeArguments[i], typeParameters[i], true, argContext, enclosingDecl, context);
-            //            }
-            //        }
-            //    }
-            //}
 
             // if the expression and parameter type, with type arguments of 'any', are not assignment compatible, ignore
-            var anyExpressionType = this.specializeTypeToAny(expressionType);
-            var anyParameterType = this.specializeTypeToAny(parameterType);
+            //var anyExpressionType = this.specializeTypeToAny(expressionType);
+            //var anyParameterType = this.specializeTypeToAny(parameterType);
 
-            if (!this.sourceIsAssignableToTarget(anyExpressionType, anyParameterType, context)) {
-                return;
-            }
+            //if (!this.sourceIsAssignableToTarget(anyExpressionType, anyParameterType, context)) {
+            //    return;
+            //}
 
             if (expressionType.isArray() && parameterType.isArray()) {
                 this.relateArrayTypeToTypeParameters(expressionType, parameterType, shouldFix, argContext, enclosingDecl, context);
@@ -6716,14 +6706,6 @@ module TypeScript {
             argContext: ArgumentInferenceContext,
             enclosingDecl: PullDecl,
             context: PullTypeResolutionContext): void {
-            // Sub in 'any' for type parameters
-
-            //var anyExpressionSignature = this.specializeSignatureToAny(expressionSignature);
-            //var anyParamExpressionSignature = this.specializeSignatureToAny(parameterSignature);
-
-            //if (!this.signatureIsAssignableToTarget(anyExpressionSignature, anyParamExpressionSignature, context)) {
-            //    return;
-            //}
 
             var expressionParams = expressionSignature.getParameters();
             var expressionReturnType = expressionSignature.getReturnType();
@@ -6846,26 +6828,31 @@ module TypeScript {
                 this.anyTypeArray[typeParameters.length - 1] = typeArguments;
             }
 
-            return getSpecializedType(typeToSpecialize, typeToSpecialize.getTypeParameters(), typeArguments, false, substitutions, this.semanticInfoChain.anyTypeSymbol);
+            return getSpecializedType(typeToSpecialize, typeParameters, typeArguments, false, substitutions, this.semanticInfoChain.anyTypeSymbol);
         }
 
-        //private specializeSignatureToAny(signatureToSpecialize: PullSignatureSymbol): PullSignatureSymbol {
-        //    var typeParameters = signatureToSpecialize.getTypeParameters();
-        //    var typeArguments: PullTypeSymbol[] = null;
+        private specializeSignatureToAny(signatureToSpecialize: PullSignatureSymbol): PullSignatureSymbol {
+            var typeParameters = signatureToSpecialize.getTypeParameters();
+            var typeArguments: PullTypeSymbol[] = null;
+            var substitutions: any = {};
 
-        //    if (typeParameters.length && typeParameters.length < this.anyTypeArray.length) {
-        //        typeArguments = this.anyTypeArray[typeParameters.length - 1];
-        //    }
-        //    else {
-        //        typeArguments = [];
-        //        for (var i = 0; i < typeParameters.length; i++) {
-        //            typeArguments[typeArguments.length] = this.semanticInfoChain.anyTypeSymbol;
-        //        }
-        //        this.anyTypeArray[typeParameters.length - 1] = typeArguments;
-        //    }
+            for (var i = 0; i < typeParameters.length; i++) {
+                substitutions[typeParameters[i].getSymbolID().toString()] = typeParameters[i];
+            }
 
-        //    // no need to worry about returning 'null', since 'any' satisfies all constraints
-        //    return getSpecializedSignature(signatureToSpecialize, typeParameters, typeArguments, false);
-        //}
+            if (typeParameters.length && typeParameters.length < this.anyTypeArray.length) {
+                typeArguments = this.anyTypeArray[typeParameters.length - 1];
+            }
+            else {
+                typeArguments = [];
+                for (var i = 0; i < typeParameters.length; i++) {
+                    typeArguments[typeArguments.length] = this.semanticInfoChain.anyTypeSymbol;
+                }
+                this.anyTypeArray[typeParameters.length - 1] = typeArguments;
+            }
+
+            // no need to worry about returning 'null', since 'any' satisfies all constraints
+            return getSpecializedSignature(signatureToSpecialize, typeParameters, typeArguments, true, substitutions, this.semanticInfoChain.anyTypeSymbol);
+        }
     }
 }

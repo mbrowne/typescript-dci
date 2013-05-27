@@ -116,6 +116,15 @@ module TypeScript {
         }
 
         public getTypeSubstitutions() {
+            if (this._typeSubstitutionCache) {
+                var subs: any = {};
+                
+                for (var sub in this._typeSubstitutionCache) {
+                    subs[sub] = this._typeSubstitutionCache[sub];
+                }
+
+                return subs;
+            }
             return this._typeSubstitutionCache;
         }
 
@@ -756,11 +765,13 @@ module TypeScript {
 
         var existingSpecializationForType = typeToSpecialize.getSpecialization(targetTypeArguments);
 
-        if (existingSpecializationForType) {
-            return existingSpecializationForType;
-        }
-        else if (existingSpecializationForTypeArgs) {
-            return existingSpecializationForTypeArgs;
+        if (!overrideType && !atCallSite) {
+            if (existingSpecializationForType) {
+                return existingSpecializationForType;
+            }
+            else if (existingSpecializationForTypeArgs) {
+                return existingSpecializationForTypeArgs;
+            }
         }
 
         var typeParametersMatch = targetTypeParameters.length == typeParameters.length;
@@ -784,40 +795,20 @@ module TypeScript {
         // if (typeToSpecialize.typeParameters != typeParameters) && substitution - add substitution, re-specialize to type parameters
 
         return new PullSpecializedTypeSymbol(typeToSpecialize, typeArguments, substitutions);
-
-        //var targetTypeArguments = new Array<PullTypeSymbol>();
-        //var substitution: PullTypeSymbol = null;
-
-        //for (var i = 0; i < targetTypeParameters.length; i++) {
-        //    if (typeArguments.length) {
-        //        targetTypeArguments[i] = typeArguments[i];
-        //    }
-        //    else if (substitutions) {
-        //        substitution = substitutions[targetTypeParameters[i].getSymbolID().toString()];
-
-        //        if (substitution) {
-        //            targetTypeArguments[targetTypeArguments.length] = substitution;
-        //        }
-        //    }
-        //}
-
-        //var specializedType = new PullSpecializedTypeSymbol(typeToSpecialize, targetTypeArguments, substitutions);
-
-        //return specializedType;
     }
 
-    export function getSpecializedSignature(signatureToSpecialize: PullSignatureSymbol, typeParameters: PullTypeSymbol[], typeArguments: PullTypeSymbol[], atCallSite: boolean, substitutions: any): PullSignatureSymbol {
+    export function getSpecializedSignature(signatureToSpecialize: PullSignatureSymbol, typeParameters: PullTypeSymbol[], typeArguments: PullTypeSymbol[], atCallSite: boolean, substitutions: any, overrideType?:PullTypeSymbol): PullSignatureSymbol {
 
         var existingSignature = signatureToSpecialize.getSpecialization(typeArguments);
 
-        if (existingSignature) {
+        if (existingSignature && !atCallSite) {
             return existingSignature;
         }
         
         var newSignature = new PullSpecializedSignatureSymbol(signatureToSpecialize, typeArguments);
 
         // specialize the return type
-        var newReturnType = getSpecializedType(signatureToSpecialize.getReturnType(), typeParameters/*signatureToSpecialize.getReturnType().getTypeParameters()*/, typeArguments, atCallSite, substitutions);
+        var newReturnType = getSpecializedType(signatureToSpecialize.getReturnType(), typeParameters, typeArguments, atCallSite, substitutions, overrideType);
 
         newSignature.setReturnType(newReturnType);
 
@@ -829,7 +820,7 @@ module TypeScript {
 
         for (var i = 0; i < parametersToSpecialize.length; i++) {
             newParameter = new PullSpecializedValueSymbol(parametersToSpecialize[i]);
-            newParameterType = getSpecializedType(parametersToSpecialize[i].getType(), typeParameters, typeArguments, false, substitutions);
+            newParameterType = getSpecializedType(parametersToSpecialize[i].getType(), typeParameters, typeArguments, atCallSite, substitutions, overrideType);
 
             newParameter.setType(newParameterType);
 
