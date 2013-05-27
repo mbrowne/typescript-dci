@@ -193,8 +193,6 @@ module TypeScript {
 
         public findSubstitution(type: PullTypeSymbol) {
 
-            return type;
-
             var substitution: PullTypeSymbol = null;
 
             if (this.contextStack.length) {

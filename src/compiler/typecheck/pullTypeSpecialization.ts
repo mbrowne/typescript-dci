@@ -13,7 +13,7 @@ module TypeScript {
             this._rootSymbol = rootSymbol;
         }
 
-        public isSpecializedValue(): boolean { return false; }
+        public getIsSpecialized() { return true; }
 
         public getDeclarations(): PullDecl[] {
             return this._rootSymbol.getDeclarations();
@@ -150,10 +150,10 @@ module TypeScript {
             var rootMember = this._rootType.findMember(name, lookInParent);
 
             if (!rootMember) {
-                return null;
+                return rootMember;
             }
 
-            var specializedMember = getSpecializedMember(rootMember, this._rootType.getTypeParameters(), this._typeArguments, this._typeSubstitutionCache);
+            var specializedMember = getSpecializedMember(rootMember, rootMember.getType().getIsSpecialized() ? rootMember.getType().getTypeArguments() : rootMember.getType().getTypeParameters(), this._typeArguments, this._typeSubstitutionCache);
 
             if (!lookInParent) {
                 this._specializedMemberNameCache[name] = specializedMember;
@@ -549,6 +549,10 @@ module TypeScript {
             return true;
         }
 
+        public getIsSpecialized() {
+            return true;
+        }
+
         // root delegates
         public isDefinition() {
             return this._rootSignature.isDefinition();
@@ -631,6 +635,18 @@ module TypeScript {
 
     export function getSpecializedMember(symbolToSpecialize: PullSymbol, typeParameters: PullTypeSymbol[], typeArguments: PullTypeSymbol[], substitutions: any): PullSymbol {
 
+        if (typeParameters.length) {
+            for (var i = 0; i < typeParameters.length; i++) {
+                if (!(typeParameters[i].isPrimitive() || !typeParameters[i].isGeneric())) {
+                    break;
+                }
+            }
+
+            if (i == typeParameters.length) {
+                return symbolToSpecialize;
+            }
+        }
+
         var newValueSymbol = new PullSpecializedValueSymbol(symbolToSpecialize);
 
         var newType = getSpecializedType(symbolToSpecialize.getType(), typeParameters, typeArguments, false, substitutions);
@@ -712,12 +728,12 @@ module TypeScript {
             return existingSpecialization;
         }
         nSpecializationsCreated++;
-        var substitutions = overrideType ? createOverrideSubstitutionMap((<PullSpecializedTypeSymbol>typeToSpecialize).getTypeSubstitutions(), typeParameters, overrideType) : createSubstitutionMap(substitutions, typeParameters, typeArguments);
+        var substitutions = (overrideType && typeToSpecialize.getIsSpecialized()) ? createOverrideSubstitutionMap((<PullSpecializedTypeSymbol>typeToSpecialize).getTypeSubstitutions(), typeParameters, overrideType) : createSubstitutionMap(substitutions, typeParameters, typeArguments);
         var targetTypeParameters = typeToSpecialize.getIsSpecialized() ? typeToSpecialize.getTypeArguments() : typeToSpecialize.getTypeParameters(); //typeToSpecialize.getIsSpecialized() ? typeToSpecialize.getTypeArguments() : typeParameters;
 
         var typeParametersMatch = targetTypeParameters.length == typeParameters.length;
 
-        if (typeParametersMatch) {
+        if (typeParametersMatch && !overrideType) {
             for (var i = 0; i < typeParameters.length; i++) {
                 if (typeParameters[i] != targetTypeParameters[i]) {
                     typeParametersMatch = false;
@@ -745,10 +761,22 @@ module TypeScript {
             }
         }
 
+        var targetTypeArguments = targetSubstitutions.length == targetTypeParameters.length ? targetSubstitutions : targetTypeParameters;
+
+        if (!targetTypeArguments.length && typeArguments.length) {
+            targetTypeArguments = typeArguments;
+        }
+
+        existingSpecialization = typeToSpecialize.getSpecialization(targetTypeArguments);
+
+        if (existingSpecialization) {
+            return existingSpecialization;
+        }
+
         // if typeToSpecialize has no type Parameters - add substitution, re-specialize
         // if (typeToSpecialize.typeParameters != typeParameters) && substitution - add substitution, re-specialize to type parameters
 
-        return new PullSpecializedTypeSymbol(typeToSpecialize, targetSubstitutions.length == targetTypeParameters.length ? targetSubstitutions : targetTypeParameters, substitutions);
+        return new PullSpecializedTypeSymbol(typeToSpecialize, typeArguments, substitutions);
 
         //var targetTypeArguments = new Array<PullTypeSymbol>();
         //var substitution: PullTypeSymbol = null;
