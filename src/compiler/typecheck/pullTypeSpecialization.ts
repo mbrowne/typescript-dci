@@ -621,10 +621,6 @@ module TypeScript {
             Debug.assert(false, "Invalid method call on specialized signature");
         }
 
-        public setHasVariableParamList() {
-            Debug.assert(false, "Invalid method call on specialized signature");
-        }
-
         public setHasGenericParameter() {
             Debug.assert(false, "Invalid method call on specialized signature");
         }
@@ -765,7 +761,7 @@ module TypeScript {
 
         var existingSpecializationForType = typeToSpecialize.getSpecialization(targetTypeArguments);
 
-        if (!overrideType && !atCallSite) {
+        if (!overrideType && !(atCallSite && typeToSpecialize.isFunction())) {
             if (existingSpecializationForType) {
                 return existingSpecializationForType;
             }
@@ -823,6 +819,15 @@ module TypeScript {
             newParameterType = getSpecializedType(parametersToSpecialize[i].getType(), typeParameters, typeArguments, atCallSite, substitutions, overrideType);
 
             newParameter.setType(newParameterType);
+
+            if (parametersToSpecialize[i].getIsOptional()) {
+                newParameter.setIsOptional();
+            }
+
+            if (parametersToSpecialize[i].getIsVarArg()) {
+                newParameter.setIsVarArg();
+                newSignature.setHasVariableParamList();
+            }
 
             newSignature.addParameter(newParameter);
         }

@@ -1666,7 +1666,7 @@ module TypeScript {
                             // needs to be marked as capturing 'this'.
                             if (declKind === PullElementKind.Class) {
                                 decl.getChildDecls().filter(d => d.getKind() === PullElementKind.ConstructorMethod)
-                                    .map(d => d.setFlags(d.getFlags() | PullElementFlags.MustCaptureThis));
+                                    .map(d => <any>(d.setFlags(d.getFlags() | PullElementFlags.MustCaptureThis)));
                             }
                             break;
                         }
