@@ -754,7 +754,7 @@ module FourSlash {
             var content = snapshot.getText(0, snapshot.getLength());
             var refSyntaxTree = TypeScript.Parser.parse(this.activeFile.fileName, TypeScript.SimpleText.fromString(content), TypeScript.isDTSFile(this.activeFile.fileName), TypeScript.LanguageVersion.EcmaScript5, parseOptions);
             var fullSyntaxErrs = JSON2.stringify(refSyntaxTree.diagnostics());
-            var refAST = TypeScript.SyntaxTreeToAstVisitor.visit(refSyntaxTree, this.activeFile.fileName, compilationSettings);
+            var refAST = TypeScript.SyntaxTreeToAstVisitor.visit(refSyntaxTree, this.activeFile.fileName, compilationSettings, /*incrementalAST:*/ true);
             var compiler = new TypeScript.TypeScriptCompiler();
 
             compiler.addSourceUnit('lib.d.ts', TypeScript.ScriptSnapshot.fromString(Harness.Compiler.libTextMinimal), ByteOrderMark.None, 0, true);
@@ -1021,6 +1021,9 @@ module FourSlash {
             var referenceLanguageServiceShim = referenceLanguageServiceShimHost.getLanguageService();
             var referenceLanguageService = referenceLanguageServiceShim.languageService;
 
+            // Add lib.d.ts to the reference language service
+            referenceLanguageServiceShimHost.addScript('lib.d.ts', Harness.Compiler.libTextMinimal);
+
             for (var i = 0; i < this.testData.files.length; i++) {
                 var file = this.testData.files[i];
 
@@ -1082,7 +1085,7 @@ module FourSlash {
             }
         }
 
-        public verifyNavigationItemsListContains(name: string, kind: string, fileName: string, parentName: string) {
+        public verifyNavigationItemsListContains(name: string, kind: string, fileName?: string, parentName?: string) {
             var items = this.languageService.getScriptLexicalStructure(this.activeFile.fileName);
 
             if (!items || items.length === 0) {
@@ -1091,13 +1094,27 @@ module FourSlash {
 
             for (var i = 0; i < items.length; i++) {
                 var item = items[i];
-                if (item && item.name === name && item.kind === kind && item.fileName === fileName) {
+                if (item && item.name === name && item.kind === kind &&
+                    (fileName === undefined || item.fileName === fileName) &&
+                    (parentName === undefined || item.containerName === parentName)) {
                     return;
                 }
             }
 
             var missingItem = { name: name, kind: kind, fileName: fileName, parentName: parentName };
             throw new Error('verifyNavigationItemsListContains failed - could not find the item: ' + JSON.stringify(missingItem) + ' in the returned list: (' + JSON.stringify(items) + ')');
+        }
+
+        public printNavigationItems() {
+            var items = this.languageService.getScriptLexicalStructure(this.activeFile.fileName);
+            var length = items && items.length;
+
+            IO.printLine('NavigationItems list (' + length + ' items)');
+
+            for (var i = 0; i < length; i++) {
+                var item = items[i];
+                IO.printLine('name: ' + item.name + ', kind: ' + item.kind + ', parentName: ' + item.containerName + ', fileName: ' + item.fileName);
+            }
         }
 
         public verifyOccurancesAtPositionListContains(fileName: string, start: number, end: number, isWriteAccess?: boolean) {

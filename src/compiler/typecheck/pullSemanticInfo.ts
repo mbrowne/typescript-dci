@@ -21,16 +21,16 @@ module TypeScript {
 
         private topLevelDecls: PullDecl[] = [];
 
-        private astDeclMap: DataMap = new DataMap();
-        private declASTMap: DataMap = new DataMap();
+        private declASTMap: Collections.HashTable<PullDecl, AST> = Collections.createHashTable<PullDecl, AST>();
 
-        private syntaxElementDeclMap: DataMap = new DataMap();
-        private declSyntaxElementMap: DataMap = new DataMap();
+        private astDeclMap: Collections.HashTable<number, PullDecl> =
+            Collections.createHashTable<number, PullDecl>(Collections.DefaultHashTableCapacity, k => k);
 
-        private declSymbolMap: DataMap = new DataMap();
+        private astSymbolMap: Collections.HashTable<number, SymbolAndDiagnostics<any>> =
+            Collections.createHashTable<number, SymbolAndDiagnostics<any>>(Collections.DefaultHashTableCapacity, k => k);
 
-        private astSymbolMap: DataMap = new DataMap();
-        private symbolASTMap: DataMap = new DataMap();
+        private symbolASTMap: Collections.HashTable<number, AST> =
+            Collections.createHashTable<number, AST>(Collections.DefaultHashTableCapacity, k => k);
 
         private syntaxElementSymbolMap: DataMap = new DataMap();
         private symbolSyntaxElementMap: DataMap = new DataMap();
@@ -66,58 +66,32 @@ module TypeScript {
         }
 
         public getDeclForAST(ast: AST): PullDecl {
-            return <PullDecl>this.astDeclMap.read(ast.getID().toString());
+            return this.astDeclMap.get(ast.getID());
         }
 
         public setDeclForAST(ast: AST, decl: PullDecl): void {
-            this.astDeclMap.link(ast.getID().toString(), decl);
-        }
-
-        private getDeclKey(decl: PullDecl): string {
-            var decl1: any = decl;
-
-            if (!decl1.__declKey) {
-                decl1.__declKey = decl.getDeclID().toString() + "-" + decl.getKind().toString();
-            }
-
-            return decl1.__declKey;
+            this.astDeclMap.set(ast.getID(), decl);
         }
 
         public getASTForDecl(decl: PullDecl): AST {
-            return <AST>this.declASTMap.read(this.getDeclKey(decl));
+            return this.declASTMap.get(decl);
         }
 
         public setASTForDecl(decl: PullDecl, ast: AST): void {
-            this.declASTMap.link(this.getDeclKey(decl), ast);
+            this.declASTMap.set(decl, ast);
         }
 
         public setSymbolAndDiagnosticsForAST<TSymbol extends PullSymbol>(ast: AST, symbolAndDiagnostics: SymbolAndDiagnostics<TSymbol>): void {
-            this.astSymbolMap.link(ast.getID().toString(), symbolAndDiagnostics);
-            this.symbolASTMap.link(symbolAndDiagnostics.symbol.getSymbolID().toString(), ast)
+            this.astSymbolMap.set(ast.getID(), <SymbolAndDiagnostics<any>>symbolAndDiagnostics);
+            this.symbolASTMap.set(symbolAndDiagnostics.symbol.getSymbolID(), ast)
         }
 
-        public getSymbolAndDiagnosticsForAST(ast: AST): SymbolAndDiagnostics<PullSymbol> {
-            return <SymbolAndDiagnostics>this.astSymbolMap.read(ast.getID().toString());
+        public getSymbolAndDiagnosticsForAST(ast: IAST): SymbolAndDiagnostics<PullSymbol> {
+            return <SymbolAndDiagnostics<PullSymbol>>this.astSymbolMap.get(ast.getID());
         }
 
         public getASTForSymbol(symbol: PullSymbol): AST {
-            return <AST>this.symbolASTMap.read(symbol.getSymbolID().toString());
-        }
-
-        public getSyntaxElementForDecl(decl: PullDecl): ISyntaxElement {
-            return <ISyntaxElement>this.declSyntaxElementMap.read(this.getDeclKey(decl));
-        }
-
-        public setSyntaxElementForDecl(decl: PullDecl, syntaxElement: ISyntaxElement): void {
-            this.declSyntaxElementMap.link(this.getDeclKey(decl), syntaxElement);
-        }
-
-        public getDeclForSyntaxElement(syntaxElement: ISyntaxElement): PullDecl {
-            return <PullDecl>this.syntaxElementDeclMap.read(Collections.identityHashCode(syntaxElement).toString());
-        }
-
-        public setDeclForSyntaxElement(syntaxElement: ISyntaxElement, decl: PullDecl): void {
-            this.syntaxElementDeclMap.link(Collections.identityHashCode(syntaxElement).toString(), decl);
+            return this.symbolASTMap.get(symbol.getSymbolID());
         }
 
         public getSyntaxElementForSymbol(symbol: PullSymbol): ISyntaxElement {
@@ -421,7 +395,7 @@ module TypeScript {
             return null;
         }
 
-        public getSymbolAndDiagnosticsForAST(ast: AST, unitPath: string): SymbolAndDiagnostics<PullSymbol> {
+        public getSymbolAndDiagnosticsForAST(ast: IAST, unitPath: string): SymbolAndDiagnostics<PullSymbol> {
             var unit = <SemanticInfo>this.unitCache[unitPath];
 
             if (unit) {

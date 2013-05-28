@@ -1,94 +1,34 @@
 /// <reference path='ast.ts' />
 
 module TypeScript {
-    var incrementalAst = true;
-    export class SyntaxPositionMap {
-        private position = 0;
-        private elementToPosition = Collections.createHashTable(2048, Collections.identityHashCode);
-
-        constructor(node: SyntaxNode) {
-            this.process(node);
-        }
-
-        private process(element: ISyntaxElement) {
-            if (element !== null) {
-                if (element.isToken()) {
-                    this.elementToPosition.add(element, this.position);
-                    this.position += element.fullWidth();
-                }
-                else {
-                    if (element.isNode() ||
-                        (element.isList() && (<ISyntaxList>element).childCount() > 0) ||
-                        (element.isSeparatedList() && (<ISeparatedSyntaxList>element).childCount() > 0)) {
-                        this.elementToPosition.add(element, this.position);
-                    }
-
-                    for (var i = 0, n = element.childCount(); i < n; i++) {
-                        this.process(element.childAt(i));
-                    }
-                }
-            }
-        }
-
-        public static create(node: SyntaxNode): SyntaxPositionMap {
-            var map = new SyntaxPositionMap(node);
-            return map;
-        }
-
-        public fullStart(element: ISyntaxElement): number {
-            return this.elementToPosition.get(element);
-        }
-
-        public start(element: ISyntaxElement): number {
-            return this.fullStart(element) + element.leadingTriviaWidth();
-        }
-
-        public end(element: ISyntaxElement): number {
-            return this.start(element) + element.width();
-        }
-
-        public fullEnd(element: ISyntaxElement): number {
-            return this.fullStart(element) + element.fullWidth();
-        }
-    }
-
     export class SyntaxTreeToAstVisitor implements ISyntaxVisitor {
-        public static checkPositions = false;
+        public position = 0;
 
-        private position = 0;
+        public requiresExtendsBlock: boolean = false;
+        public previousTokenTrailingComments: Comment[] = null;
 
-        private requiresExtendsBlock: boolean = false;
-        private previousTokenTrailingComments: Comment[] = null;
-
-        private isParsingDeclareFile: boolean;
-        private isParsingAmbientModule = false;
-        private containingModuleHasExportAssignment = false;
+        public isParsingDeclareFile: boolean;
+        public isParsingAmbientModule = false;
+        public containingModuleHasExportAssignment = false;
 
         private static protoString = "__proto__";
         private static protoSubstitutionString = "#__proto__";
 
-        constructor(private syntaxPositionMap: SyntaxPositionMap,
-                    private fileName: string,
-                    private lineMap: LineMap,
+        constructor(private fileName: string,
+                    public lineMap: LineMap,
                     private compilationSettings: CompilationSettings) {
             this.isParsingDeclareFile = isDTSFile(fileName);
         }
 
-        public static visit(syntaxTree: SyntaxTree, fileName: string, compilationSettings: CompilationSettings): Script {
-            var map = SyntaxTreeToAstVisitor.checkPositions ? SyntaxPositionMap.create(syntaxTree.sourceUnit()) : null;
-            var visitor = new SyntaxTreeToAstVisitor(map, fileName, syntaxTree.lineMap(), compilationSettings);
+        public static visit(syntaxTree: SyntaxTree, fileName: string, compilationSettings: CompilationSettings, incrementalAST: boolean): Script {
+            var visitor = incrementalAST
+                ? new SyntaxTreeToIncrementalAstVisitor(fileName, syntaxTree.lineMap(), compilationSettings)
+                : new SyntaxTreeToAstVisitor(fileName, syntaxTree.lineMap(), compilationSettings);
             return syntaxTree.sourceUnit().accept(visitor);
         }
 
-        private assertElementAtPosition(element: ISyntaxElement) {
-            if (SyntaxTreeToAstVisitor.checkPositions) {
-                Debug.assert(this.position === this.syntaxPositionMap.fullStart(element));
-            }
-        }
-
-        private movePast(element: ISyntaxElement): void {
+        public movePast(element: ISyntaxElement): void {
             if (element !== null) {
-                this.assertElementAtPosition(element);
                 this.position += element.fullWidth();
             }
         }
@@ -99,95 +39,59 @@ module TypeScript {
             }
         }
 
-        private applyDelta(ast: TypeScript.AST, delta: number) {
-            if (delta === 0) {
-                return;
-            }
+        private setCommentsAndSpan(ast: AST, fullStart: number, node: SyntaxNode): void {
+            var firstToken = node.firstToken();
+            var lastToken = node.lastToken();
 
-            var applyDelta = (ast: TypeScript.AST) => {
-                if (ast.minChar !== -1) {
-                    ast.minChar += delta;
-                }
-                if (ast.limChar !== -1) {
-                    ast.limChar += delta;
-                }
-            }
-
-            var applyDeltaToComments = (comments: TypeScript.Comment[]) => {
-                if (comments && comments.length > 0) {
-                    for (var i = 0; i < comments.length; i++) {
-                        var comment = comments[i];
-                        applyDelta(comment);
-                        comment.minLine = this.lineMap.getLineNumberFromPosition(comment.minChar);
-                        comment.limLine = this.lineMap.getLineNumberFromPosition(comment.limChar);
-                    }
-                }
-            }
-
-            var pre = function (cur: TypeScript.AST, parent: TypeScript.AST, walker: TypeScript.IAstWalker) {
-                // Apply delta to this node
-                applyDelta(cur);
-                applyDeltaToComments(cur.preComments);
-                applyDeltaToComments(cur.postComments);
-
-                return cur;
-            }
-
-            TypeScript.getAstWalkerFactory().walk(ast, pre);
+            this.setSpan2(ast, fullStart, node, firstToken, lastToken);
+            ast.setPreComments(this.convertTokenLeadingComments(firstToken, fullStart));
+            ast.setPostComments(this.convertNodeTrailingComments(node, lastToken, fullStart));
         }
 
-        private setSpan(span: IASTSpan, fullStart: number, element: ISyntaxElement): void {
-            var desiredMinChar = fullStart + element.leadingTriviaWidth();
-            var desiredLimChar = desiredMinChar + element.width();
+        private copySpan(from: IASTSpan, to: IASTSpan): void {
+            to.minChar = from.minChar;
+            to.limChar = from.limChar;
+            to.trailingTriviaWidth = from.trailingTriviaWidth;
+        }
+
+        public setSpan(span: IASTSpan, fullStart: number, element: ISyntaxElement): void {
+            this.setSpan2(span, fullStart, element, element.firstToken(), element.lastToken());
+        }
+
+        public setSpan2(span: IASTSpan, fullStart: number, element: ISyntaxElement, firstToken: ISyntaxToken, lastToken: ISyntaxToken): void {
+            var leadingTriviaWidth = firstToken ? firstToken.leadingTriviaWidth() : 0;
+            var trailingTriviaWidth = lastToken ? lastToken.trailingTriviaWidth() : 0;
+
+            var desiredMinChar = fullStart + leadingTriviaWidth;
+            var desiredLimChar = fullStart + element.fullWidth() - trailingTriviaWidth;
 
             this.setSpanExplicit(span, desiredMinChar, desiredLimChar);
 
-            span.trailingTriviaWidth = element.trailingTriviaWidth();
+            span.trailingTriviaWidth = trailingTriviaWidth;
         }
 
-        private setSpanExplicit(span: IASTSpan, start: number, end: number): void {
-
-            if (span.minChar !== -1) {
-                Debug.assert(span.limChar !== -1);
-                Debug.assert((<any>span).nodeType !== undefined);
-
-                // Have an existing span.  We need to adjust it so that it starts at the provided
-                // desiredMinChar.
-
-                var delta = start - span.minChar;
-                this.applyDelta(<AST>span, delta);
-
-                span.limChar = end;
-
-                Debug.assert(span.minChar === start);
-                Debug.assert(span.limChar === end);
-            }
-            else {
-                Debug.assert(span.limChar === -1);
-                // Have a new span, just set it to the lim/min we were given.
-                span.minChar = start;
-                span.limChar = end;
-            }
-
-            Debug.assert(!isNaN(span.minChar));
-            Debug.assert(!isNaN(span.limChar));
-            Debug.assert(span.minChar !== -1);
-            Debug.assert(span.limChar !== -1);
+        public setSpanExplicit(span: IASTSpan, start: number, end: number): void {
+            // Have a new span, just set it to the lim/min we were given.
+            span.minChar = start;
+            span.limChar = end;
         }
 
-        private identifierFromToken(token: ISyntaxToken, isOptional: boolean, useValueText: boolean): Identifier {
-            this.assertElementAtPosition(token);
-
+        public identifierFromToken(token: ISyntaxToken, isOptional: boolean): Identifier {
             var result: Identifier = null;
             if (token.fullWidth() === 0) {
                 result = new MissingIdentifier();
             }
+            else if (token.kind() === SyntaxKind.IdentifierName) {
+                var tokenText = token.text();
+                var text = tokenText === SyntaxTreeToAstVisitor.protoString
+                    ? SyntaxTreeToAstVisitor.protoSubstitutionString
+                    : null;
+
+                result = new Identifier(tokenText, text);
+            }
             else {
-                result = new Identifier(token.text());
-                result.text = useValueText ? token.valueText() : result.text;
-                if (result.text == SyntaxTreeToAstVisitor.protoString) {
-                    result.text = SyntaxTreeToAstVisitor.protoSubstitutionString;
-                }
+                var tokenText = token.text();
+                result = new Identifier(tokenText, tokenText);
             }
 
             if (isOptional) {
@@ -200,84 +104,48 @@ module TypeScript {
             return result;
         }
 
-        private getAST(element: ISyntaxElement): any {
-            if (this.previousTokenTrailingComments !== null) {
-                return null;
-            }
-
-            if (incrementalAst) {
-                var result = (<any>element)._ast;
-                return result ? result : null;
-            }
-            else {
-                return null;
-            }
-        }
-
-        private setAST(element: ISyntaxElement, ast: IASTSpan): void {
-            if (incrementalAst) {
-                (<any>element)._ast = ast;
-            }
-        }
-
-        public visitSyntaxList(list: ISyntaxList): ASTList {
+        public visitSyntaxList(node: ISyntaxList): ASTList {
             var start = this.position;
-            var result: ASTList = this.getAST(list);
-            if (result) {
-                this.movePast(list);
+            var array = new Array(node.childCount());
+
+            for (var i = 0, n = node.childCount(); i < n; i++) {
+                array[i] = node.childAt(i).accept(this);
             }
-            else {
-                result = new ASTList();
+            
+            var result = new ASTList(array);
+            this.setSpan(result, start, node);
 
-                for (var i = 0, n = list.childCount(); i < n; i++) {
-                    result.append(list.childAt(i).accept(this));
-                }
-
-                if (n > 0) {
-                    this.setAST(list, result);
-                }
-            }
-
-            this.setSpan(result, start, list);
             return result;
         }
 
         public visitSeparatedSyntaxList(list: ISeparatedSyntaxList): ASTList {
             var start = this.position;
-            var result: ASTList = this.getAST(list);
-            if (result) {
-                this.movePast(list);
-            }
-            else {
-                result = new ASTList();
+            var array = new Array(list.nonSeparatorCount());
 
-                for (var i = 0, n = list.childCount(); i < n; i++) {
-                    if (i % 2 === 0) {
-                        result.append(list.childAt(i).accept(this));
-                        this.previousTokenTrailingComments = null;
-                    }
-                    else {
-                        var separatorToken = <ISyntaxToken>list.childAt(i);
-                        this.previousTokenTrailingComments = this.convertTokenTrailingComments(
-                            separatorToken, this.position + separatorToken.leadingTriviaWidth() + separatorToken.width());
-                        this.movePast(separatorToken);
-                    }
+            for (var i = 0, n = list.childCount(); i < n; i++) {
+                if (i % 2 === 0) {
+                    array[i / 2] = list.childAt(i).accept(this);
+                    this.previousTokenTrailingComments = null;
                 }
-
-                result.postComments = this.previousTokenTrailingComments;
-                this.previousTokenTrailingComments = null;
-
-                if (n > 0) {
-                    this.setAST(list, result);
+                else {
+                    var separatorToken = <ISyntaxToken>list.childAt(i);
+                    this.previousTokenTrailingComments = this.convertTokenTrailingComments(
+                        separatorToken, this.position + separatorToken.leadingTriviaWidth() + separatorToken.width());
+                    this.movePast(separatorToken);
                 }
             }
 
+            var result = new ASTList(array);
             this.setSpan(result, start, list);
+
+            result.setPostComments(this.previousTokenTrailingComments);
+            this.previousTokenTrailingComments = null;
+
             return result;
         }
 
         private createRef(text: string, minChar: number): Identifier {
-            var id = new Identifier(text);
+            var id = new Identifier(text, null);
             id.minChar = minChar;
             return id;
         }
@@ -287,8 +155,6 @@ module TypeScript {
 
             comment.minChar = commentStartPosition;
             comment.limChar = commentStartPosition + trivia.fullWidth();
-            comment.minLine = this.lineMap.getLineNumberFromPosition(comment.minChar);
-            comment.limLine = this.lineMap.getLineNumberFromPosition(comment.limChar);
 
             return comment;
         }
@@ -320,7 +186,6 @@ module TypeScript {
             }
 
             return comments1.concat(comments2);
-
         }
 
         private convertTokenLeadingComments(token: ISyntaxToken, commentStartPosition: number): Comment[] {
@@ -346,62 +211,55 @@ module TypeScript {
             return this.convertComments(token.trailingTrivia(), commentStartPosition);
         }
 
-        private convertNodeLeadingComments(node: SyntaxNode, nodeStart: number): Comment[] {
-            return this.convertTokenLeadingComments(node.firstToken(), nodeStart);
+        private convertNodeTrailingComments(node: SyntaxNode, lastToken: ISyntaxToken, nodeStart: number): Comment[]{
+            // Bail out quickly before doing any expensive math computation.
+            if (lastToken === null || !lastToken.hasTrailingComment() || lastToken.hasTrailingNewLine()) {
+                return null;
+            }
+
+            return this.convertComments(lastToken.trailingTrivia(), nodeStart + node.fullWidth() - lastToken.trailingTriviaWidth());
         }
 
-        private convertNodeTrailingComments(node: SyntaxNode, nodeStart: number): Comment[] {
-            return this.convertTokenTrailingComments(node.lastToken(), nodeStart + node.leadingTriviaWidth() + node.width());
-        }
-
-        public visitToken(token: ISyntaxToken): Expression {
-            this.assertElementAtPosition(token);
-
-            var result: Expression = this.getAST(token);
+        public visitToken(token: ISyntaxToken): AST {
             var fullStart = this.position;
 
-            if (result) {
-                this.movePast(token);
+            var result: AST;
+            if (token.kind() === SyntaxKind.ThisKeyword) {
+                result = new ThisExpression();
+            }
+            else if (token.kind() === SyntaxKind.SuperKeyword) {
+                result = new SuperExpression();
+            }
+            else if (token.kind() === SyntaxKind.TrueKeyword) {
+                result = new LiteralExpression(NodeType.TrueLiteral);
+            }
+            else if (token.kind() === SyntaxKind.FalseKeyword) {
+                result = new LiteralExpression(NodeType.FalseLiteral);
+            }
+            else if (token.kind() === SyntaxKind.NullKeyword) {
+                result = new LiteralExpression(NodeType.NullLiteral);
+            }
+            else if (token.kind() === SyntaxKind.StringLiteral) {
+                result = new StringLiteral(token.text(), token.valueText());
+            }
+            else if (token.kind() === SyntaxKind.RegularExpressionLiteral) {
+                result = new RegexLiteral(token.text());
+            }
+            else if (token.kind() === SyntaxKind.NumericLiteral) {
+                var preComments = this.convertTokenLeadingComments(token, fullStart);
+
+                var value = token.text().indexOf(".") > 0 ? parseFloat(token.text()) : parseInt(token.text());
+                result = new NumberLiteral(value, token.text());
+
+                result.setPreComments(preComments);
             }
             else {
-                if (token.kind() === SyntaxKind.ThisKeyword) {
-                    result = new ThisExpression();
-                }
-                else if (token.kind() === SyntaxKind.SuperKeyword) {
-                    result = new SuperExpression();
-                }
-                else if (token.kind() === SyntaxKind.TrueKeyword) {
-                    result = new LiteralExpression(NodeType.TrueLiteral);
-                }
-                else if (token.kind() === SyntaxKind.FalseKeyword) {
-                    result = new LiteralExpression(NodeType.FalseLiteral);
-                }
-                else if (token.kind() === SyntaxKind.NullKeyword) {
-                    result = new LiteralExpression(NodeType.NullLiteral);
-                }
-                else if (token.kind() === SyntaxKind.StringLiteral) {
-                    result = new StringLiteral(token.text(), token.valueText());
-                }
-                else if (token.kind() === SyntaxKind.RegularExpressionLiteral) {
-                    result = new RegexLiteral(token.text());
-                }
-                else if (token.kind() === SyntaxKind.NumericLiteral) {
-                    var preComments = this.convertTokenLeadingComments(token, fullStart);
-                    
-                    var value = token.text().indexOf(".") > 0 ? parseFloat(token.text()) : parseInt(token.text());
-                    result = new NumberLiteral(value, token.text());
-
-                    result.preComments = preComments;
-                }
-                else {
-                    result = this.identifierFromToken(token, /*isOptional:*/ false, /*useValueText:*/ true);
-                }
-
-                this.movePast(token);
+                result = this.identifierFromToken(token, /*isOptional:*/ false);
             }
 
+            this.movePast(token);
+
             var start = fullStart + token.leadingTriviaWidth();
-            this.setAST(token, result);
             this.setSpanExplicit(result, start, start + token.width());
             return result;
         }
@@ -465,8 +323,6 @@ module TypeScript {
         }
 
         public visitSourceUnit(node: SourceUnitSyntax): Script {
-            this.assertElementAtPosition(node);
-
             var start = this.position;
             var members;
 
@@ -475,17 +331,18 @@ module TypeScript {
             var topLevelMod: ModuleDeclaration = null;
             if (this.hasTopLevelImportOrExport(node)) {
                 var correctedFileName = switchToForwardSlashes(this.fileName);
-                var id: Identifier = new Identifier(correctedFileName);
+                var id: Identifier = new Identifier(correctedFileName, correctedFileName);
                 topLevelMod = new ModuleDeclaration(id, bod, null);
                 this.setSpanExplicit(topLevelMod, start, this.position);
 
-                topLevelMod.setModuleFlags(topLevelMod.getModuleFlags() | ModuleFlags.IsDynamic);
-                topLevelMod.setModuleFlags(topLevelMod.getModuleFlags() | ModuleFlags.IsWholeFile);
-                topLevelMod.setModuleFlags(topLevelMod.getModuleFlags() | ModuleFlags.Exported);
+                var moduleFlags = topLevelMod.getModuleFlags() | ModuleFlags.IsDynamic | ModuleFlags.IsWholeFile | ModuleFlags.Exported
 
                 if (this.isParsingDeclareFile) {
-                    topLevelMod.setModuleFlags(topLevelMod.getModuleFlags() | ModuleFlags.Ambient);
+                    moduleFlags |= ModuleFlags.Ambient;
                 }
+
+                topLevelMod.setModuleFlags(moduleFlags);
+
 
                 topLevelMod.prettyName = getPrettyName(correctedFileName);
                 //topLevelMod.containsUnicodeChar = this.scanner.seenUnicodeChar;
@@ -502,9 +359,8 @@ module TypeScript {
 
                 // topLevelMod.amdDependencies = this.amdDependencies;
 
-                bod = new ASTList();
+                bod = new ASTList([topLevelMod]);
                 this.setSpanExplicit(bod, start, this.position);
-                bod.append(topLevelMod);
             }
 
             var result = new Script();
@@ -519,9 +375,8 @@ module TypeScript {
         }
 
         public visitExternalModuleReference(node: ExternalModuleReferenceSyntax): any {
-            this.assertElementAtPosition(node);
             this.moveTo(node, node.stringLiteral);
-            var result = this.identifierFromToken(node.stringLiteral, /*isOptional:*/ false, /*useValueText:*/ false);
+            var result = this.identifierFromToken(node.stringLiteral, /*isOptional:*/ false);
             this.movePast(node.stringLiteral);
             this.movePast(node.closeParenToken);
 
@@ -529,164 +384,139 @@ module TypeScript {
         }
 
         public visitModuleNameModuleReference(node: ModuleNameModuleReferenceSyntax): any {
-            this.assertElementAtPosition(node);
             return node.moduleName.accept(this);
         }
 
         public visitClassDeclaration(node: ClassDeclarationSyntax): ClassDeclaration {
-            this.assertElementAtPosition(node);
-
             var start = this.position;
-            var result: ClassDeclaration = this.getAST(node);
-            if (result) {
-                this.movePast(node);
-            }
-            else {
-                var preComments = this.convertNodeLeadingComments(node, start);
-                var postComments = this.convertNodeTrailingComments(node, start);
-                this.moveTo(node, node.identifier);
-                var name = this.identifierFromToken(node.identifier, /*isOptional:*/ false, /*useValueText:*/ true);
-                this.movePast(node.identifier);
 
-                var typeParameters = node.typeParameterList === null ? null : node.typeParameterList.accept(this);
-                var extendsList = new ASTList();
-                var implementsList = new ASTList();
+            this.moveTo(node, node.identifier);
+            var name = this.identifierFromToken(node.identifier, /*isOptional:*/ false);
+            this.movePast(node.identifier);
 
-                for (var i = 0, n = node.heritageClauses.childCount(); i < n; i++) {
-                    var heritageClause = <HeritageClauseSyntax>node.heritageClauses.childAt(i);
-                    if (heritageClause.extendsOrImplementsKeyword.tokenKind === SyntaxKind.ExtendsKeyword) {
-                        extendsList = heritageClause.accept(this);
-                    }
-                    else {
-                        Debug.assert(heritageClause.extendsOrImplementsKeyword.tokenKind === SyntaxKind.ImplementsKeyword);
-                        implementsList = heritageClause.accept(this);
-                    }
+            var typeParameters = node.typeParameterList === null ? null : node.typeParameterList.accept(this);
+            var extendsList: ASTList = null;
+            var implementsList: ASTList = null;
+
+            for (var i = 0, n = node.heritageClauses.childCount(); i < n; i++) {
+                var heritageClause = <HeritageClauseSyntax>node.heritageClauses.childAt(i);
+                if (heritageClause.extendsOrImplementsKeyword.tokenKind === SyntaxKind.ExtendsKeyword) {
+                    extendsList = heritageClause.accept(this);
                 }
+                else {
+                    implementsList = heritageClause.accept(this);
+                }
+            }
 
-                this.movePast(node.openBraceToken);
-                var members = this.visitSyntaxList(node.classElements);
-                var closeBracePosition = this.position;
-                this.movePast(node.closeBraceToken);
-                var closeBraceSpan = new ASTSpan();
-                this.setSpan(closeBraceSpan, closeBracePosition, node.closeBraceToken);
+            this.movePast(node.openBraceToken);
+            var members = this.visitSyntaxList(node.classElements);
+            var closeBracePosition = this.position;
+            this.movePast(node.closeBraceToken);
+            var closeBraceSpan = new ASTSpan();
+            this.setSpan(closeBraceSpan, closeBracePosition, node.closeBraceToken);
 
-                result = new ClassDeclaration(name, typeParameters, members, extendsList, implementsList);
-                result.endingToken = closeBraceSpan;
+            var result = new ClassDeclaration(name, typeParameters, members, extendsList, implementsList, closeBraceSpan);
+            this.setCommentsAndSpan(result, start, node);
 
-                result.preComments = preComments;
-                result.postComments = postComments;
+            for (var i = 0; i < members.members.length; i++) {
+                var member = members.members[i];
+                if (member.nodeType() === NodeType.FunctionDeclaration) {
+                    var funcDecl = <FunctionDeclaration>member;
 
-                for (var i = 0; i < members.members.length; i++) {
-                    var member = members.members[i];
-                    if (member.nodeType === NodeType.FunctionDeclaration) {
-                        var funcDecl = <FunctionDeclaration>member;
+                    if (funcDecl.isConstructor) {
+                        funcDecl.classDecl = result;
 
-                        if (funcDecl.isConstructor) {
-                            funcDecl.classDecl = result;
-
-                            result.constructorDecl = funcDecl;
-                        }
+                        result.constructorDecl = funcDecl;
                     }
                 }
             }
 
-            this.requiresExtendsBlock = this.requiresExtendsBlock || result.extendsList.members.length > 0;
+            this.completeClassDeclaration(node, result);
 
+            return result;
+        }
+
+        public completeClassDeclaration(node: ClassDeclarationSyntax, result: ClassDeclaration): void {
+            this.requiresExtendsBlock = this.requiresExtendsBlock || (result.extendsList && result.extendsList.members.length > 0);
+
+            var flags = result.getVarFlags();
             if (!this.containingModuleHasExportAssignment && (SyntaxUtilities.containsToken(node.modifiers, SyntaxKind.ExportKeyword) || this.isParsingAmbientModule)) {
-                result.setVarFlags(result.getVarFlags() | VariableFlags.Exported);
+                flags = flags | VariableFlags.Exported;
             }
             else {
-                result.setVarFlags(result.getVarFlags() & ~VariableFlags.Exported);
+                flags = flags & ~VariableFlags.Exported;
             }
 
             if (SyntaxUtilities.containsToken(node.modifiers, SyntaxKind.DeclareKeyword) || this.isParsingAmbientModule || this.isParsingDeclareFile) {
-                result.setVarFlags(result.getVarFlags() | VariableFlags.Ambient);
+                flags = flags | VariableFlags.Ambient;
             }
             else {
-                result.setVarFlags(result.getVarFlags() & ~VariableFlags.Ambient);
+                flags = flags & ~VariableFlags.Ambient;
             }
 
-            this.setAST(node, result);
-            this.setSpan(result, start, node);
-            return result;
+            result.setVarFlags(flags);
         }
 
         public visitInterfaceDeclaration(node: InterfaceDeclarationSyntax): InterfaceDeclaration {
-            this.assertElementAtPosition(node);
-
             var start = this.position;
-            var result: InterfaceDeclaration = this.getAST(node);
-            if (result) {
-                this.movePast(node);
-            }
-            else {
-                var preComments = this.convertNodeLeadingComments(node, start);
-                var postComments = this.convertNodeTrailingComments(node, start);
-                this.moveTo(node, node.identifier);
-                var name = this.identifierFromToken(node.identifier, /*isOptional:*/ false, /*useValueText:*/ true);
-                this.movePast(node.identifier);
-                var typeParameters = node.typeParameterList === null ? null : node.typeParameterList.accept(this);
 
-                var extendsList: ASTList = null;
+            this.moveTo(node, node.identifier);
+            var name = this.identifierFromToken(node.identifier, /*isOptional:*/ false);
+            this.movePast(node.identifier);
+            var typeParameters = node.typeParameterList === null ? null : node.typeParameterList.accept(this);
 
-                for (var i = 0, n = node.heritageClauses.childCount(); i < n; i++) {
-                    var heritageClause = <HeritageClauseSyntax>node.heritageClauses.childAt(i);
-                    if (i === 0) {
-                        extendsList = heritageClause.accept(this);
-                    }
-                    else {
-                        this.movePast(heritageClause);
-                    }
+            var extendsList: ASTList = null;
+
+            for (var i = 0, n = node.heritageClauses.childCount(); i < n; i++) {
+                var heritageClause = <HeritageClauseSyntax>node.heritageClauses.childAt(i);
+                if (i === 0) {
+                    extendsList = heritageClause.accept(this);
                 }
-
-                this.movePast(node.body.openBraceToken);
-                var members = this.visitSeparatedSyntaxList(node.body.typeMembers);
-
-                this.movePast(node.body.closeBraceToken);
-
-                result = new InterfaceDeclaration(name, typeParameters, members, extendsList, null);
-
-                result.preComments = preComments;
-                result.postComments = postComments;
+                else {
+                    this.movePast(heritageClause);
+                }
             }
 
+            this.movePast(node.body.openBraceToken);
+            var members = this.visitSeparatedSyntaxList(node.body.typeMembers);
+
+            this.movePast(node.body.closeBraceToken);
+
+            var result = new InterfaceDeclaration(name, typeParameters, members, extendsList, null, /*isObjectTypeLiteral:*/ false);
+            this.setCommentsAndSpan(result, start, node);
+
+            this.completeInterfaceDeclaration(node, result);
+
+            return result;
+        }
+
+        public completeInterfaceDeclaration(node: InterfaceDeclarationSyntax, result: InterfaceDeclaration): void {
             if (!this.containingModuleHasExportAssignment && (SyntaxUtilities.containsToken(node.modifiers, SyntaxKind.ExportKeyword) || this.isParsingAmbientModule)) {
                 result.setVarFlags(result.getVarFlags() | VariableFlags.Exported);
             }
             else {
                 result.setVarFlags(result.getVarFlags() & ~VariableFlags.Exported);
             }
-
-            this.setAST(node, result);
-            this.setSpan(result, start, node);
-            return result;
         }
 
         public visitHeritageClause(node: HeritageClauseSyntax): ASTList {
-            this.assertElementAtPosition(node);
-
             var start = this.position;
-            var result: ASTList = this.getAST(node);
-            if (result) {
-                this.movePast(node);
-            }
-            else {
-                result = new ASTList();
+            var array = new Array(node.typeNames.nonSeparatorCount());
 
-                this.movePast(node.extendsOrImplementsKeyword);
-                for (var i = 0, n = node.typeNames.childCount(); i < n; i++) {
-                    if (i % 2 === 1) {
-                        this.movePast(node.typeNames.childAt(i));
-                    }
-                    else {
-                        var type = this.visitType(node.typeNames.childAt(i)).term;
-                        result.append(type);
-                    }
+            this.movePast(node.extendsOrImplementsKeyword);
+            for (var i = 0, n = node.typeNames.childCount(); i < n; i++) {
+                if (i % 2 === 1) {
+                    this.movePast(node.typeNames.childAt(i));
+                }
+                else {
+                    var type = this.visitType(node.typeNames.childAt(i)).term;
+                    array[i / 2] = type;
                 }
             }
 
-            this.setAST(node, result);
+            var result = new ASTList(array);
             this.setSpan(result, start, node);
+
             return result;
         }
 
@@ -694,7 +524,7 @@ module TypeScript {
             var result: Identifier[] = [];
 
             if (node.stringLiteral !== null) {
-                result.push(this.identifierFromToken(node.stringLiteral, /*isOptional:*/false, /*useValueText:*/ false));
+                result.push(this.identifierFromToken(node.stringLiteral, /*isOptional:*/false));
                 this.movePast(node.stringLiteral);
             }
             else {
@@ -705,83 +535,81 @@ module TypeScript {
         }
 
         private getModuleNamesHelper(name: INameSyntax, result: Identifier[]): void {
-            this.assertElementAtPosition(name);
-
             if (name.kind() === SyntaxKind.QualifiedName) {
                 var qualifiedName = <QualifiedNameSyntax>name;
                 this.getModuleNamesHelper(qualifiedName.left, result);
                 this.movePast(qualifiedName.dotToken);
-                result.push(this.identifierFromToken(qualifiedName.right, /*isOptional:*/ false, /*useValueText:*/ false));
+                result.push(this.identifierFromToken(qualifiedName.right, /*isOptional:*/ false));
                 this.movePast(qualifiedName.right);
             }
             else {
-                result.push(this.identifierFromToken(<ISyntaxToken>name, /*isOptional:*/ false, /*useValueText:*/ false));
+                result.push(this.identifierFromToken(<ISyntaxToken>name, /*isOptional:*/ false));
                 this.movePast(name);
             }
         }
 
         public visitModuleDeclaration(node: ModuleDeclarationSyntax): ModuleDeclaration {
-            this.assertElementAtPosition(node);
-
             var start = this.position;
-            var result: ModuleDeclaration = this.getAST(node);
-            if (result) {
-                this.movePast(node);
-            }
-            else {
-                var preComments = this.convertNodeLeadingComments(node, start);
-                var postComments = this.convertNodeTrailingComments(node, start);
 
-                this.moveTo(node, node.moduleKeyword);
-                this.movePast(node.moduleKeyword);
-                var names = this.getModuleNames(node);
-                this.movePast(node.openBraceToken);
+            var firstToken = node.firstToken();
+            var preComments = this.convertTokenLeadingComments(firstToken, start);
+            var postComments = this.convertNodeTrailingComments(node, node.closeBraceToken, start);
 
-                var savedIsParsingAmbientModule = this.isParsingAmbientModule;
-                if (SyntaxUtilities.containsToken(node.modifiers, SyntaxKind.DeclareKeyword) || this.isParsingDeclareFile) {
-                    this.isParsingAmbientModule = true;
-                }
+            this.moveTo(node, node.moduleKeyword);
+            this.movePast(node.moduleKeyword);
+            var names = this.getModuleNames(node);
+            this.movePast(node.openBraceToken);
 
-                var savedContainingModuleHasExportAssignment = this.containingModuleHasExportAssignment;
-                this.containingModuleHasExportAssignment = ArrayUtilities.any(node.moduleElements.toArray(), m => m.kind() === SyntaxKind.ExportAssignment);
-
-                var members = this.visitSyntaxList(node.moduleElements);
-
-                this.isParsingAmbientModule = savedIsParsingAmbientModule;
-                this.containingModuleHasExportAssignment = savedContainingModuleHasExportAssignment;
-
-                var closeBracePosition = this.position;
-                this.movePast(node.closeBraceToken);
-                var closeBraceSpan = new ASTSpan();
-                this.setSpan(closeBraceSpan, closeBracePosition, node.closeBraceToken);
-
-                for (var i = names.length - 1; i >= 0; i--) {
-                    var innerName = names[i];
-
-                    result = new ModuleDeclaration(innerName, members, closeBraceSpan);
-                    this.setSpan(result, start, node);
-
-                    result.preComments = preComments;
-                    result.postComments = postComments;
-
-                    preComments = null;
-                    postComments = null;
-
-                    // mark the inner module declarations as exported
-                    if (i) {
-                        result.setModuleFlags(result.getModuleFlags() | ModuleFlags.Exported);
-                    } else if (!this.containingModuleHasExportAssignment && (SyntaxUtilities.containsToken(node.modifiers, SyntaxKind.ExportKeyword) || this.isParsingAmbientModule)) {
-                        // outer module is exported if export key word or parsing ambient module
-                        result.setModuleFlags(result.getModuleFlags() | ModuleFlags.Exported);
-                    }
-
-                    // REVIEW: will also possibly need to re-parent comments as well
-
-                    members = new ASTList();
-                    members.append(result);
-                }
+            var savedIsParsingAmbientModule = this.isParsingAmbientModule;
+            if (SyntaxUtilities.containsToken(node.modifiers, SyntaxKind.DeclareKeyword) || this.isParsingDeclareFile) {
+                this.isParsingAmbientModule = true;
             }
 
+            var savedContainingModuleHasExportAssignment = this.containingModuleHasExportAssignment;
+            this.containingModuleHasExportAssignment = ArrayUtilities.any(node.moduleElements.toArray(), m => m.kind() === SyntaxKind.ExportAssignment);
+
+            var members = this.visitSyntaxList(node.moduleElements);
+
+            this.isParsingAmbientModule = savedIsParsingAmbientModule;
+            this.containingModuleHasExportAssignment = savedContainingModuleHasExportAssignment;
+
+            var closeBracePosition = this.position;
+            this.movePast(node.closeBraceToken);
+            var closeBraceSpan = new ASTSpan();
+            this.setSpan(closeBraceSpan, closeBracePosition, node.closeBraceToken);
+
+            for (var i = names.length - 1; i >= 0; i--) {
+                var innerName = names[i];
+
+                var result = new ModuleDeclaration(innerName, members, closeBraceSpan);
+                this.setSpan(result, start, node);
+
+                result.setPreComments(preComments);
+                result.setPostComments(postComments);
+
+                preComments = null;
+                postComments = null;
+
+                // mark the inner module declarations as exported
+                if (i) {
+                    result.setModuleFlags(result.getModuleFlags() | ModuleFlags.Exported);
+                } else if (!this.containingModuleHasExportAssignment && (SyntaxUtilities.containsToken(node.modifiers, SyntaxKind.ExportKeyword) || this.isParsingAmbientModule)) {
+                    // outer module is exported if export key word or parsing ambient module
+                    result.setModuleFlags(result.getModuleFlags() | ModuleFlags.Exported);
+                }
+
+                // REVIEW: will also possibly need to re-parent comments as well
+
+                members = new ASTList([result]);
+            }
+
+            this.completeModuleDeclaration(node, result);
+
+            this.setSpan(result, start, node);
+            return result;
+        }
+
+        public completeModuleDeclaration(node: ModuleDeclarationSyntax, result: ModuleDeclaration): void {
             // mark ambient if declare keyword or parsing ambient module or parsing declare file
             if (SyntaxUtilities.containsToken(node.modifiers, SyntaxKind.DeclareKeyword) || this.isParsingAmbientModule || this.isParsingDeclareFile) {
                 result.setModuleFlags(result.getModuleFlags() | ModuleFlags.Ambient);
@@ -789,10 +617,6 @@ module TypeScript {
             else {
                 result.setModuleFlags(result.getModuleFlags() & ~ModuleFlags.Ambient);
             }
-
-            this.setAST(node, result);
-            this.setSpan(result, start, node);
-            return result;
         }
 
         private hasDotDotDotParameter(parameters: ISeparatedSyntaxList): boolean {
@@ -806,78 +630,64 @@ module TypeScript {
         }
 
         public visitFunctionDeclaration(node: FunctionDeclarationSyntax): FunctionDeclaration {
-            this.assertElementAtPosition(node);
-
             var start = this.position;
-            var result: FunctionDeclaration = this.getAST(node);
-            if (result) {
-                this.movePast(node);
-            }
-            else {
-                var preComments = this.convertNodeLeadingComments(node, start);
-                var postComments = this.convertNodeTrailingComments(node, start);
 
-                this.moveTo(node, node.identifier);
-                var name = this.identifierFromToken(node.identifier, /*isOptional:*/ false, /*useValueText:*/ true);
+            this.moveTo(node, node.identifier);
+            var name = this.identifierFromToken(node.identifier, /*isOptional:*/ false);
 
-                this.movePast(node.identifier);
+            this.movePast(node.identifier);
 
-                var typeParameters = node.callSignature.typeParameterList === null ? null : node.callSignature.typeParameterList.accept(this);
-                var parameters = node.callSignature.parameterList.accept(this);
+            var typeParameters = node.callSignature.typeParameterList === null ? null : node.callSignature.typeParameterList.accept(this);
+            var parameters = node.callSignature.parameterList.accept(this);
 
-                var returnType = node.callSignature.typeAnnotation
-                    ? node.callSignature.typeAnnotation.accept(this)
-                    : null;
+            var returnType = node.callSignature.typeAnnotation
+                ? node.callSignature.typeAnnotation.accept(this)
+                : null;
 
-                var block = node.block ? node.block.accept(this) : null;
+            var block = node.block ? node.block.accept(this) : null;
 
-                this.movePast(node.semicolonToken);
+            this.movePast(node.semicolonToken);
 
-                result = new FunctionDeclaration(name, block, false, typeParameters, parameters, NodeType.FunctionDeclaration);
+            var result = new FunctionDeclaration(name, block, false, typeParameters, parameters, returnType, this.hasDotDotDotParameter(node.callSignature.parameterList.parameters));
+            this.setCommentsAndSpan(result, start, node);
 
-                result.preComments = preComments;
-                result.postComments = postComments;
-                result.variableArgList = this.hasDotDotDotParameter(node.callSignature.parameterList.parameters);
-                result.returnTypeAnnotation = returnType;
-
-                if (node.semicolonToken) {
-                    result.setFunctionFlags(result.getFunctionFlags() | FunctionFlags.Signature);
-                }
+            if (node.semicolonToken) {
+                result.setFunctionFlags(result.getFunctionFlags() | FunctionFlags.Signature);
             }
 
-            if (!this.containingModuleHasExportAssignment && (SyntaxUtilities.containsToken(node.modifiers, SyntaxKind.ExportKeyword) || this.isParsingAmbientModule)) {
-                result.setFunctionFlags(result.getFunctionFlags() | FunctionFlags.Exported);
-            }
-            else {
-                result.setFunctionFlags(result.getFunctionFlags() & ~FunctionFlags.Exported);
-            }
+            this.completeFunctionDeclaration(node, result);
 
-            if (SyntaxUtilities.containsToken(node.modifiers, SyntaxKind.DeclareKeyword) || this.isParsingAmbientModule || this.isParsingDeclareFile) {
-                result.setFunctionFlags(result.getFunctionFlags() | FunctionFlags.Ambient);
-            }
-            else {
-                result.setFunctionFlags(result.getFunctionFlags() & ~FunctionFlags.Ambient);
-            }
-
-            this.setAST(node, result);
-            this.setSpan(result, start, node);
             return result;
         }
 
-        public visitEnumDeclaration(node: EnumDeclarationSyntax): ModuleDeclaration {
-            this.assertElementAtPosition(node);
+        public completeFunctionDeclaration(node: FunctionDeclarationSyntax, result: FunctionDeclaration): void {
+            var flags = result.getFunctionFlags();
+            if (!this.containingModuleHasExportAssignment && (SyntaxUtilities.containsToken(node.modifiers, SyntaxKind.ExportKeyword) || this.isParsingAmbientModule)) {
+                flags = flags | FunctionFlags.Exported;
+            }
+            else {
+                flags = flags & ~FunctionFlags.Exported;
+            }
 
+            if (SyntaxUtilities.containsToken(node.modifiers, SyntaxKind.DeclareKeyword) || this.isParsingAmbientModule || this.isParsingDeclareFile) {
+                flags = flags | FunctionFlags.Ambient;
+            }
+            else {
+                flags = flags & ~FunctionFlags.Ambient;
+            }
+
+            result.setFunctionFlags(flags);
+        }
+
+        public visitEnumDeclaration(node: EnumDeclarationSyntax): ModuleDeclaration {
             var start = this.position;
 
-            var preComments = this.convertNodeLeadingComments(node, start);
-            var postComments = this.convertNodeTrailingComments(node, start);
-
             this.moveTo(node, node.identifier);
-            var name = this.identifierFromToken(node.identifier, /*isOptional:*/ false, /*useValueText:*/ true);
+            var name = this.identifierFromToken(node.identifier, /*isOptional:*/ false);
             this.movePast(node.identifier);
 
             this.movePast(node.openBraceToken);
-            var members = new ASTList();
+            var array: VariableStatement[] = new Array(node.enumElements.nonSeparatorCount());
 
             var lastValue: NumberLiteral = null;
             var memberNames: Identifier[] = [];
@@ -892,7 +702,7 @@ module TypeScript {
 
                     var memberValue: AST = null;
 
-                    memberName = this.identifierFromToken(enumElement.propertyName, /*isOptional:*/ false, /*useValueText:*/ true);
+                    memberName = this.identifierFromToken(enumElement.propertyName, /*isOptional:*/ false);
                     this.movePast(enumElement.propertyName);
 
                     if (enumElement.equalsValueClause !== null) {
@@ -914,39 +724,37 @@ module TypeScript {
                         }
                     }
 
-                    var declarator = new VariableDeclarator(memberName);
-                    declarator.init = memberValue;
-                    // Note: Leave minChar, limChar as "-1" on typeExpr as this is a parsing artifact.
-                    declarator.typeExpr = new TypeReference(this.createRef(name.actualText, -1), 0);
+                    var declarator = new VariableDeclarator(memberName, new TypeReference(this.createRef(name.actualText, -1), 0), memberValue);
+
                     declarator.setVarFlags(declarator.getVarFlags() | VariableFlags.Property);
                     this.setSpanExplicit(declarator, memberStart, this.position);
 
-                    if (memberValue.nodeType === NodeType.NumericLiteral) {
+                    if (memberValue.nodeType() === NodeType.NumericLiteral) {
                         declarator.setVarFlags(declarator.getVarFlags() | VariableFlags.Constant);
                     }
-                    else if (memberValue.nodeType === NodeType.LeftShiftExpression) {
+                    else if (memberValue.nodeType() === NodeType.LeftShiftExpression) {
                         // If the initializer is of the form "value << value" then treat it as a constant
                         // as well.
                         var binop = <BinaryExpression>memberValue;
-                        if (binop.operand1.nodeType === NodeType.NumericLiteral && binop.operand2.nodeType === NodeType.NumericLiteral) {
+                        if (binop.operand1.nodeType() === NodeType.NumericLiteral && binop.operand2.nodeType() === NodeType.NumericLiteral) {
                             declarator.setVarFlags(declarator.getVarFlags() | VariableFlags.Constant);
                         }
                     }
-                    else if (memberValue.nodeType === NodeType.Name) {
+                    else if (memberValue.nodeType() === NodeType.Name) {
                         // If the initializer refers to an earlier enum value, then treat it as a constant
                         // as well.
                         var nameNode = <Identifier>memberValue;
                         for (var j = 0; j < memberNames.length; j++) {
                             memberName = memberNames[j];
-                            if (memberName.text === nameNode.text) {
+                            if (memberName.text() === nameNode.text()) {
                                 declarator.setVarFlags(declarator.getVarFlags() | VariableFlags.Constant);
                                 break;
                             }
                         }
                     }
 
-                    var declarators = new ASTList();
-                    declarators.append(declarator);
+                    var declarators = new ASTList([declarator]);
+
                     var declaration = new VariableDeclaration(declarators);
                     this.setSpanExplicit(declaration, memberStart, this.position);
 
@@ -954,30 +762,32 @@ module TypeScript {
                     statement.setFlags(ASTFlags.EnumElement);
                     this.setSpanExplicit(statement, memberStart, this.position);
 
-                    members.append(statement);
+                    array[i / 2] = statement;
                     memberNames.push(memberName);
                     // all enum members are exported
                     declarator.setVarFlags(declarator.getVarFlags() | VariableFlags.Exported);
                 }
             }
 
+            var members = new ASTList(array);
+
             var closeBracePosition = this.position;
             this.movePast(node.closeBraceToken);
             var closeBraceSpan = new ASTSpan();
             this.setSpan(closeBraceSpan, closeBracePosition, node.closeBraceToken);
 
-            var modDecl = new ModuleDeclaration(name, members, closeBraceSpan);
-            this.setSpan(modDecl, start, node);
+            var result = new ModuleDeclaration(name, members, closeBraceSpan);
+            this.setCommentsAndSpan(result, start, node);
 
-            modDecl.preComments = preComments;
-            modDecl.postComments = postComments;
-            modDecl.setModuleFlags(modDecl.getModuleFlags() | ModuleFlags.IsEnum);
+            var flags = result.getModuleFlags() | ModuleFlags.IsEnum;
 
             if (!this.containingModuleHasExportAssignment && (SyntaxUtilities.containsToken(node.modifiers, SyntaxKind.ExportKeyword) || this.isParsingAmbientModule)) {
-                modDecl.setModuleFlags(modDecl.getModuleFlags() | ModuleFlags.Exported);
+                flags = flags | ModuleFlags.Exported;
             }
+            
+            result.setModuleFlags(flags);
 
-            return modDecl;
+            return result;
         }
 
         public visitEnumElement(node: EnumElementSyntax): void {
@@ -986,61 +796,38 @@ module TypeScript {
         }
 
         public visitImportDeclaration(node: ImportDeclarationSyntax): ImportDeclaration {
-            this.assertElementAtPosition(node);
-
             var start = this.position;
-            var result: ImportDeclaration = this.getAST(node);
-            if (result) {
-                this.movePast(node);
-            }
-            else {
-                var preComments = this.convertNodeLeadingComments(node, start);
-                var postComments = this.convertNodeTrailingComments(node, start);
 
-                this.moveTo(node, node.identifier);
-                var name = this.identifierFromToken(node.identifier, /*isOptional:*/ false, /*useValueText:*/ true);
-                this.movePast(node.identifier);
-                this.movePast(node.equalsToken);
-                var alias = node.moduleReference.accept(this);
-                this.movePast(node.semicolonToken);
+            this.moveTo(node, node.identifier);
+            var name = this.identifierFromToken(node.identifier, /*isOptional:*/ false);
+            this.movePast(node.identifier);
+            this.movePast(node.equalsToken);
+            var alias = node.moduleReference.accept(this);
+            this.movePast(node.semicolonToken);
 
-                result = new ImportDeclaration(name, alias);
+            var result = new ImportDeclaration(name, alias);
+            this.setCommentsAndSpan(result, start, node);
 
-                result.preComments = preComments;
-                result.postComments = postComments;
-                result.isDynamicImport = node.moduleReference.kind() === SyntaxKind.ExternalModuleReference;
-            }
+            result.isDynamicImport = node.moduleReference.kind() === SyntaxKind.ExternalModuleReference;
 
-            this.setAST(node, result);
-            this.setSpan(result, start, node);
             return result;
         }
 
         public visitExportAssignment(node: ExportAssignmentSyntax): ExportAssignment {
-            this.assertElementAtPosition(node);
-
             var start = this.position;
-            var result: ExportAssignment = this.getAST(node);
-            if (result) {
-                this.movePast(node);
-            }
-            else {
-                this.moveTo(node, node.identifier);
-                var name = this.identifierFromToken(node.identifier, /*isOptional:*/ false, /*useValueText:*/ true);
-                this.movePast(node.identifier);
-                this.movePast(node.semicolonToken);
 
-                result = new ExportAssignment(name);
-            }
+            this.moveTo(node, node.identifier);
+            var name = this.identifierFromToken(node.identifier, /*isOptional:*/ false);
+            this.movePast(node.identifier);
+            this.movePast(node.semicolonToken);
 
-            this.setAST(node, result);
+            var result = new ExportAssignment(name);
             this.setSpan(result, start, node);
+
             return result;
         }
 
         public visitVariableStatement(node: VariableStatementSyntax): VariableStatement {
-            this.assertElementAtPosition(node);
-
             var start = this.position;
 
             var preComments: Comment[] = null;
@@ -1057,68 +844,67 @@ module TypeScript {
                 var varDecl = <VariableDeclarator>declaration.declarators.members[i];
 
                 if (i === 0) {
-                    varDecl.preComments = this.mergeComments(preComments, varDecl.preComments);
+                    varDecl.setPreComments(this.mergeComments(preComments, varDecl.preComments()));
                 }
 
+                var flags = varDecl.getVarFlags();
                 if (!this.containingModuleHasExportAssignment && (SyntaxUtilities.containsToken(node.modifiers, SyntaxKind.ExportKeyword) || this.isParsingAmbientModule)) {
-                    varDecl.setVarFlags(varDecl.getVarFlags() | VariableFlags.Exported);
+                    flags = flags | VariableFlags.Exported;
                 }
                 else {
-                    varDecl.setVarFlags(varDecl.getVarFlags() & ~VariableFlags.Exported);
+                    flags = flags & ~VariableFlags.Exported;
                 }
 
                 if (SyntaxUtilities.containsToken(node.modifiers, SyntaxKind.DeclareKeyword) || this.isParsingAmbientModule || this.isParsingDeclareFile) {
-                    varDecl.setVarFlags(varDecl.getVarFlags() | VariableFlags.Ambient);
+                    flags = flags | VariableFlags.Ambient;
                 }
                 else {
-                    varDecl.setVarFlags(varDecl.getVarFlags() & ~VariableFlags.Ambient);
+                    flags = flags & ~VariableFlags.Ambient;
                 }
+
+                varDecl.setVarFlags(flags);
             }
 
             var result = new VariableStatement(declaration);
-
             this.setSpan(result, start, node);
+
             return result;
         }
 
         public visitVariableDeclaration(node: VariableDeclarationSyntax): VariableDeclaration {
-            this.assertElementAtPosition(node);
-
             var start = this.position;
 
-            var preComments = this.convertNodeLeadingComments(node, start);
-            var postComments = this.convertNodeTrailingComments(node, start);
+            var firstToken = node.firstToken();
+            var preComments = this.convertTokenLeadingComments(firstToken, start);
+            var postComments = this.convertNodeTrailingComments(node, node.lastToken(), start);
 
             this.moveTo(node, node.variableDeclarators);
             var variableDecls = this.visitSeparatedSyntaxList(node.variableDeclarators);
 
             for (var i = 0; i < variableDecls.members.length; i++) {
                 if (i === 0) {
-                    variableDecls.members[i].preComments = preComments;
-                    variableDecls.members[i].postComments = postComments;
+                    variableDecls.members[i].setPreComments(preComments);
+                    variableDecls.members[i].setPostComments(postComments);
                 }
             }
 
             var result = new VariableDeclaration(variableDecls);
             this.setSpan(result, start, node);
+
             return result;
         }
 
         public visitVariableDeclarator(node: VariableDeclaratorSyntax): VariableDeclarator {
-            this.assertElementAtPosition(node);
-
             var start = this.position;
-            var name = this.identifierFromToken(node.identifier, /*isOptional:*/ false, /*useValueText:*/ true);
+            var name = this.identifierFromToken(node.identifier, /*isOptional:*/ false);
             this.movePast(node.identifier);
             var typeExpr = node.typeAnnotation ? node.typeAnnotation.accept(this) : null;
             var init = node.equalsValueClause ? node.equalsValueClause.accept(this) : null;
 
-            var result = new VariableDeclarator(name);
+            var result = new VariableDeclarator(name, typeExpr, init);
             this.setSpan(result, start, node);
 
-            result.typeExpr = typeExpr;
-            result.init = init;
-            if (init && init.nodeType === NodeType.FunctionDeclaration) {
+            if (init && init.nodeType() === NodeType.FunctionDeclaration) {
                 var funcDecl = <FunctionDeclaration>init;
                 funcDecl.hint = name.actualText;
             }
@@ -1128,16 +914,14 @@ module TypeScript {
             return result;
         }
 
-        public visitEqualsValueClause(node: EqualsValueClauseSyntax): Expression {
-            this.assertElementAtPosition(node);
-
-            this.previousTokenTrailingComments = this.convertTokenTrailingComments(node.equalsToken,
+        public visitEqualsValueClause(node: EqualsValueClauseSyntax): AST {
+            var afterEqualsComments = this.convertTokenTrailingComments(node.equalsToken,
                 this.position + node.equalsToken.leadingTriviaWidth() + node.equalsToken.width());
 
             this.movePast(node.equalsToken);
-            var result = node.value.accept(this);
+            var result: AST = node.value.accept(this);
+            result.setPreComments(this.mergeComments(afterEqualsComments, result.preComments()));
 
-            this.previousTokenTrailingComments = null;
             return result;
         }
 
@@ -1155,22 +939,14 @@ module TypeScript {
         }
 
         public visitPrefixUnaryExpression(node: PrefixUnaryExpressionSyntax): UnaryExpression {
-            this.assertElementAtPosition(node);
-
             var start = this.position;
-            var result: UnaryExpression = this.getAST(node);
-            if (result) {
-                this.movePast(node);
-            }
-            else {
-                this.movePast(node.operatorToken);
-                var operand = node.operand.accept(this);
 
-                result = new UnaryExpression(this.getUnaryExpressionNodeType(node.kind()), operand);
-            }
+            this.movePast(node.operatorToken);
+            var operand = node.operand.accept(this);
 
-            this.setAST(node, result);
+            var result = new UnaryExpression(this.getUnaryExpressionNodeType(node.kind()), operand, null);
             this.setSpan(result, start, node);
+
             return result;
         }
 
@@ -1179,71 +955,44 @@ module TypeScript {
         }
 
         public visitArrayLiteralExpression(node: ArrayLiteralExpressionSyntax): UnaryExpression {
-            this.assertElementAtPosition(node);
-
             var start = this.position;
-            var result: UnaryExpression = this.getAST(node);
-            if (result) {
-                this.movePast(node);
-            }
-            else {
-                var openStart = this.position + node.openBracketToken.leadingTriviaWidth();
-                this.movePast(node.openBracketToken);
+            var openStart = this.position + node.openBracketToken.leadingTriviaWidth();
+            this.movePast(node.openBracketToken);
 
-                var expressions = this.visitSeparatedSyntaxList(node.expressions);
+            var expressions = this.visitSeparatedSyntaxList(node.expressions);
 
-                var closeStart = this.position + node.closeBracketToken.leadingTriviaWidth();
-                this.movePast(node.closeBracketToken);
+            var closeStart = this.position + node.closeBracketToken.leadingTriviaWidth();
+            this.movePast(node.closeBracketToken);
 
-                Debug.assert(expressions !== null);
-                result = new UnaryExpression(NodeType.ArrayLiteralExpression, expressions);
-
-                if (this.isOnSingleLine(openStart, closeStart)) {
-                    result.setFlags(result.getFlags() | ASTFlags.SingleLine);
-                }
-            }
-
-            this.setAST(node, result);
+            var result = new UnaryExpression(NodeType.ArrayLiteralExpression, expressions, null);
             this.setSpan(result, start, node);
+
+            if (this.isOnSingleLine(openStart, closeStart)) {
+                result.setFlags(result.getFlags() | ASTFlags.SingleLine);
+            }
+
             return result;
         }
 
         public visitOmittedExpression(node: OmittedExpressionSyntax): OmittedExpression {
-            this.assertElementAtPosition(node);
-
             var start = this.position;
-            var result: OmittedExpression = this.getAST(node);
-            if (result) {
-                this.movePast(node);
-            }
-            else {
-                result = new OmittedExpression();
-            }
 
-            this.setAST(node, result);
+            var result = new OmittedExpression();
             this.setSpan(result, start, node);
+
             return result;
         }
 
         public visitParenthesizedExpression(node: ParenthesizedExpressionSyntax): ParenthesizedExpression {
-            this.assertElementAtPosition(node);
-
             var start = this.position;
-            var result: ParenthesizedExpression = this.getAST(node);
-            if (result) {
-                this.movePast(node);
-            }
-            else {
 
-                this.movePast(node.openParenToken);
-                var expr = node.expression.accept(this);
-                this.movePast(node.closeParenToken);
+            this.movePast(node.openParenToken);
+            var expr = node.expression.accept(this);
+            this.movePast(node.closeParenToken);
 
-                result = new ParenthesizedExpression(expr);
-            }
-
-            this.setAST(node, result);
+            var result = new ParenthesizedExpression(expr);
             this.setSpan(result, start, node);
+
             return result;
         }
 
@@ -1252,7 +1001,6 @@ module TypeScript {
                 return body.accept(this);
             }
             else {
-                var statements = new ASTList();
                 var expression = body.accept(this);
                 var returnStatement = new ReturnStatement(expression);
 
@@ -1265,85 +1013,57 @@ module TypeScript {
                 //
                 // Because of ASI, this gets parsed as "return;" which is *not* what we want for
                 // proper semantics.
-                returnStatement.preComments = expression.preComments;
-                expression.preComments = null;
+                returnStatement.setPreComments(expression.preComments());
+                expression.setPreComments(null);
+                
+                var statements = new ASTList([returnStatement]);
 
-                statements.append(returnStatement);
-                var block = new Block(statements);
-                block.closeBraceSpan = statements.members[0];
+                var block = new Block(statements, statements.members[0]);
                 return block;
             }
         }
 
         public visitSimpleArrowFunctionExpression(node: SimpleArrowFunctionExpressionSyntax): FunctionDeclaration {
-            this.assertElementAtPosition(node);
-
             var start = this.position;
-            var result: FunctionDeclaration = this.getAST(node);
-            if (result) {
-                this.movePast(node);
-            }
-            else {
-                var identifier = this.identifierFromToken(node.identifier, /*isOptional:*/ false, /*useValueText:*/ true);
-                this.movePast(node.identifier);
-                this.movePast(node.equalsGreaterThanToken);
 
-                var parameters = new ASTList();
+            var identifier = this.identifierFromToken(node.identifier, /*isOptional:*/ false);
+            this.movePast(node.identifier);
+            this.movePast(node.equalsGreaterThanToken);
 
-                var parameter = new Parameter(identifier);
-                this.setSpanExplicit(parameter, identifier.minChar, identifier.limChar);
+            var parameter = new Parameter(identifier, null, null, false);
+            this.setSpanExplicit(parameter, identifier.minChar, identifier.limChar);
 
-                parameters.append(parameter);
+            var parameters = new ASTList([parameter]);
 
-                var statements = this.getArrowFunctionStatements(node.body);
+            var statements = this.getArrowFunctionStatements(node.body);
 
-                result = new FunctionDeclaration(null, statements, /*isConstructor:*/ false, null, parameters, NodeType.FunctionDeclaration);
-
-                result.returnTypeAnnotation = null;
-                result.setFunctionFlags(result.getFunctionFlags() | FunctionFlags.IsFunctionExpression);
-                result.setFunctionFlags(result.getFunctionFlags() | FunctionFlags.IsFatArrowFunction);
-            }
-
-            this.setAST(node, result);
+            var result = new FunctionDeclaration(null, statements, /*isConstructor:*/ false, null, parameters, null, false);
             this.setSpan(result, start, node);
+
+            result.setFunctionFlags(result.getFunctionFlags() | FunctionFlags.IsFunctionExpression | FunctionFlags.IsFatArrowFunction);
+
             return result;
         }
 
         public visitParenthesizedArrowFunctionExpression(node: ParenthesizedArrowFunctionExpressionSyntax): FunctionDeclaration {
-            this.assertElementAtPosition(node);
-
             var start = this.position;
-            var result: FunctionDeclaration = this.getAST(node);
-            if (result) {
-                this.movePast(node);
-            }
-            else {
-                var preComments = this.convertNodeLeadingComments(node, start);
 
-                var typeParameters = node.callSignature.typeParameterList === null ? null : node.callSignature.typeParameterList.accept(this);
-                var parameters = node.callSignature.parameterList.accept(this);
-                var returnType = node.callSignature.typeAnnotation ? node.callSignature.typeAnnotation.accept(this) : null;
-                this.movePast(node.equalsGreaterThanToken);
+            var typeParameters = node.callSignature.typeParameterList === null ? null : node.callSignature.typeParameterList.accept(this);
+            var parameters = node.callSignature.parameterList.accept(this);
+            var returnType = node.callSignature.typeAnnotation ? node.callSignature.typeAnnotation.accept(this) : null;
+            this.movePast(node.equalsGreaterThanToken);
 
-                var block = this.getArrowFunctionStatements(node.body);
+            var block = this.getArrowFunctionStatements(node.body);
 
-                result = new FunctionDeclaration(null, block, /*isConstructor:*/ false, typeParameters, parameters, NodeType.FunctionDeclaration);
+            var result = new FunctionDeclaration(null, block, /*isConstructor:*/ false, typeParameters, parameters, returnType, this.hasDotDotDotParameter(node.callSignature.parameterList.parameters));
+            this.setCommentsAndSpan(result, start, node);
 
-                result.preComments = preComments;
-                result.returnTypeAnnotation = returnType;
-                result.setFunctionFlags(result.getFunctionFlags() | FunctionFlags.IsFunctionExpression);
-                result.setFunctionFlags(result.getFunctionFlags() | FunctionFlags.IsFatArrowFunction);
-                result.variableArgList = this.hasDotDotDotParameter(node.callSignature.parameterList.parameters);
-            }
+            result.setFunctionFlags(result.getFunctionFlags() | FunctionFlags.IsFunctionExpression | FunctionFlags.IsFatArrowFunction);
 
-            this.setAST(node, result);
-            this.setSpan(result, start, node);
             return result;
         }
 
         public visitType(type: ITypeSyntax): TypeReference {
-            this.assertElementAtPosition(type);
-
             var result: TypeReference;
             if (type.isToken()) {
                 var start = this.position;
@@ -1354,43 +1074,30 @@ module TypeScript {
                 result = type.accept(this);
             }
 
-            Debug.assert(result.nodeType === NodeType.TypeRef);
-
             return result;
         }
 
         public visitQualifiedName(node: QualifiedNameSyntax): TypeReference {
-            this.assertElementAtPosition(node);
-
             var start = this.position;
-            var result: TypeReference = this.getAST(node);
-            if (result) {
-                this.movePast(node);
-            }
-            else {
-                var left = this.visitType(node.left).term;
-                this.movePast(node.dotToken);
-                var right = this.identifierFromToken(node.right, /*isOptional:*/ false, /*useValueText:*/ true);
-                this.movePast(node.right);
+            var left = this.visitType(node.left).term;
+            this.movePast(node.dotToken);
+            var right = this.identifierFromToken(node.right, /*isOptional:*/ false);
+            this.movePast(node.right);
 
-                var term = new BinaryExpression(NodeType.MemberAccessExpression, left, right);
-                this.setSpan(term, start, node);
+            var term = new BinaryExpression(NodeType.MemberAccessExpression, left, right);
+            this.setSpan(term, start, node);
 
-                result = new TypeReference(term, 0);
-            }
+            var result = new TypeReference(term, 0);
+            this.copySpan(term, result);
 
-            this.setAST(node, result);
-            this.setSpan(result, start, node);
             return result;
         }
 
         public visitTypeArgumentList(node: TypeArgumentListSyntax): ASTList {
-            this.assertElementAtPosition(node);
-
-            var result = new ASTList();
+            var array = new Array(node.typeArguments.nonSeparatorCount());
 
             this.movePast(node.lessThanToken);
-            
+
             var start = this.position;
 
             for (var i = 0, n = node.typeArguments.childCount(); i < n; i++) {
@@ -1398,308 +1105,209 @@ module TypeScript {
                     this.movePast(node.typeArguments.childAt(i));
                 }
                 else {
-                    result.append(this.visitType(node.typeArguments.childAt(i)));
+                    array[i / 2] = this.visitType(node.typeArguments.childAt(i));
                 }
             }
             this.movePast(node.greaterThanToken);
-
+            
+            var result = new ASTList(array);
             this.setSpan(result, start, node.typeArguments);
 
             return result;
         }
 
         public visitConstructorType(node: ConstructorTypeSyntax): TypeReference {
-            this.assertElementAtPosition(node);
-
             var start = this.position;
-            var result: TypeReference = this.getAST(node);
-            if (result) {
-                this.movePast(node);
-            }
-            else {
-                this.movePast(node.newKeyword);
-                var typeParameters = node.typeParameterList === null ? null : node.typeParameterList.accept(this);
-                var parameters = node.parameterList.accept(this);
-                this.movePast(node.equalsGreaterThanToken);
-                var returnType = node.type ? this.visitType(node.type) : null;
 
-                var funcDecl = new FunctionDeclaration(null, null, false, typeParameters, parameters, NodeType.FunctionDeclaration);
-                this.setSpan(funcDecl, start, node);
+            this.movePast(node.newKeyword);
+            var typeParameters = node.typeParameterList === null ? null : node.typeParameterList.accept(this);
+            var parameters = node.parameterList.accept(this);
+            this.movePast(node.equalsGreaterThanToken);
+            var returnType = node.type ? this.visitType(node.type) : null;
 
-                funcDecl.returnTypeAnnotation = returnType;
-                funcDecl.setFunctionFlags(funcDecl.getFunctionFlags() | FunctionFlags.Signature);
-                funcDecl.variableArgList = this.hasDotDotDotParameter(node.parameterList.parameters);
+            var funcDecl = new FunctionDeclaration(null, null, false, typeParameters, parameters, returnType, this.hasDotDotDotParameter(node.parameterList.parameters));
+            this.setSpan(funcDecl, start, node);
 
-                funcDecl.setFunctionFlags(funcDecl.getFunctionFlags() | FunctionFlags.ConstructMember);
-                funcDecl.setFlags(funcDecl.getFlags() | ASTFlags.TypeReference);
-                funcDecl.hint = "_construct";
-                funcDecl.classDecl = null;
+            funcDecl.setFunctionFlags(funcDecl.getFunctionFlags() | FunctionFlags.Signature | FunctionFlags.ConstructMember);
 
-                result = new TypeReference(funcDecl, 0);
-            }
+            funcDecl.setFlags(funcDecl.getFlags() | ASTFlags.TypeReference);
+            funcDecl.hint = "_construct";
+            funcDecl.classDecl = null;
 
-            this.setAST(node, result);
-            this.setSpan(result, start, node);
+            var result = new TypeReference(funcDecl, 0);
+            this.copySpan(funcDecl, result);
+
             return result;
         }
 
         public visitFunctionType(node: FunctionTypeSyntax): TypeReference {
-            this.assertElementAtPosition(node);
-
             var start = this.position;
-            var result: TypeReference = this.getAST(node);
-            if (result) {
-                this.movePast(node);
-            }
-            else {
-                var typeParameters = node.typeParameterList === null ? null : node.typeParameterList.accept(this);
-                var parameters = node.parameterList.accept(this);
-                this.movePast(node.equalsGreaterThanToken);
-                var returnType = node.type ? this.visitType(node.type) : null;
+            var typeParameters = node.typeParameterList === null ? null : node.typeParameterList.accept(this);
+            var parameters = node.parameterList.accept(this);
+            this.movePast(node.equalsGreaterThanToken);
+            var returnType = node.type ? this.visitType(node.type) : null;
 
-                var funcDecl = new FunctionDeclaration(null, null, false, typeParameters, parameters, NodeType.FunctionDeclaration);
-                this.setSpan(funcDecl, start, node);
+            var funcDecl = new FunctionDeclaration(null, null, false, typeParameters, parameters, returnType, this.hasDotDotDotParameter(node.parameterList.parameters));
+            this.setSpan(funcDecl, start, node);
 
-                funcDecl.returnTypeAnnotation = returnType;
-                // funcDecl.variableArgList = variableArgList;
-                funcDecl.setFlags(funcDecl.getFunctionFlags() | FunctionFlags.Signature);
-                funcDecl.setFlags(funcDecl.getFlags() | ASTFlags.TypeReference);
-                funcDecl.variableArgList = this.hasDotDotDotParameter(node.parameterList.parameters);
+            funcDecl.setFlags(funcDecl.getFunctionFlags() | FunctionFlags.Signature);
+            funcDecl.setFlags(funcDecl.getFlags() | ASTFlags.TypeReference);
 
-                result = new TypeReference(funcDecl, 0);
-            }
+            var result = new TypeReference(funcDecl, 0);
+            this.copySpan(funcDecl, result);
 
-            this.setAST(node, result);
-            this.setSpan(result, start, node);
             return result;
         }
 
         public visitObjectType(node: ObjectTypeSyntax): TypeReference {
-            this.assertElementAtPosition(node);
-
             var start = this.position;
-            var result: TypeReference = this.getAST(node);
-            if (result) {
-                this.movePast(node);
-            }
-            else {
-                this.movePast(node.openBraceToken);
-                var typeMembers = this.visitSeparatedSyntaxList(node.typeMembers);
-                this.movePast(node.closeBraceToken);
 
-                var interfaceDecl = new InterfaceDeclaration(
-                    new Identifier("__anonymous"), null, typeMembers, null, null);
-                this.setSpan(interfaceDecl, start, node);
+            this.movePast(node.openBraceToken);
+            var typeMembers = this.visitSeparatedSyntaxList(node.typeMembers);
+            this.movePast(node.closeBraceToken);
 
-                interfaceDecl.setFlags(interfaceDecl.getFlags() | ASTFlags.TypeReference);
+            var interfaceDecl = new InterfaceDeclaration(
+                new Identifier("__anonymous", "__anonymous"), null, typeMembers, null, null, /*isObjectTypeLiteral:*/ true);
+            this.setSpan(interfaceDecl, start, node);
 
-                result = new TypeReference(interfaceDecl, 0);
-            }
+            interfaceDecl.setFlags(interfaceDecl.getFlags() | ASTFlags.TypeReference);
 
-            this.setAST(node, result);
-            this.setSpan(result, start, node);
+            var result = new TypeReference(interfaceDecl, 0);
+            this.copySpan(interfaceDecl, result);
+
             return result;
         }
 
         public visitArrayType(node: ArrayTypeSyntax): TypeReference {
-            this.assertElementAtPosition(node);
-
             var start = this.position;
-            var result: TypeReference = this.getAST(node);
-            if (result) {
-                this.movePast(node);
+
+            var result: TypeReference;
+            var underlying = this.visitType(node.type);
+            this.movePast(node.openBracketToken);
+            this.movePast(node.closeBracketToken);
+
+            if (underlying.nodeType() === NodeType.TypeRef) {
+                result = <TypeReference>underlying;
+                result.arrayCount++;
             }
             else {
-                var underlying = this.visitType(node.type);
-                this.movePast(node.openBracketToken);
-                this.movePast(node.closeBracketToken);
-
-                if (underlying.nodeType === NodeType.TypeRef) {
-                    result = <TypeReference>underlying;
-                    result.arrayCount++;
-                }
-                else {
-                    result = new TypeReference(underlying, 1);
-                }
-
-                result.setFlags(result.getFlags() | ASTFlags.TypeReference);
+                result = new TypeReference(underlying, 1);
             }
 
-            this.setAST(node, result);
+            result.setFlags(result.getFlags() | ASTFlags.TypeReference);
+
             this.setSpan(result, start, node);
             return result;
         }
 
         public visitGenericType(node: GenericTypeSyntax): TypeReference {
-            this.assertElementAtPosition(node);
-
             var start = this.position;
-            var result: TypeReference = this.getAST(node);
-            if (result) {
-                this.movePast(node);
-            }
-            else {
-                var underlying = this.visitType(node.name).term;
-                var typeArguments = node.typeArgumentList.accept(this);
 
-                var genericType = new GenericType(underlying, typeArguments);
-                this.setSpan(genericType, start, node);
+            var underlying = this.visitType(node.name).term;
+            var typeArguments = node.typeArgumentList.accept(this);
 
-                genericType.setFlags(genericType.getFlags() | ASTFlags.TypeReference);
+            var genericType = new GenericType(underlying, typeArguments);
+            this.setSpan(genericType, start, node);
 
-                result = new TypeReference(genericType, 0);
-            }
+            genericType.setFlags(genericType.getFlags() | ASTFlags.TypeReference);
 
-            this.setAST(node, result);
-            this.setSpan(result, start, node);
+            var result = new TypeReference(genericType, 0);
+            this.copySpan(genericType, result);
+
             return result;
         }
 
         public visitTypeAnnotation(node: TypeAnnotationSyntax): TypeReference {
-            this.assertElementAtPosition(node);
-
             this.movePast(node.colonToken);
             return this.visitType(node.type);
         }
 
         public visitBlock(node: BlockSyntax): Block {
-            this.assertElementAtPosition(node);
-
             var start = this.position;
-            var result: Block = this.getAST(node);
-            if (result) {
-                this.movePast(node);
-            }
-            else {
-                this.movePast(node.openBraceToken);
-                var statements = this.visitSyntaxList(node.statements);
-                var closeBracePosition = this.position;
-                this.movePast(node.closeBraceToken);
-                var closeBraceSpan = new ASTSpan();
-                this.setSpan(closeBraceSpan, closeBracePosition, node.closeBraceToken);
 
-                result = new Block(statements);
-                result.closeBraceSpan = closeBraceSpan;
-            }
+            this.movePast(node.openBraceToken);
+            var statements = this.visitSyntaxList(node.statements);
+            var closeBracePosition = this.position;
+            this.movePast(node.closeBraceToken);
+            var closeBraceSpan = new ASTSpan();
+            this.setSpan(closeBraceSpan, closeBracePosition, node.closeBraceToken);
 
-            this.setAST(node, result);
+            var result = new Block(statements, closeBraceSpan);
             this.setSpan(result, start, node);
+
             return result;
         }
 
         public visitParameter(node: ParameterSyntax): Parameter {
-            this.assertElementAtPosition(node);
-
             var start = this.position;
-            var result: Parameter = this.getAST(node);
-            if (result) {
-                this.movePast(node);
-            }
-            else {
-                var preComments = this.convertNodeLeadingComments(node, start);
-                var postComments = this.convertNodeTrailingComments(node, start);
 
-                this.moveTo(node, node.identifier);
-                var identifier = this.identifierFromToken(node.identifier, !!node.questionToken, /*useValueText:*/ true);
-                this.movePast(node.identifier);
-                this.movePast(node.questionToken);
-                var typeExpr = node.typeAnnotation ? node.typeAnnotation.accept(this) : null;
-                var init = node.equalsValueClause ? node.equalsValueClause.accept(this) : null;
+            this.moveTo(node, node.identifier);
+            var identifier = this.identifierFromToken(node.identifier, !!node.questionToken);
+            this.movePast(node.identifier);
+            this.movePast(node.questionToken);
+            var typeExpr = node.typeAnnotation ? node.typeAnnotation.accept(this) : null;
+            var init = node.equalsValueClause ? node.equalsValueClause.accept(this) : null;
 
-                result = new Parameter(identifier);
+            var result = new Parameter(identifier, typeExpr, init, !!node.questionToken);
+            this.setCommentsAndSpan(result, start, node);
 
-                result.preComments = preComments;
-                result.postComments = postComments;
-                result.isOptional = !!node.questionToken;
-                result.init = init;
-                result.typeExpr = typeExpr;
-
-                if (node.publicOrPrivateKeyword) {
-                    result.setVarFlags(result.getVarFlags() | VariableFlags.Property);
-
-                    if (node.publicOrPrivateKeyword.kind() === SyntaxKind.PublicKeyword) {
-                        result.setVarFlags(result.getVarFlags() | VariableFlags.Public);
-                    }
-                    else {
-                        result.setVarFlags(result.getVarFlags() | VariableFlags.Private);
-                    }
+            if (node.publicOrPrivateKeyword) {
+                if (node.publicOrPrivateKeyword.kind() === SyntaxKind.PublicKeyword) {
+                    result.setVarFlags(result.getVarFlags() | VariableFlags.Property| VariableFlags.Public);
                 }
-
-                if (node.equalsValueClause || node.dotDotDotToken) {
-                    result.setFlags(result.getFlags() | ASTFlags.OptionalName);
+                else {
+                    result.setVarFlags(result.getVarFlags() | VariableFlags.Property| VariableFlags.Private);
                 }
             }
 
-            this.setAST(node, result);
-            this.setSpan(result, start, node);
+            if (node.equalsValueClause || node.dotDotDotToken) {
+                result.setFlags(result.getFlags() | ASTFlags.OptionalName);
+            }
+
             return result;
         }
 
         public visitMemberAccessExpression(node: MemberAccessExpressionSyntax): BinaryExpression {
-            this.assertElementAtPosition(node);
-
             var start = this.position;
-            var result: BinaryExpression = this.getAST(node);
-            if (result) {
-                this.movePast(node);
-            }
-            else {
-                var expression: AST = node.expression.accept(this);
-                this.movePast(node.dotToken);
-                var name = this.identifierFromToken(node.name, /*isOptional:*/ false, /*useValueText:*/ true);
-                this.movePast(node.name);
 
-                result = new BinaryExpression(NodeType.MemberAccessExpression, expression, name);
-            }
+            var expression: AST = node.expression.accept(this);
+            this.movePast(node.dotToken);
+            var name = this.identifierFromToken(node.name, /*isOptional:*/ false);
+            this.movePast(node.name);
 
-            this.setAST(node, result);
+            var result = new BinaryExpression(NodeType.MemberAccessExpression, expression, name);
             this.setSpan(result, start, node);
+
             return result;
         }
 
         public visitPostfixUnaryExpression(node: PostfixUnaryExpressionSyntax): UnaryExpression {
-            this.assertElementAtPosition(node);
-
             var start = this.position;
-            var result: UnaryExpression = this.getAST(node);
-            if (result) {
-                this.movePast(node);
-            }
-            else {
-                var operand = node.operand.accept(this);
-                this.movePast(node.operatorToken);
 
-                result = new UnaryExpression(node.kind() === SyntaxKind.PostIncrementExpression ? NodeType.PostIncrementExpression : NodeType.PostDecrementExpression, operand);
-            }
+            var operand = node.operand.accept(this);
+            this.movePast(node.operatorToken);
 
-            this.setAST(node, result);
+            var result = new UnaryExpression(node.kind() === SyntaxKind.PostIncrementExpression ? NodeType.PostIncrementExpression : NodeType.PostDecrementExpression, operand, null);
             this.setSpan(result, start, node);
+
             return result;
         }
 
         public visitElementAccessExpression(node: ElementAccessExpressionSyntax): BinaryExpression {
-            this.assertElementAtPosition(node);
-
             var start = this.position;
-            var result: BinaryExpression = this.getAST(node);
-            if (result) {
-                this.movePast(node);
-            }
-            else {
-                var expression = node.expression.accept(this);
-                this.movePast(node.openBracketToken);
-                var argumentExpression = node.argumentExpression.accept(this);
-                this.movePast(node.closeBracketToken);
 
-                result = new BinaryExpression(NodeType.ElementAccessExpression, expression, argumentExpression);
-            }
+            var expression = node.expression.accept(this);
+            this.movePast(node.openBracketToken);
+            var argumentExpression = node.argumentExpression.accept(this);
+            this.movePast(node.closeBracketToken);
 
-            this.setAST(node, result);
+            var result = new BinaryExpression(NodeType.ElementAccessExpression, expression, argumentExpression);
             this.setSpan(result, start, node);
+
             return result;
         }
 
-        private convertArgumentListArguments(node: ArgumentListSyntax): ASTList {
+        private convertArgumentListArguments(node: ArgumentListSyntax) {
             if (node === null) {
                 return null;
             }
@@ -1716,30 +1324,30 @@ module TypeScript {
                 this.setSpanExplicit(result, openParenTokenEnd, openParenTokenEnd + node.openParenToken.trailingTriviaWidth());
             }
 
+            var closeParenPos = this.position;
             this.movePast(node.closeParenToken);
-            return result;
+            var closeParenSpan = new ASTSpan();
+            this.setSpan(closeParenSpan, closeParenPos, node.closeParenToken);
+            
+            return {
+                argumentList: result,
+                closeParenSpan: closeParenSpan
+            };
         }
 
-        public visitInvocationExpression(node: InvocationExpressionSyntax): CallExpression {
-            this.assertElementAtPosition(node);
-
+        public visitInvocationExpression(node: InvocationExpressionSyntax): InvocationExpression {
             var start = this.position;
-            var result: CallExpression = this.getAST(node);
-            if (result) {
-                this.movePast(node);
-            }
-            else {
-                var expression = node.expression.accept(this);
-                var typeArguments = node.argumentList.typeArgumentList !== null
-                    ? node.argumentList.typeArgumentList.accept(this)
-                    : null;
-                var argumentList = this.convertArgumentListArguments(node.argumentList);
 
-                result = new CallExpression(NodeType.InvocationExpression, expression, typeArguments, argumentList);
-            }
+            var expression = node.expression.accept(this);
+            var typeArguments = node.argumentList.typeArgumentList !== null
+                ? node.argumentList.typeArgumentList.accept(this)
+                : null;
+            var argumentList = this.convertArgumentListArguments(node.argumentList);
 
-            this.setAST(node, result);
+            var result = new InvocationExpression(expression, typeArguments,
+                argumentList ? argumentList.argumentList : null, argumentList ? argumentList.closeParenSpan : null);
             this.setSpan(result, start, node);
+
             return result;
         }
 
@@ -1793,195 +1401,118 @@ module TypeScript {
         }
 
         public visitBinaryExpression(node: BinaryExpressionSyntax): BinaryExpression {
-            this.assertElementAtPosition(node);
-
             var start = this.position;
-            var result: BinaryExpression = this.getAST(node);
-            if (result) {
-                this.movePast(node);
-            }
-            else {
-                var nodeType = this.getBinaryExpressionNodeType(node);
-                var left = node.left.accept(this);
-                this.movePast(node.operatorToken);
-                var right = node.right.accept(this);
 
-                result = new BinaryExpression(nodeType, left, right);
+            var nodeType = this.getBinaryExpressionNodeType(node);
+            var left = node.left.accept(this);
+            this.movePast(node.operatorToken);
+            var right = node.right.accept(this);
 
-                if (right.nodeType === NodeType.FunctionDeclaration) {
-                    var id = left.nodeType === NodeType.MemberAccessExpression ? (<BinaryExpression>left).operand2 : left;
-                    var idHint: string = id.nodeType === NodeType.Name ? id.actualText : null;
-
-                    var funcDecl = <FunctionDeclaration>right;
-                    funcDecl.hint = idHint;
-                }
-            }
-
-            this.setAST(node, result);
+            var result = new BinaryExpression(nodeType, left, right);
             this.setSpan(result, start, node);
+
+            if (right.nodeType() === NodeType.FunctionDeclaration) {
+                var id = left.nodeType() === NodeType.MemberAccessExpression ? (<BinaryExpression>left).operand2 : left;
+                var idHint: string = id.nodeType() === NodeType.Name ? id.actualText : null;
+
+                var funcDecl = <FunctionDeclaration>right;
+                funcDecl.hint = idHint;
+            }
+
             return result;
         }
 
         public visitConditionalExpression(node: ConditionalExpressionSyntax): ConditionalExpression {
-            this.assertElementAtPosition(node);
-
             var start = this.position;
-            var result: ConditionalExpression = this.getAST(node);
-            if (result) {
-                this.movePast(node);
-            }
-            else {
-                var condition = node.condition.accept(this);
-                this.movePast(node.questionToken);
-                var whenTrue = node.whenTrue.accept(this);
-                this.movePast(node.colonToken);
-                var whenFalse = node.whenFalse.accept(this)
 
-                result = new ConditionalExpression(condition, whenTrue, whenFalse);
-            }
+            var condition = node.condition.accept(this);
+            this.movePast(node.questionToken);
+            var whenTrue = node.whenTrue.accept(this);
+            this.movePast(node.colonToken);
+            var whenFalse = node.whenFalse.accept(this)
 
-            this.setAST(node, result);
+            var result = new ConditionalExpression(condition, whenTrue, whenFalse);
             this.setSpan(result, start, node);
+
             return result;
         }
 
         public visitConstructSignature(node: ConstructSignatureSyntax): FunctionDeclaration {
-            this.assertElementAtPosition(node);
-
             var start = this.position;
-            var result: FunctionDeclaration = this.getAST(node);
-            if (result) {
-                this.movePast(node);
-            }
-            else {
-                var preComments = this.convertNodeLeadingComments(node, start);
 
-                this.movePast(node.newKeyword);
-                var typeParameters = node.callSignature.typeParameterList === null ? null : node.callSignature.typeParameterList.accept(this);
-                var parameters = node.callSignature.parameterList.accept(this);
-                var returnType = node.callSignature.typeAnnotation ? node.callSignature.typeAnnotation.accept(this) : null;
+            this.movePast(node.newKeyword);
+            var typeParameters = node.callSignature.typeParameterList === null ? null : node.callSignature.typeParameterList.accept(this);
+            var parameters = node.callSignature.parameterList.accept(this);
+            var returnType = node.callSignature.typeAnnotation ? node.callSignature.typeAnnotation.accept(this) : null;
 
-                result = new FunctionDeclaration(null, null, /*isConstructor:*/ false, typeParameters, parameters, NodeType.FunctionDeclaration);
+            var result = new FunctionDeclaration(null, null, /*isConstructor:*/ false, typeParameters, parameters, returnType, this.hasDotDotDotParameter(node.callSignature.parameterList.parameters));
+            this.setCommentsAndSpan(result, start, node);
 
-                result.preComments = preComments;
-                result.returnTypeAnnotation = returnType;
+            result.hint = "_construct";
+            result.setFunctionFlags(result.getFunctionFlags() | FunctionFlags.ConstructMember | FunctionFlags.Method | FunctionFlags.Signature);
 
-                result.hint = "_construct";
-                result.setFunctionFlags(result.getFunctionFlags() | FunctionFlags.ConstructMember);
-                result.setFunctionFlags(result.getFunctionFlags() | FunctionFlags.Method);
-                result.setFunctionFlags(result.getFunctionFlags() | FunctionFlags.Signature);
-                result.variableArgList = this.hasDotDotDotParameter(node.callSignature.parameterList.parameters);
-            }
-
-            this.setAST(node, result);
-            this.setSpan(result, start, node);
             return result;
         }
 
         public visitMethodSignature(node: MethodSignatureSyntax): FunctionDeclaration {
-            this.assertElementAtPosition(node);
-
             var start = this.position;
-            var result: FunctionDeclaration = this.getAST(node);
-            if (result) {
-                this.movePast(node);
-            }
-            else {
-                var preComments = this.convertNodeLeadingComments(node, start);
 
-                var name = this.identifierFromToken(node.propertyName, !!node.questionToken, /*useValueText:*/ true);
-                this.movePast(node.propertyName);
-                this.movePast(node.questionToken);
+            var name = this.identifierFromToken(node.propertyName, !!node.questionToken);
+            this.movePast(node.propertyName);
+            this.movePast(node.questionToken);
 
-                var typeParameters = node.callSignature.typeParameterList ? node.callSignature.typeParameterList.accept(this) : null;
-                var parameters = node.callSignature.parameterList.accept(this);
-                var returnType = node.callSignature.typeAnnotation ? node.callSignature.typeAnnotation.accept(this) : null;
+            var typeParameters = node.callSignature.typeParameterList ? node.callSignature.typeParameterList.accept(this) : null;
+            var parameters = node.callSignature.parameterList.accept(this);
+            var returnType = node.callSignature.typeAnnotation ? node.callSignature.typeAnnotation.accept(this) : null;
 
-                result = new FunctionDeclaration(name, null, false, typeParameters, parameters, NodeType.FunctionDeclaration);
+            var result = new FunctionDeclaration(name, null, false, typeParameters, parameters, returnType, this.hasDotDotDotParameter(node.callSignature.parameterList.parameters));
+            this.setCommentsAndSpan(result, start, node);
 
-                result.preComments = preComments;
-                result.variableArgList = this.hasDotDotDotParameter(node.callSignature.parameterList.parameters);
-                result.returnTypeAnnotation = returnType;
-                result.setFunctionFlags(result.getFunctionFlags() | FunctionFlags.Method);
-                result.setFunctionFlags(result.getFunctionFlags() | FunctionFlags.Signature);
-            }
+            result.setFunctionFlags(result.getFunctionFlags() | FunctionFlags.Method | FunctionFlags.Signature);
 
-            this.setAST(node, result);
-            this.setSpan(result, start, node);
             return result;
         }
 
         public visitIndexSignature(node: IndexSignatureSyntax): FunctionDeclaration {
-            this.assertElementAtPosition(node);
-
             var start = this.position;
-            var result: FunctionDeclaration = this.getAST(node);
-            if (result) {
-                this.movePast(node);
-            }
-            else {
-                var preComments = this.convertNodeLeadingComments(node, start);
 
-                this.movePast(node.openBracketToken);
+            this.movePast(node.openBracketToken);
 
-                var parameter = node.parameter.accept(this);
+            var parameter = node.parameter.accept(this);
 
-                this.movePast(node.closeBracketToken);
-                var returnType = node.typeAnnotation ? node.typeAnnotation.accept(this) : null;
+            this.movePast(node.closeBracketToken);
+            var returnType = node.typeAnnotation ? node.typeAnnotation.accept(this) : null;
 
-                var name = new Identifier("__item");
-                this.setSpanExplicit(name, start, start);   // 0 length name.
+            var name = new Identifier("__item", "__item");
+            this.setSpanExplicit(name, start, start);   // 0 length name.
 
-                var parameters = new ASTList();
-                parameters.append(parameter);
+            var parameters = new ASTList([parameter]);
 
-                result = new FunctionDeclaration(name, null, /*isConstructor:*/ false, null, parameters, NodeType.FunctionDeclaration);
+            var result = new FunctionDeclaration(name, null, /*isConstructor:*/ false, null, parameters, returnType, false);
+            this.setCommentsAndSpan(result, start, node);
 
-                result.preComments = preComments;
-                result.variableArgList = false;
-                result.returnTypeAnnotation = returnType;
+            result.setFunctionFlags(result.getFunctionFlags() | FunctionFlags.IndexerMember | FunctionFlags.Method | FunctionFlags.Signature);
 
-                result.setFunctionFlags(result.getFunctionFlags() | FunctionFlags.IndexerMember);
-                result.setFunctionFlags(result.getFunctionFlags() | FunctionFlags.Method);
-                result.setFunctionFlags(result.getFunctionFlags() | FunctionFlags.Signature);
-            }
-
-            this.setAST(node, result);
-            this.setSpan(result, start, node);
             return result;
         }
 
         public visitPropertySignature(node: PropertySignatureSyntax): VariableDeclarator {
-            this.assertElementAtPosition(node);
-
             var start = this.position;
-            var result: VariableDeclarator = this.getAST(node);
-            if (result) {
-                this.movePast(node);
-            }
-            else {
-                var preComments = this.convertNodeLeadingComments(node, start);
 
-                var name = this.identifierFromToken(node.propertyName, !!node.questionToken, /*useValueText:*/ true);
-                this.movePast(node.propertyName);
-                this.movePast(node.questionToken);
-                var typeExpr = node.typeAnnotation ? node.typeAnnotation.accept(this) : null;
+            var name = this.identifierFromToken(node.propertyName, !!node.questionToken);
+            this.movePast(node.propertyName);
+            this.movePast(node.questionToken);
+            var typeExpr = node.typeAnnotation ? node.typeAnnotation.accept(this) : null;
 
-                result = new VariableDeclarator(name);
+            var result = new VariableDeclarator(name, typeExpr, null);
+            this.setCommentsAndSpan(result, start, node);
 
-                result.preComments = preComments;
-                result.typeExpr = typeExpr;
-                result.setVarFlags(result.getVarFlags() | VariableFlags.Property);
-            }
+            result.setVarFlags(result.getVarFlags() | VariableFlags.Property);
 
-            this.setAST(node, result);
-            this.setSpan(result, start, node);
             return result;
         }
 
         public visitParameterList(node: ParameterListSyntax): ASTList {
-            this.assertElementAtPosition(node);
-
             var start = this.position;
 
             var openParenToken = node.openParenToken;
@@ -1996,40 +1527,22 @@ module TypeScript {
         }
 
         public visitCallSignature(node: CallSignatureSyntax): FunctionDeclaration {
-            this.assertElementAtPosition(node);
-
             var start = this.position;
-            var result: FunctionDeclaration = this.getAST(node);
-            if (result) {
-                this.movePast(node);
-            }
-            else {
-                var preComments = this.convertNodeLeadingComments(node, start);
 
-                var typeParameters = node.typeParameterList === null ? null : node.typeParameterList.accept(this);
-                var parameters = node.parameterList.accept(this);
-                var returnType = node.typeAnnotation ? node.typeAnnotation.accept(this) : null;
+            var typeParameters = node.typeParameterList === null ? null : node.typeParameterList.accept(this);
+            var parameters = node.parameterList.accept(this);
+            var returnType = node.typeAnnotation ? node.typeAnnotation.accept(this) : null;
 
-                result = new FunctionDeclaration(null, null, /*isConstructor:*/ false, typeParameters, parameters, NodeType.FunctionDeclaration);
+            var result = new FunctionDeclaration(null, null, /*isConstructor:*/ false, typeParameters, parameters, returnType, this.hasDotDotDotParameter(node.parameterList.parameters));
+            this.setCommentsAndSpan(result, start, node);
 
-                result.preComments = preComments;
-                result.variableArgList = this.hasDotDotDotParameter(node.parameterList.parameters);
-                result.returnTypeAnnotation = returnType;
+            result.hint = "_call";
+            result.setFunctionFlags(result.getFunctionFlags() | FunctionFlags.CallMember | FunctionFlags.Method | FunctionFlags.Signature);
 
-                result.hint = "_call";
-                result.setFunctionFlags(result.getFunctionFlags() | FunctionFlags.CallMember);
-                result.setFunctionFlags(result.getFunctionFlags() | FunctionFlags.Method);
-                result.setFunctionFlags(result.getFunctionFlags() | FunctionFlags.Signature);
-            }
-
-            this.setAST(node, result);
-            this.setSpan(result, start, node);
             return result;
         }
 
         public visitTypeParameterList(node: TypeParameterListSyntax): ASTList {
-            this.assertElementAtPosition(node);
-
             this.movePast(node.lessThanToken);
             var result = this.visitSeparatedSyntaxList(node.typeParameters);
             this.movePast(node.greaterThanToken);
@@ -2038,227 +1551,147 @@ module TypeScript {
         }
 
         public visitTypeParameter(node: TypeParameterSyntax): TypeParameter {
-            this.assertElementAtPosition(node);
-
             var start = this.position;
-            var result: TypeParameter = this.getAST(node);
-            if (result) {
-                this.movePast(node);
-            }
-            else {
-                var identifier = this.identifierFromToken(node.identifier, /*isOptional:*/ false, /*useValueText:*/ true);
-                this.movePast(node.identifier);
-                var constraint = node.constraint ? node.constraint.accept(this) : null;
 
-                result = new TypeParameter(identifier, constraint);
-            }
+            var identifier = this.identifierFromToken(node.identifier, /*isOptional:*/ false);
+            this.movePast(node.identifier);
+            var constraint = node.constraint ? node.constraint.accept(this) : null;
 
-            this.setAST(node, result);
+            var result = new TypeParameter(identifier, constraint);
             this.setSpan(result, start, node);
+
             return result;
         }
 
         public visitConstraint(node: ConstraintSyntax): TypeReference {
-            this.assertElementAtPosition(node);
-
             this.movePast(node.extendsKeyword);
             return this.visitType(node.type);
         }
 
         public visitIfStatement(node: IfStatementSyntax): IfStatement {
-            this.assertElementAtPosition(node);
-
             var start = this.position;
-            var result: IfStatement = this.getAST(node);
-            if (result) {
-                this.movePast(node);
-            }
-            else {
-                this.moveTo(node, node.condition);
-                var condition = node.condition.accept(this);
-                this.movePast(node.closeParenToken);
-                var thenBod = node.statement.accept(this);
-                var elseBod = node.elseClause ? node.elseClause.accept(this) : null;
 
-                result = new IfStatement(condition, thenBod, elseBod);
-            }
+            this.moveTo(node, node.condition);
+            var condition = node.condition.accept(this);
+            this.movePast(node.closeParenToken);
+            var thenBod = node.statement.accept(this);
+            var elseBod = node.elseClause ? node.elseClause.accept(this) : null;
 
-            this.setAST(node, result);
+            var result = new IfStatement(condition, thenBod, elseBod);
             this.setSpan(result, start, node);
+
             return result;
         }
 
-        public visitElseClause(node: ElseClauseSyntax): Statement {
-            this.assertElementAtPosition(node);
-
+        public visitElseClause(node: ElseClauseSyntax): AST {
             this.movePast(node.elseKeyword);
             return node.statement.accept(this);
         }
 
         public visitExpressionStatement(node: ExpressionStatementSyntax): ExpressionStatement {
-            this.assertElementAtPosition(node);
-
             var start = this.position;
-            var result: ExpressionStatement = this.getAST(node);
-            if (result) {
-                this.movePast(node);
-            }
-            else {
-                var preComments = this.convertNodeLeadingComments(node, start);
-                var postComments = this.convertNodeTrailingComments(node, start);
 
-                var expression = node.expression.accept(this);
-                this.movePast(node.semicolonToken);
+            var expression = node.expression.accept(this);
+            this.movePast(node.semicolonToken);
 
-                result = new ExpressionStatement(expression);
-                result.preComments = preComments;
-                result.postComments = postComments;
-            }
+            var result = new ExpressionStatement(expression);
+            this.setCommentsAndSpan(result, start, node);
 
-            this.setAST(node, result);
-            this.setSpan(result, start, node);
             return result;
         }
 
         public visitConstructorDeclaration(node: ConstructorDeclarationSyntax): FunctionDeclaration {
-            this.assertElementAtPosition(node);
-
             var start = this.position;
-            var result: FunctionDeclaration = this.getAST(node);
-            if (result) {
-                this.movePast(node);
-            }
-            else {
-                var preComments = this.convertNodeLeadingComments(node, start);
-                var postComments = this.convertNodeTrailingComments(node, start);
 
-                this.moveTo(node, node.parameterList);
-                var parameters = node.parameterList.accept(this);
+            this.moveTo(node, node.parameterList);
+            var parameters = node.parameterList.accept(this);
 
-                var block = node.block ? node.block.accept(this) : null;
+            var block = node.block ? node.block.accept(this) : null;
 
-                this.movePast(node.semicolonToken);
+            this.movePast(node.semicolonToken);
 
-                result = new FunctionDeclaration(null, block, /*isConstructor:*/ true, null, parameters, NodeType.FunctionDeclaration);
+            var result = new FunctionDeclaration(null, block, /*isConstructor:*/ true, null, parameters, null, this.hasDotDotDotParameter(node.parameterList.parameters));
+            this.setCommentsAndSpan(result, start, node);
 
-                result.preComments = preComments;
-                result.postComments = postComments;
-                result.variableArgList = this.hasDotDotDotParameter(node.parameterList.parameters);
-
-                if (node.semicolonToken) {
-                    result.setFunctionFlags(result.getFunctionFlags() | FunctionFlags.Signature);
-                }
+            if (node.semicolonToken) {
+                result.setFunctionFlags(result.getFunctionFlags() | FunctionFlags.Signature);
             }
 
-            this.setAST(node, result);
-            this.setSpan(result, start, node);
             return result;
         }
 
         public visitMemberFunctionDeclaration(node: MemberFunctionDeclarationSyntax): FunctionDeclaration {
-            this.assertElementAtPosition(node);
-
             var start = this.position;
-            var result: FunctionDeclaration = this.getAST(node);
-            if (result) {
-                this.movePast(node);
+
+            this.moveTo(node, node.propertyName);
+            var name = this.identifierFromToken(node.propertyName, /*isOptional:*/ false);
+            
+            this.movePast(node.propertyName);
+
+            var typeParameters = node.callSignature.typeParameterList === null ? null : node.callSignature.typeParameterList.accept(this);
+            var parameters = node.callSignature.parameterList.accept(this);
+            var returnType = node.callSignature.typeAnnotation
+                ? node.callSignature.typeAnnotation.accept(this)
+                : null;
+
+            var block = node.block ? node.block.accept(this) : null;
+            this.movePast(node.semicolonToken);
+
+            var result = new FunctionDeclaration(name, block, /*isConstructor:*/ false, typeParameters, parameters, returnType, this.hasDotDotDotParameter(node.callSignature.parameterList.parameters));
+            this.setCommentsAndSpan(result, start, node);
+
+            var flags = result.getFunctionFlags();
+            if (node.semicolonToken) {
+                flags = flags | FunctionFlags.Signature;
+            }
+
+            if (SyntaxUtilities.containsToken(node.modifiers, SyntaxKind.PrivateKeyword)) {
+                flags = flags | FunctionFlags.Private;
             }
             else {
-                var preComments = this.convertNodeLeadingComments(node, start);
-                var postComments = this.convertNodeTrailingComments(node, start);
-
-                this.moveTo(node, node.propertyName);
-                var name = this.identifierFromToken(node.propertyName, /*isOptional:*/ false, /*useValueText:*/ true);
-
-                this.movePast(node.propertyName);
-
-                var typeParameters = node.callSignature.typeParameterList === null ? null : node.callSignature.typeParameterList.accept(this);
-                var parameters = node.callSignature.parameterList.accept(this);
-                var returnType = node.callSignature.typeAnnotation
-                    ? node.callSignature.typeAnnotation.accept(this)
-                    : null;
-
-                var block = node.block ? node.block.accept(this) : null;
-                this.movePast(node.semicolonToken);
-
-                result = new FunctionDeclaration(name, block, /*isConstructor:*/ false, typeParameters, parameters, NodeType.FunctionDeclaration);
-
-                result.preComments = preComments;
-                result.postComments = postComments;
-                result.variableArgList = this.hasDotDotDotParameter(node.callSignature.parameterList.parameters);
-                result.returnTypeAnnotation = returnType;
-
-                if (node.semicolonToken) {
-                    result.setFunctionFlags(result.getFunctionFlags() | FunctionFlags.Signature);
-                }
-
-                if (SyntaxUtilities.containsToken(node.modifiers, SyntaxKind.PrivateKeyword)) {
-                    result.setFunctionFlags(result.getFunctionFlags() | FunctionFlags.Private);
-                }
-                else {
-                    result.setFunctionFlags(result.getFunctionFlags() | FunctionFlags.Public);
-                }
-
-                if (SyntaxUtilities.containsToken(node.modifiers, SyntaxKind.StaticKeyword)) {
-                    result.setFunctionFlags(result.getFunctionFlags() | FunctionFlags.Static);
-                }
-
-                result.setFunctionFlags(result.getFunctionFlags() | FunctionFlags.Method);
+                flags = flags | FunctionFlags.Public;
             }
 
-            this.setAST(node, result);
-            this.setSpan(result, start, node);
+            if (SyntaxUtilities.containsToken(node.modifiers, SyntaxKind.StaticKeyword)) {
+                flags = flags | FunctionFlags.Static;
+            }
+
+            flags = flags | FunctionFlags.Method;
+            result.setFunctionFlags(flags);
+
             return result;
         }
 
         public visitMemberAccessorDeclaration(node: MemberAccessorDeclarationSyntax, typeAnnotation: TypeAnnotationSyntax): FunctionDeclaration {
-            this.assertElementAtPosition(node);
-
             var start = this.position;
-            var result: FunctionDeclaration = this.getAST(node);
-            if (result) {
-                this.movePast(node);
+
+            this.moveTo(node, node.propertyName);
+            var name = this.identifierFromToken(node.propertyName, /*isOptional:*/ false);
+            this.movePast(node.propertyName);
+            var parameters = node.parameterList.accept(this);
+            var returnType = typeAnnotation ? typeAnnotation.accept(this) : null;
+
+            var block = node.block ? node.block.accept(this) : null;
+            var result = new FunctionDeclaration(name, block, /*isConstructor:*/ false, null, parameters, returnType, this.hasDotDotDotParameter(node.parameterList.parameters));
+            this.setCommentsAndSpan(result, start, node);
+
+            if (SyntaxUtilities.containsToken(node.modifiers, SyntaxKind.PrivateKeyword)) {
+                result.setFunctionFlags(result.getFunctionFlags() | FunctionFlags.Private);
             }
             else {
-                var preComments = this.convertNodeLeadingComments(node, start);
-                var postComments = this.convertNodeTrailingComments(node, start);
-
-                this.moveTo(node, node.propertyName);
-                var name = this.identifierFromToken(node.propertyName, /*isOptional:*/ false, /*useValueText:*/ true);
-                this.movePast(node.propertyName);
-                var parameters = node.parameterList.accept(this);
-                var returnType = typeAnnotation ? typeAnnotation.accept(this) : null;
-
-                var block = node.block ? node.block.accept(this) : null;
-                result = new FunctionDeclaration(name, block, /*isConstructor:*/ false, null, parameters, NodeType.FunctionDeclaration);
-
-                result.preComments = preComments;
-                result.postComments = postComments;
-                result.variableArgList = this.hasDotDotDotParameter(node.parameterList.parameters);
-                result.returnTypeAnnotation = returnType;
-
-                if (SyntaxUtilities.containsToken(node.modifiers, SyntaxKind.PrivateKeyword)) {
-                    result.setFunctionFlags(result.getFunctionFlags() | FunctionFlags.Private);
-                }
-                else {
-                    result.setFunctionFlags(result.getFunctionFlags() | FunctionFlags.Public);
-                }
-
-                if (SyntaxUtilities.containsToken(node.modifiers, SyntaxKind.StaticKeyword)) {
-                    result.setFunctionFlags(result.getFunctionFlags() | FunctionFlags.Static);
-                }
-
-                result.setFunctionFlags(result.getFunctionFlags() | FunctionFlags.Method);
+                result.setFunctionFlags(result.getFunctionFlags() | FunctionFlags.Public);
             }
 
-            this.setAST(node, result);
-            this.setSpan(result, start, node);
+            if (SyntaxUtilities.containsToken(node.modifiers, SyntaxKind.StaticKeyword)) {
+                result.setFunctionFlags(result.getFunctionFlags() | FunctionFlags.Static);
+            }
+
+            result.setFunctionFlags(result.getFunctionFlags() | FunctionFlags.Method);
+
             return result;
         }
 
         public visitGetMemberAccessorDeclaration(node: GetMemberAccessorDeclarationSyntax): FunctionDeclaration {
-            this.assertElementAtPosition(node);
-
             var result = this.visitMemberAccessorDeclaration(node, node.typeAnnotation);
 
             result.setFunctionFlags(result.getFunctionFlags() | FunctionFlags.GetAccessor);
@@ -2268,8 +1701,6 @@ module TypeScript {
         }
 
         public visitSetMemberAccessorDeclaration(node: SetMemberAccessorDeclarationSyntax): FunctionDeclaration {
-            this.assertElementAtPosition(node);
-
             var result = this.visitMemberAccessorDeclaration(node, null);
 
             result.setFunctionFlags(result.getFunctionFlags() | FunctionFlags.SetAccessor);
@@ -2279,682 +1710,450 @@ module TypeScript {
         }
 
         public visitMemberVariableDeclaration(node: MemberVariableDeclarationSyntax): VariableDeclarator {
-            this.assertElementAtPosition(node);
-
             var start = this.position;
-            var result: VariableDeclarator = this.getAST(node);
-            if (result) {
-                this.movePast(node);
+
+            this.moveTo(node, node.variableDeclarator);
+            this.moveTo(node.variableDeclarator, node.variableDeclarator.identifier);
+
+            var name = this.identifierFromToken(node.variableDeclarator.identifier, /*isOptional:*/ false);
+            this.movePast(node.variableDeclarator.identifier);
+            var typeExpr = node.variableDeclarator.typeAnnotation ? node.variableDeclarator.typeAnnotation.accept(this) : null;
+            var init = node.variableDeclarator.equalsValueClause ? node.variableDeclarator.equalsValueClause.accept(this) : null;
+            this.movePast(node.semicolonToken);
+
+            var result = new VariableDeclarator(name, typeExpr, init);
+            this.setCommentsAndSpan(result, start, node);
+
+            if (SyntaxUtilities.containsToken(node.modifiers, SyntaxKind.StaticKeyword)) {
+                result.setVarFlags(result.getVarFlags() | VariableFlags.Static);
+            }
+
+            if (SyntaxUtilities.containsToken(node.modifiers, SyntaxKind.PrivateKeyword)) {
+                result.setVarFlags(result.getVarFlags() | VariableFlags.Private);
             }
             else {
-                var preComments = this.convertNodeLeadingComments(node, start);
-                var postComments = this.convertNodeTrailingComments(node, start);
-
-                this.moveTo(node, node.variableDeclarator);
-                this.moveTo(node.variableDeclarator, node.variableDeclarator.identifier);
-
-                var name = this.identifierFromToken(node.variableDeclarator.identifier, /*isOptional:*/ false, /*useValueText:*/ true);
-                this.movePast(node.variableDeclarator.identifier);
-                var typeExpr = node.variableDeclarator.typeAnnotation ? node.variableDeclarator.typeAnnotation.accept(this) : null;
-                var init = node.variableDeclarator.equalsValueClause ? node.variableDeclarator.equalsValueClause.accept(this) : null;
-                this.movePast(node.semicolonToken);
-
-                result = new VariableDeclarator(name);
-
-                result.preComments = preComments;
-                result.postComments = postComments;
-                result.typeExpr = typeExpr;
-                result.init = init;
-
-                if (SyntaxUtilities.containsToken(node.modifiers, SyntaxKind.StaticKeyword)) {
-                    result.setVarFlags(result.getVarFlags() | VariableFlags.Static);
-                }
-
-                if (SyntaxUtilities.containsToken(node.modifiers, SyntaxKind.PrivateKeyword)) {
-                    result.setVarFlags(result.getVarFlags() | VariableFlags.Private);
-                }
-                else {
-                    result.setVarFlags(result.getVarFlags() | VariableFlags.Public);
-                }
-
-                result.setVarFlags(result.getVarFlags() | VariableFlags.ClassProperty);
-
-                // var declarators = new ASTList();
-                // declarators.append(declarator);
-
-                //var declaration = new VariableDeclaration(declarators)
-                //this.setSpan(declaration, start, node);
-
-                //result = new VariableStatement(declaration);
+                result.setVarFlags(result.getVarFlags() | VariableFlags.Public);
             }
 
-            this.setAST(node, result);
-            this.setSpan(result, start, node);
+            result.setVarFlags(result.getVarFlags() | VariableFlags.ClassProperty);
+
             return result;
         }
 
         public visitThrowStatement(node: ThrowStatementSyntax): ThrowStatement {
-            this.assertElementAtPosition(node);
-
             var start = this.position;
-            var result: ThrowStatement = this.getAST(node);
-            if (result) {
-                this.movePast(node);
-            }
-            else {
-                this.movePast(node.throwKeyword);
-                var expression = node.expression.accept(this);
-                this.movePast(node.semicolonToken);
 
-                result = new ThrowStatement(expression);
-            }
+            this.movePast(node.throwKeyword);
+            var expression = node.expression.accept(this);
+            this.movePast(node.semicolonToken);
 
-            this.setAST(node, result);
+            var result = new ThrowStatement(expression);
             this.setSpan(result, start, node);
+
             return result;
         }
 
         public visitReturnStatement(node: ReturnStatementSyntax): ReturnStatement {
-            this.assertElementAtPosition(node);
-
             var start = this.position;
 
-            var result: ReturnStatement = this.getAST(node);
-            if (result) {
-                this.movePast(node);
-            }
-            else {
-                var preComments = this.convertNodeLeadingComments(node, start);
-                var postComments = this.convertNodeTrailingComments(node, start);
+            this.movePast(node.returnKeyword);
+            var expression = node.expression ? node.expression.accept(this) : null;
+            this.movePast(node.semicolonToken);
 
-                this.movePast(node.returnKeyword);
-                var expression = node.expression ? node.expression.accept(this) : null;
-                this.movePast(node.semicolonToken);
+            var result = new ReturnStatement(expression);
+            this.setCommentsAndSpan(result, start, node);
 
-                result = new ReturnStatement(expression);
-                result.preComments = preComments;
-                result.postComments = postComments;
-            }
-
-            this.setAST(node, result);
-            this.setSpan(result, start, node);
             return result;
         }
 
-        public visitObjectCreationExpression(node: ObjectCreationExpressionSyntax): CallExpression {
-            this.assertElementAtPosition(node);
-
+        public visitObjectCreationExpression(node: ObjectCreationExpressionSyntax): ObjectCreationExpression {
             var start = this.position;
-            var result: CallExpression = this.getAST(node);
-            if (result) {
-                this.movePast(node);
-            }
-            else {
-                this.movePast(node.newKeyword);
-                var expression = node.expression.accept(this);
-                var typeArgumentList = node.argumentList === null || node.argumentList.typeArgumentList === null ? null : node.argumentList.typeArgumentList.accept(this);
-                var argumentList = this.convertArgumentListArguments(node.argumentList);
 
-                result = new CallExpression(NodeType.ObjectCreationExpression, expression, typeArgumentList, argumentList);
+            this.movePast(node.newKeyword);
+            var expression = node.expression.accept(this);
+            var typeArgumentList = node.argumentList === null || node.argumentList.typeArgumentList === null ? null : node.argumentList.typeArgumentList.accept(this);
+            var argumentList = this.convertArgumentListArguments(node.argumentList);
 
-                if (expression.nodeType === NodeType.TypeRef) {
-                    var typeRef = <TypeReference>expression;
+            var result = new ObjectCreationExpression(expression, typeArgumentList,
+                argumentList ? argumentList.argumentList : null, argumentList ? argumentList.closeParenSpan : null);
+            this.setSpan(result, start, node);
 
-                    if (typeRef.arrayCount === 0) {
-                        var term = typeRef.term;
-                        if (term.nodeType === NodeType.MemberAccessExpression || term.nodeType === NodeType.Name) {
-                            expression = term;
-                        }
+            if (expression.nodeType() === NodeType.TypeRef) {
+                var typeRef = <TypeReference>expression;
+
+                if (typeRef.arrayCount === 0) {
+                    var term = typeRef.term;
+                    if (term.nodeType() === NodeType.MemberAccessExpression || term.nodeType() === NodeType.Name) {
+                        expression = term;
                     }
                 }
             }
 
-            this.setAST(node, result);
-            this.setSpan(result, start, node);
             return result;
         }
 
         public visitSwitchStatement(node: SwitchStatementSyntax): SwitchStatement {
-            this.assertElementAtPosition(node);
-
             var start = this.position;
-            var result: SwitchStatement = this.getAST(node);
-            if (result) {
-                this.movePast(node);
-            }
-            else {
-                this.movePast(node.switchKeyword);
-                this.movePast(node.openParenToken);
-                var expression = node.expression.accept(this);
-                this.movePast(node.closeParenToken);
-                var closeParenPosition = this.position;
-                this.movePast(node.openBraceToken);
 
-                result = new SwitchStatement(expression);
+            this.movePast(node.switchKeyword);
+            this.movePast(node.openParenToken);
+            var expression = node.expression.accept(this);
+            this.movePast(node.closeParenToken);
+            var closeParenPosition = this.position;
+            this.movePast(node.openBraceToken);
 
-                result.statement.minChar = start;
-                result.statement.limChar = closeParenPosition;
+            var array = new Array(node.switchClauses.childCount());
+            var defaultCase: CaseClause = null;
 
-                result.caseList = new ASTList()
+            for (var i = 0, n = node.switchClauses.childCount(); i < n; i++) {
+                var switchClause = node.switchClauses.childAt(i);
+                var translated = switchClause.accept(this);
 
-                for (var i = 0, n = node.switchClauses.childCount(); i < n; i++) {
-                    var switchClause = node.switchClauses.childAt(i);
-                    var translated = switchClause.accept(this);
-
-                    if (switchClause.kind() === SyntaxKind.DefaultSwitchClause) {
-                        result.defaultCase = translated;
-                    }
-
-                    result.caseList.append(translated);
+                if (switchClause.kind() === SyntaxKind.DefaultSwitchClause) {
+                    defaultCase = translated;
                 }
 
-                this.movePast(node.closeBraceToken);
+                array[i] = translated;
             }
 
-            this.setAST(node, result);
+            var span = new ASTSpan();
+            span.minChar = start;
+            span.limChar = closeParenPosition;
+
+            this.movePast(node.closeBraceToken);
+
+            var result = new SwitchStatement(expression, new ASTList(array), defaultCase, span);
             this.setSpan(result, start, node);
+
             return result;
         }
 
         public visitCaseSwitchClause(node: CaseSwitchClauseSyntax): CaseClause {
-            this.assertElementAtPosition(node);
-
             var start = this.position;
-            var result: CaseClause = this.getAST(node);
-            if (result) {
-                this.movePast(node);
-            }
-            else {
-                this.movePast(node.caseKeyword);
-                var expression = node.expression.accept(this);
-                this.movePast(node.colonToken);
-                var statements = this.visitSyntaxList(node.statements);
 
-                result = new CaseClause();
+            this.movePast(node.caseKeyword);
+            var expression = node.expression.accept(this);
+            this.movePast(node.colonToken);
+            var statements = this.visitSyntaxList(node.statements);
 
-                result.expr = expression;
-                result.body = statements;
-            }
-
-            this.setAST(node, result);
+            var result = new CaseClause(expression, statements);
             this.setSpan(result, start, node);
+
             return result;
         }
 
         public visitDefaultSwitchClause(node: DefaultSwitchClauseSyntax): CaseClause {
-            this.assertElementAtPosition(node);
-
             var start = this.position;
-            var result: CaseClause = this.getAST(node);
-            if (result) {
-                this.movePast(node);
-            }
-            else {
-                this.movePast(node.defaultKeyword);
-                this.movePast(node.colonToken);
-                var statements = this.visitSyntaxList(node.statements);
 
-                result = new CaseClause();
-                result.body = statements;
-            }
+            this.movePast(node.defaultKeyword);
+            this.movePast(node.colonToken);
+            var statements = this.visitSyntaxList(node.statements);
 
-            this.setAST(node, result);
+            var result = new CaseClause(null, statements);
             this.setSpan(result, start, node);
+
             return result;
         }
 
         public visitBreakStatement(node: BreakStatementSyntax): Jump {
-            this.assertElementAtPosition(node);
-
             var start = this.position;
-            var result: Jump = this.getAST(node);
-            if (result) {
-                this.movePast(node);
-            }
-            else {
-                this.movePast(node.breakKeyword);
-                this.movePast(node.identifier);
-                this.movePast(node.semicolonToken);
 
-                result = new Jump(NodeType.BreakStatement);
+            this.movePast(node.breakKeyword);
+            this.movePast(node.identifier);
+            this.movePast(node.semicolonToken);
+            var identifier = node.identifier ? node.identifier.valueText() : null;
 
-                if (node.identifier !== null) {
-                    result.target = node.identifier.valueText();
-                }
-            }
-
-            this.setAST(node, result);
+            var result = new Jump(NodeType.BreakStatement, identifier);
             this.setSpan(result, start, node);
+
             return result;
         }
 
         public visitContinueStatement(node: ContinueStatementSyntax): Jump {
-            this.assertElementAtPosition(node);
-
             var start = this.position;
-            var result: Jump = this.getAST(node);
-            if (result) {
-                this.movePast(node);
-            }
-            else {
-                this.movePast(node.continueKeyword);
-                this.movePast(node.identifier);
-                this.movePast(node.semicolonToken);
 
-                result = new Jump(NodeType.ContinueStatement);
+            this.movePast(node.continueKeyword);
+            this.movePast(node.identifier);
+            this.movePast(node.semicolonToken);
 
-                if (node.identifier !== null) {
-                    result.target = node.identifier.valueText();
-                }
-            }
-
-            this.setAST(node, result);
+            var result = new Jump(NodeType.ContinueStatement, node.identifier ? node.identifier.valueText() : null);
             this.setSpan(result, start, node);
+
             return result;
         }
 
         public visitForStatement(node: ForStatementSyntax): ForStatement {
-            this.assertElementAtPosition(node);
-
             var start = this.position;
-            var result: ForStatement = this.getAST(node);
-            if (result) {
-                this.movePast(node);
-            }
-            else {
-                this.movePast(node.forKeyword);
-                this.movePast(node.openParenToken);
-                var init = node.variableDeclaration
-                    ? node.variableDeclaration.accept(this)
-                    : node.initializer
-                        ? node.initializer.accept(this)
-                        : null;
-                this.movePast(node.firstSemicolonToken);
-                var cond = node.condition ? node.condition.accept(this) : null;
-                this.movePast(node.secondSemicolonToken);
-                var incr = node.incrementor ? node.incrementor.accept(this) : null;
-                this.movePast(node.closeParenToken);
-                var body = node.statement.accept(this);
 
-                result = new ForStatement(init, cond, incr, body);
-            }
+            this.movePast(node.forKeyword);
+            this.movePast(node.openParenToken);
+            var init = node.variableDeclaration
+                ? node.variableDeclaration.accept(this)
+                : node.initializer
+                ? node.initializer.accept(this)
+                : null;
+            this.movePast(node.firstSemicolonToken);
+            var cond = node.condition ? node.condition.accept(this) : null;
+            this.movePast(node.secondSemicolonToken);
+            var incr = node.incrementor ? node.incrementor.accept(this) : null;
+            this.movePast(node.closeParenToken);
+            var body = node.statement.accept(this);
 
-            this.setAST(node, result);
+            var result = new ForStatement(init, cond, incr, body);
             this.setSpan(result, start, node);
+
             return result;
         }
 
         public visitForInStatement(node: ForInStatementSyntax): ForInStatement {
-            this.assertElementAtPosition(node);
-
             var start = this.position;
-            var result: ForInStatement = this.getAST(node);
-            if (result) {
-                this.movePast(node);
-            }
-            else {
-                this.movePast(node.forKeyword);
-                this.movePast(node.openParenToken);
-                var init = node.variableDeclaration ? node.variableDeclaration.accept(this) : node.left.accept(this);
-                this.movePast(node.inKeyword);
-                var expression = node.expression.accept(this);
-                this.movePast(node.closeParenToken);
-                var body = node.statement.accept(this);
 
-                result = new ForInStatement(init, expression, body);
-            }
+            this.movePast(node.forKeyword);
+            this.movePast(node.openParenToken);
+            var init = node.variableDeclaration ? node.variableDeclaration.accept(this) : node.left.accept(this);
+            this.movePast(node.inKeyword);
+            var expression = node.expression.accept(this);
+            this.movePast(node.closeParenToken);
+            var body = node.statement.accept(this);
 
-            this.setAST(node, result);
+            var result = new ForInStatement(init, expression, body);
             this.setSpan(result, start, node);
+
             return result;
         }
 
         public visitWhileStatement(node: WhileStatementSyntax): WhileStatement {
-            this.assertElementAtPosition(node);
-
             var start = this.position;
-            var result: WhileStatement = this.getAST(node);
-            if (result) {
-                this.movePast(node);
-            }
-            else {
-                this.moveTo(node, node.condition);
-                var condition = node.condition.accept(this);
-                this.movePast(node.closeParenToken);
-                var statement = node.statement.accept(this);
 
-                result = new WhileStatement(condition, statement);
-            }
+            this.moveTo(node, node.condition);
+            var condition = node.condition.accept(this);
+            this.movePast(node.closeParenToken);
+            var statement = node.statement.accept(this);
 
-            this.setAST(node, result);
+            var result = new WhileStatement(condition, statement);
             this.setSpan(result, start, node);
+
             return result;
         }
 
         public visitWithStatement(node: WithStatementSyntax): WithStatement {
-            this.assertElementAtPosition(node);
-
             var start = this.position;
-            var result: WithStatement = this.getAST(node);
-            if (result) {
-                this.movePast(node);
-            }
-            else {
-                this.moveTo(node, node.condition);
-                var condition = node.condition.accept(this);
-                this.movePast(node.closeParenToken);
-                var statement = node.statement.accept(this);
 
-                result = new WithStatement(condition, statement);
-            }
+            this.moveTo(node, node.condition);
+            var condition = node.condition.accept(this);
+            this.movePast(node.closeParenToken);
+            var statement = node.statement.accept(this);
 
-            this.setAST(node, result);
+            var result = new WithStatement(condition, statement);
             this.setSpan(result, start, node);
+
             return result;
         }
 
         public visitCastExpression(node: CastExpressionSyntax): UnaryExpression {
-            this.assertElementAtPosition(node);
-
             var start = this.position;
-            var result: UnaryExpression = this.getAST(node);
-            if (result) {
-                this.movePast(node);
-            }
-            else {
-                this.movePast(node.lessThanToken);
-                var castTerm = this.visitType(node.type);
-                this.movePast(node.greaterThanToken);
-                var expression = node.expression.accept(this);
 
-                result = new UnaryExpression(NodeType.CastExpression, expression);
-                result.castTerm = castTerm;
-            }
+            this.movePast(node.lessThanToken);
+            var castTerm = this.visitType(node.type);
+            this.movePast(node.greaterThanToken);
+            var expression = node.expression.accept(this);
 
-            this.setAST(node, result);
+            var result = new UnaryExpression(NodeType.CastExpression, expression, castTerm);
             this.setSpan(result, start, node);
+
             return result;
         }
 
         public visitObjectLiteralExpression(node: ObjectLiteralExpressionSyntax): UnaryExpression {
-            this.assertElementAtPosition(node);
-
             var start = this.position;
-            var result: UnaryExpression = this.getAST(node);
-            if (result) {
-                this.movePast(node);
-            }
-            else {
-                var preComments = this.convertNodeLeadingComments(node, start);
 
-                var openStart = this.position + node.openBraceToken.leadingTriviaWidth();
-                this.movePast(node.openBraceToken);
+            var openStart = this.position + node.openBraceToken.leadingTriviaWidth();
+            this.movePast(node.openBraceToken);
 
-                var propertyAssignments = this.visitSeparatedSyntaxList(node.propertyAssignments);
+            var propertyAssignments = this.visitSeparatedSyntaxList(node.propertyAssignments);
 
-                var closeStart = this.position + node.closeBraceToken.leadingTriviaWidth();
-                this.movePast(node.closeBraceToken);
+            var closeStart = this.position + node.closeBraceToken.leadingTriviaWidth();
+            this.movePast(node.closeBraceToken);
 
-                result = new UnaryExpression(NodeType.ObjectLiteralExpression, propertyAssignments);
-                result.preComments = preComments;
+            var result = new UnaryExpression(NodeType.ObjectLiteralExpression, propertyAssignments, null);
+            this.setCommentsAndSpan(result, start, node);
 
-                if (this.isOnSingleLine(openStart, closeStart)) {
-                    result.setFlags(result.getFlags() | ASTFlags.SingleLine);
-                }
+            if (this.isOnSingleLine(openStart, closeStart)) {
+                result.setFlags(result.getFlags() | ASTFlags.SingleLine);
             }
 
-            this.setAST(node, result);
-            this.setSpan(result, start, node);
             return result;
         }
 
         public visitSimplePropertyAssignment(node: SimplePropertyAssignmentSyntax): BinaryExpression {
-            this.assertElementAtPosition(node);
-
             var start = this.position;
-            var result: BinaryExpression = this.getAST(node);
-            if (result) {
-                this.movePast(node);
-            }
-            else {
-                var preComments = this.convertNodeLeadingComments(node, start);
 
-                var left = node.propertyName.accept(this);
+            var left = node.propertyName.accept(this);
 
-                this.previousTokenTrailingComments = this.convertTokenTrailingComments(
-                    node.colonToken, this.position + node.colonToken.leadingTriviaWidth() + node.colonToken.width());
+            var afterColonComments = this.convertTokenTrailingComments(
+                node.colonToken, this.position + node.colonToken.leadingTriviaWidth() + node.colonToken.width());
 
-                this.movePast(node.colonToken);
-                var right = node.expression.accept(this);
+            this.movePast(node.colonToken);
+            var right: AST = node.expression.accept(this);
+            right.setPreComments(this.mergeComments(afterColonComments, right.preComments()));
 
-                result = new BinaryExpression(NodeType.Member, left, right);
-                result.preComments = preComments;
+            var result = new BinaryExpression(NodeType.Member, left, right);
+            this.setCommentsAndSpan(result, start, node);
 
-                if (right.nodeType === NodeType.FunctionDeclaration) {
-                    var funcDecl = <FunctionDeclaration>right;
-                    funcDecl.hint = left.text;
-                }
+            if (right.nodeType() === NodeType.FunctionDeclaration) {
+                var funcDecl = <FunctionDeclaration>right;
+                funcDecl.hint = left.text();
             }
 
-            this.setAST(node, result);
-            this.setSpan(result, start, node);
             return result;
         }
 
         public visitFunctionPropertyAssignment(node: FunctionPropertyAssignmentSyntax): BinaryExpression {
-            this.assertElementAtPosition(node);
-
             var start = this.position;
-            var result: BinaryExpression = this.getAST(node);
-            if (result) {
-                this.movePast(node);
-            }
-            else {
-                var left = node.propertyName.accept(this);
-                var functionDeclaration = <FunctionDeclaration>node.callSignature.accept(this);
-                var block = node.block.accept(this);
 
-                functionDeclaration.hint = left.text;
-                functionDeclaration.block = block;
-                functionDeclaration.setFunctionFlags(FunctionFlags.IsFunctionProperty);
+            var left: Identifier = node.propertyName.accept(this);
+            var functionDeclaration = <FunctionDeclaration>node.callSignature.accept(this);
+            var block = node.block.accept(this);
 
-                result = new BinaryExpression(NodeType.Member, left, functionDeclaration);
-            }
+            functionDeclaration.hint = left.text();
+            functionDeclaration.block = block;
+            functionDeclaration.setFunctionFlags(FunctionFlags.IsFunctionProperty);
 
-            this.setAST(node, result);
+            var result = new BinaryExpression(NodeType.Member, left, functionDeclaration);
             this.setSpan(result, start, node);
+
             return result;
         }
 
         public visitGetAccessorPropertyAssignment(node: GetAccessorPropertyAssignmentSyntax): BinaryExpression {
-            this.assertElementAtPosition(node);
-
             var start = this.position;
-            var result: BinaryExpression = this.getAST(node);
-            if (result) {
-                this.movePast(node);
-            }
-            else {
-                this.moveTo(node, node.propertyName);
-                var name = this.identifierFromToken(node.propertyName, /*isOptional:*/ false, /*useValueText:*/ true);
-                var functionName = this.identifierFromToken(node.propertyName, /*isOptional:*/ false, /*useValueText:*/ true);
-                this.movePast(node.propertyName);
-                this.movePast(node.openParenToken);
-                this.movePast(node.closeParenToken);
-                var returnType = node.typeAnnotation
-                    ? node.typeAnnotation.accept(this)
-                    : null;
 
-                var block = node.block ? node.block.accept(this) : null;
+            this.moveTo(node, node.propertyName);
+            var name = this.identifierFromToken(node.propertyName, /*isOptional:*/ false);
+            var functionName = this.identifierFromToken(node.propertyName, /*isOptional:*/ false);
+            this.movePast(node.propertyName);
+            this.movePast(node.openParenToken);
+            this.movePast(node.closeParenToken);
+            var returnType = node.typeAnnotation
+                ? node.typeAnnotation.accept(this)
+                : null;
 
-                var funcDecl = new FunctionDeclaration(functionName, block, /*isConstructor:*/ false, null, new ASTList(), NodeType.FunctionDeclaration);
-                this.setSpan(funcDecl, start, node);
+            var block = node.block ? node.block.accept(this) : null;
 
-                funcDecl.setFunctionFlags(funcDecl.getFunctionFlags() | FunctionFlags.GetAccessor);
-                funcDecl.setFunctionFlags(funcDecl.getFunctionFlags() | FunctionFlags.IsFunctionExpression);
-                funcDecl.hint = "get" + node.propertyName.valueText();
-                funcDecl.returnTypeAnnotation = returnType;
+            var funcDecl = new FunctionDeclaration(functionName, block, /*isConstructor:*/ false, null, new ASTList([]), returnType, false);
+            this.setSpan(funcDecl, start, node);
 
-                result = new BinaryExpression(NodeType.Member, name, funcDecl);
-            }
+            funcDecl.setFunctionFlags(funcDecl.getFunctionFlags() | FunctionFlags.GetAccessor | FunctionFlags.IsFunctionExpression);
+            funcDecl.hint = "get" + node.propertyName.valueText();
 
-            this.setAST(node, result);
-            this.setSpan(result, start, node);
+            var result = new BinaryExpression(NodeType.Member, name, funcDecl);
+            this.copySpan(funcDecl, result);
+
             return result;
         }
 
         public visitSetAccessorPropertyAssignment(node: SetAccessorPropertyAssignmentSyntax): BinaryExpression {
-            this.assertElementAtPosition(node);
-
             var start = this.position;
-            var result: BinaryExpression = this.getAST(node);
-            if (result) {
-                this.movePast(node);
-            }
-            else {
-                this.moveTo(node, node.propertyName);
-                var name = this.identifierFromToken(node.propertyName, /*isOptional:*/ false, /*useValueText:*/ true);
-                var functionName = this.identifierFromToken(node.propertyName, /*isOptional:*/ false, /*useValueText:*/ true);
-                this.movePast(node.propertyName);
-                this.movePast(node.openParenToken);
-                var parameter = node.parameter.accept(this);
-                this.movePast(node.closeParenToken);
 
-                var parameters = new ASTList();
-                parameters.append(parameter);
+            this.moveTo(node, node.propertyName);
+            var name = this.identifierFromToken(node.propertyName, /*isOptional:*/ false);
+            var functionName = this.identifierFromToken(node.propertyName, /*isOptional:*/ false);
+            this.movePast(node.propertyName);
+            this.movePast(node.openParenToken);
+            var parameter = node.parameter.accept(this);
+            this.movePast(node.closeParenToken);
 
-                var block = node.block ? node.block.accept(this) : null;
+            var parameters = new ASTList([parameter]);
 
-                var funcDecl = new FunctionDeclaration(functionName, block, /*isConstructor:*/ false, null, parameters, NodeType.FunctionDeclaration);
-                this.setSpan(funcDecl, start, node);
+            var block = node.block ? node.block.accept(this) : null;
 
-                funcDecl.setFunctionFlags(funcDecl.getFunctionFlags() | FunctionFlags.SetAccessor);
-                funcDecl.setFunctionFlags(funcDecl.getFunctionFlags() | FunctionFlags.IsFunctionExpression);
-                funcDecl.hint = "set" + node.propertyName.valueText();
+            var funcDecl = new FunctionDeclaration(functionName, block, /*isConstructor:*/ false, null, parameters, null, false);
+            this.setSpan(funcDecl, start, node);
 
-                result = new BinaryExpression(NodeType.Member, name, funcDecl);
-            }
+            funcDecl.setFunctionFlags(funcDecl.getFunctionFlags() | FunctionFlags.SetAccessor | FunctionFlags.IsFunctionExpression);
+            funcDecl.hint = "set" + node.propertyName.valueText();
 
-            this.setAST(node, result);
-            this.setSpan(result, start, node);
+            var result = new BinaryExpression(NodeType.Member, name, funcDecl);
+            this.copySpan(funcDecl, result);
+
             return result;
         }
 
         public visitFunctionExpression(node: FunctionExpressionSyntax): FunctionDeclaration {
-            this.assertElementAtPosition(node);
-
             var start = this.position;
-            var result: FunctionDeclaration = this.getAST(node);
-            if (result) {
-                this.movePast(node);
-            }
-            else {
-                var preComments = this.convertNodeLeadingComments(node, start);
 
-                this.movePast(node.functionKeyword);
-                var name = node.identifier === null ? null : this.identifierFromToken(node.identifier, /*isOptional:*/ false, /*useValueText:*/ true);
-                this.movePast(node.identifier);
-                var typeParameters = node.callSignature.typeParameterList === null ? null : node.callSignature.typeParameterList.accept(this);
-                var parameters = node.callSignature.parameterList.accept(this);
-                var returnType = node.callSignature.typeAnnotation
-                    ? node.callSignature.typeAnnotation.accept(this)
-                    : null;
+            this.movePast(node.functionKeyword);
+            var name = node.identifier === null ? null : this.identifierFromToken(node.identifier, /*isOptional:*/ false);
+            this.movePast(node.identifier);
+            var typeParameters = node.callSignature.typeParameterList === null ? null : node.callSignature.typeParameterList.accept(this);
+            var parameters = node.callSignature.parameterList.accept(this);
+            var returnType = node.callSignature.typeAnnotation
+                ? node.callSignature.typeAnnotation.accept(this)
+                : null;
 
-                var block = node.block ? node.block.accept(this) : null;
+            var block = node.block ? node.block.accept(this) : null;
 
-                result = new FunctionDeclaration(name, block, false, typeParameters, parameters, NodeType.FunctionDeclaration);
+            var result = new FunctionDeclaration(name, block, false, typeParameters, parameters, returnType, this.hasDotDotDotParameter(node.callSignature.parameterList.parameters));
+            this.setCommentsAndSpan(result, start, node);
 
-                result.preComments = preComments;
-                result.variableArgList = this.hasDotDotDotParameter(node.callSignature.parameterList.parameters);
-                result.returnTypeAnnotation = returnType;
-                result.setFunctionFlags(result.getFunctionFlags() | FunctionFlags.IsFunctionExpression);
-            }
+            result.setFunctionFlags(result.getFunctionFlags() | FunctionFlags.IsFunctionExpression);
 
-            this.setAST(node, result);
-            this.setSpan(result, start, node);
             return result;
         }
 
         public visitEmptyStatement(node: EmptyStatementSyntax): EmptyStatement {
-            this.assertElementAtPosition(node);
-
             var start = this.position;
-            var result: EmptyStatement = this.getAST(node);
-            if (result) {
-                this.movePast(node);
-            }
-            else {
-                this.movePast(node.semicolonToken);
 
-                result = new EmptyStatement();
-            }
+            this.movePast(node.semicolonToken);
 
-            this.setAST(node, result);
+            var result = new EmptyStatement();
             this.setSpan(result, start, node);
+
             return result;
         }
 
         public visitTryStatement(node: TryStatementSyntax): TryStatement {
-            this.assertElementAtPosition(node);
-
             var start = this.position;
-            var result: TryStatement = this.getAST(node);
-            if (result) {
-                this.movePast(node);
-            }
-            else {
-                this.movePast(node.tryKeyword);
-                var tryBody = node.block.accept(this);
 
-                // var tryPart: AST = new Try(block);
-                // this.setSpanExplicit(tryPart, start, this.position);
+            this.movePast(node.tryKeyword);
+            var tryBody = node.block.accept(this);
 
-                var catchClause: CatchClause = null;
-                if (node.catchClause !== null) {
-                    catchClause = node.catchClause.accept(this);
-                }
+            // var tryPart: AST = new Try(block);
+            // this.setSpanExplicit(tryPart, start, this.position);
 
-                var finallyBody: Block = null;
-                if (node.finallyClause !== null) {
-                    finallyBody = node.finallyClause.accept(this);
-                }
-
-                result = new TryStatement(tryBody, catchClause, finallyBody);
+            var catchClause: CatchClause = null;
+            if (node.catchClause !== null) {
+                catchClause = node.catchClause.accept(this);
             }
 
-            Debug.assert(result !== null);
-            this.setAST(node, result);
+            var finallyBody: Block = null;
+            if (node.finallyClause !== null) {
+                finallyBody = node.finallyClause.accept(this);
+            }
+
+            var result = new TryStatement(tryBody, catchClause, finallyBody);
             this.setSpan(result, start, node);
+
             return result;
         }
 
         public visitCatchClause(node: CatchClauseSyntax): CatchClause {
-            this.assertElementAtPosition(node);
-
             var start = this.position;
-            var result: CatchClause = this.getAST(node);
-            if (result) {
-                this.movePast(node);
-            }
-            else {
-                this.movePast(node.catchKeyword);
-                this.movePast(node.openParenToken);
-                var identifier = this.identifierFromToken(node.identifier, /*isOptional:*/ false, /*useValueText:*/ true);
-                this.movePast(node.identifier);
-                var typeExpr = node.typeAnnotation ? node.typeAnnotation.accept(this) : null;
-                this.movePast(node.closeParenToken);
-                var block = node.block.accept(this);
 
-                var varDecl = new VariableDeclarator(identifier);
-                this.setSpanExplicit(varDecl, identifier.minChar, identifier.limChar);
+            this.movePast(node.catchKeyword);
+            this.movePast(node.openParenToken);
+            var identifier = this.identifierFromToken(node.identifier, /*isOptional:*/ false);
+            this.movePast(node.identifier);
+            var typeExpr = node.typeAnnotation ? node.typeAnnotation.accept(this) : null;
+            this.movePast(node.closeParenToken);
+            var block = node.block.accept(this);
 
-                varDecl.typeExpr = typeExpr;
+            var varDecl = new VariableDeclarator(identifier, typeExpr, null);
+            this.setSpanExplicit(varDecl, identifier.minChar, identifier.limChar);
 
-                result = new CatchClause(varDecl, block);
-            }
-
-            this.setAST(node, result);
+            var result = new CatchClause(varDecl, block);
             this.setSpan(result, start, node);
+
             return result;
         }
 
@@ -2964,133 +2163,880 @@ module TypeScript {
         }
 
         public visitLabeledStatement(node: LabeledStatementSyntax): LabeledStatement {
-            this.assertElementAtPosition(node);
-
             var start = this.position;
-            var result: LabeledStatement = this.getAST(node);
-            if (result) {
-                this.movePast(node);
-            }
-            else {
-                var identifier = this.identifierFromToken(node.identifier, /*isOptional:*/ false, /*useValueText:*/ true);
-                this.movePast(node.identifier);
-                this.movePast(node.colonToken);
-                var statement = node.statement.accept(this);
 
-                result = new LabeledStatement(identifier, statement);
-            }
+            var identifier = this.identifierFromToken(node.identifier, /*isOptional:*/ false);
+            this.movePast(node.identifier);
+            this.movePast(node.colonToken);
+            var statement = node.statement.accept(this);
 
-            this.setAST(node, result);
+            var result = new LabeledStatement(identifier, statement);
             this.setSpan(result, start, node);
+
             return result;
         }
 
         public visitDoStatement(node: DoStatementSyntax): DoStatement {
-            this.assertElementAtPosition(node);
-
             var start = this.position;
-            var result: DoStatement = this.getAST(node);
-            if (result) {
-                this.movePast(node);
-            }
-            else {
-                this.movePast(node.doKeyword);
-                var statement = node.statement.accept(this);
-                var whileSpan = new ASTSpan();
-                this.setSpan(whileSpan, this.position, node.whileKeyword);
 
-                this.movePast(node.whileKeyword);
-                this.movePast(node.openParenToken);
-                var condition = node.condition.accept(this);
-                this.movePast(node.closeParenToken);
-                this.movePast(node.semicolonToken);
+            this.movePast(node.doKeyword);
+            var statement = node.statement.accept(this);
+            var whileSpan = new ASTSpan();
+            this.setSpan(whileSpan, this.position, node.whileKeyword);
 
-                result = new DoStatement(statement, condition);
-                result.whileSpan = whileSpan;
-            }
+            this.movePast(node.whileKeyword);
+            this.movePast(node.openParenToken);
+            var condition = node.condition.accept(this);
+            this.movePast(node.closeParenToken);
+            this.movePast(node.semicolonToken);
 
-            this.setAST(node, result);
+            var result = new DoStatement(statement, condition, whileSpan);
             this.setSpan(result, start, node);
+
             return result;
         }
 
         public visitTypeOfExpression(node: TypeOfExpressionSyntax): UnaryExpression {
-            this.assertElementAtPosition(node);
-
             var start = this.position;
-            var result: UnaryExpression = this.getAST(node);
-            if (result) {
-                this.movePast(node);
-            }
-            else {
-                this.movePast(node.typeOfKeyword);
-                var expression = node.expression.accept(this);
 
-                result = new UnaryExpression(NodeType.TypeOfExpression, expression);
-            }
+            this.movePast(node.typeOfKeyword);
+            var expression = node.expression.accept(this);
 
-            this.setAST(node, result);
+            var result = new UnaryExpression(NodeType.TypeOfExpression, expression, null);
             this.setSpan(result, start, node);
+
             return result;
         }
 
         public visitDeleteExpression(node: DeleteExpressionSyntax): UnaryExpression {
-            this.assertElementAtPosition(node);
-
             var start = this.position;
-            var result: UnaryExpression = this.getAST(node);
-            if (result) {
-                this.movePast(node);
-            }
-            else {
-                this.movePast(node.deleteKeyword);
-                var expression = node.expression.accept(this);
 
-                result = new UnaryExpression(NodeType.DeleteExpression, expression);
-            }
+            this.movePast(node.deleteKeyword);
+            var expression = node.expression.accept(this);
 
-            this.setAST(node, result);
+            var result = new UnaryExpression(NodeType.DeleteExpression, expression, null);
             this.setSpan(result, start, node);
+
             return result;
         }
 
         public visitVoidExpression(node: VoidExpressionSyntax): UnaryExpression {
-            this.assertElementAtPosition(node);
-
             var start = this.position;
-            var result: UnaryExpression = this.getAST(node);
-            if (result) {
-                this.movePast(node);
-            }
-            else {
-                this.movePast(node.voidKeyword);
-                var expression = node.expression.accept(this);
 
-                result = new UnaryExpression(NodeType.VoidExpression, expression);
-            }
+            this.movePast(node.voidKeyword);
+            var expression = node.expression.accept(this);
 
-            this.setAST(node, result);
+            var result = new UnaryExpression(NodeType.VoidExpression, expression, null);
             this.setSpan(result, start, node);
+
             return result;
         }
 
         public visitDebuggerStatement(node: DebuggerStatementSyntax): DebuggerStatement {
-            this.assertElementAtPosition(node);
-
             var start = this.position;
-            var result: DebuggerStatement = this.getAST(node);
-            if (result) {
-                this.movePast(node);
+
+            this.movePast(node.debuggerKeyword);
+            this.movePast(node.semicolonToken);
+
+            var result = new DebuggerStatement();
+            this.setSpan(result, start, node);
+
+            return result;
+        }
+    }
+
+    class SyntaxTreeToIncrementalAstVisitor extends SyntaxTreeToAstVisitor {
+        private applyDelta(ast: TypeScript.AST, delta: number) {
+            if (delta === 0) {
+                return;
+            }
+
+            var applyDelta = (ast: TypeScript.AST) => {
+                if (ast.minChar !== -1) {
+                    ast.minChar += delta;
+                }
+                if (ast.limChar !== -1) {
+                    ast.limChar += delta;
+                }
+            }
+
+            var applyDeltaToComments = (comments: TypeScript.Comment[]) => {
+                if (comments && comments.length > 0) {
+                    for (var i = 0; i < comments.length; i++) {
+                        var comment = comments[i];
+                        applyDelta(comment);
+                    }
+                }
+            }
+
+            var pre = function (cur: TypeScript.AST, parent: TypeScript.AST, walker: TypeScript.IAstWalker) {
+                // Apply delta to this node
+                applyDelta(cur);
+                applyDeltaToComments(cur.preComments());
+                applyDeltaToComments(cur.postComments());
+
+                return cur;
+            }
+
+            TypeScript.getAstWalkerFactory().walk(ast, pre);
+        }
+
+        public setSpanExplicit(span: IASTSpan, start: number, end: number): void {
+            if (span.minChar !== -1) {
+                // Have an existing span.  We need to adjust it so that it starts at the provided
+                // desiredMinChar.
+
+                var delta = start - span.minChar;
+                this.applyDelta(<AST>span, delta);
+
+                span.limChar = end;
             }
             else {
-                this.movePast(node.debuggerKeyword);
-                this.movePast(node.semicolonToken);
+                super.setSpanExplicit(span, start, end);
+            }
+        }
 
-                result = new DebuggerStatement();
+        private getAndMovePastAST(element: ISyntaxElement): any {
+            if (this.previousTokenTrailingComments !== null) {
+                return null;
             }
 
-            this.setAST(node, result);
-            this.setSpan(result, start, node);
+            var result = (<any>element)._ast;
+            if (!result) {
+                return null;
+            }
+
+            // We previous mapped this element to an AST node.  Return the AST node (with its 
+            // positions properly updated), and move past it.
+            var start = this.position;
+            this.movePast(element);
+            this.setSpan(result, start, element);
+            return result;
+        }
+
+        private setAST(element: ISyntaxElement, ast: IASTSpan): void {
+            (<any>element)._ast = ast;
+        }
+
+        public visitSyntaxList(list: ISyntaxList): ASTList {
+            var result: ASTList = this.getAndMovePastAST(list);
+            if (!result) {
+                result = super.visitSyntaxList(list);
+
+                if (list.childCount() > 0) {
+                    // Don't cache 0 lengthed lists as we only have a single sentinel value for them
+                    this.setAST(list, result);
+                }
+            }
+
+            return result;
+        }
+
+        public visitSeparatedSyntaxList(list: ISeparatedSyntaxList): ASTList {
+            var result: ASTList = this.getAndMovePastAST(list);
+            if (!result) {
+                result = super.visitSeparatedSyntaxList(list);
+
+                if (list.childCount() > 0) {
+                    // Don't cache 0 lengthed lists as we only have a single sentinel value for them
+                    this.setAST(list, result);
+                }
+            }
+
+            return result;
+        }
+
+        public visitToken(token: ISyntaxToken): AST {
+            var result = this.getAndMovePastAST(token);
+
+            if (!result) {
+                result = super.visitToken(token);
+                this.setAST(token, result);
+            }
+
+            return result;
+        }
+
+        public visitClassDeclaration(node: ClassDeclarationSyntax): ClassDeclaration {
+            var result: ClassDeclaration = this.getAndMovePastAST(node);
+            if (result) {
+                this.completeClassDeclaration(node, result);
+            }
+            else {
+                result = super.visitClassDeclaration(node);
+                this.setAST(node, result);
+            }
+
+            return result;
+        }
+
+        public visitInterfaceDeclaration(node: InterfaceDeclarationSyntax): InterfaceDeclaration {
+            var result: InterfaceDeclaration = this.getAndMovePastAST(node);
+            if (result) {
+                this.completeInterfaceDeclaration(node, result);
+            }
+            else {
+                result = super.visitInterfaceDeclaration(node);
+                this.setAST(node, result);
+            }
+
+            return result;
+        }
+
+        public visitHeritageClause(node: HeritageClauseSyntax): ASTList {
+            var result: ASTList = this.getAndMovePastAST(node);
+            if (!result) {
+                result = super.visitHeritageClause(node);
+                this.setAST(node, result);
+            }
+
+            return result;
+        }
+
+        public visitModuleDeclaration(node: ModuleDeclarationSyntax): ModuleDeclaration {
+            var result: ModuleDeclaration = this.getAndMovePastAST(node);
+            if (result) {
+                this.completeModuleDeclaration(node, result);
+            }
+            else {
+                result = super.visitModuleDeclaration(node);
+                this.setAST(node, result);
+            }
+
+            return result;
+        }
+
+        public visitFunctionDeclaration(node: FunctionDeclarationSyntax): FunctionDeclaration {
+            var result: FunctionDeclaration = this.getAndMovePastAST(node);
+            if (result) {
+                this.completeFunctionDeclaration(node, result);
+            }
+            else {
+                result = super.visitFunctionDeclaration(node);
+                this.setAST(node, result);
+            }
+
+            return result;
+        }
+
+        public visitImportDeclaration(node: ImportDeclarationSyntax): ImportDeclaration {
+            var result: ImportDeclaration = this.getAndMovePastAST(node);
+            if (!result) {
+                result = super.visitImportDeclaration(node);
+                this.setAST(node, result);
+            }
+
+            return result;
+        }
+
+        public visitExportAssignment(node: ExportAssignmentSyntax): ExportAssignment {
+            var result: ExportAssignment = this.getAndMovePastAST(node);
+            if (!result) {
+                result = super.visitExportAssignment(node);
+                this.setAST(node, result);
+            }
+
+            return result;
+        }
+
+        public visitPrefixUnaryExpression(node: PrefixUnaryExpressionSyntax): UnaryExpression {
+            var result: UnaryExpression = this.getAndMovePastAST(node);
+            if (!result) {
+                result = super.visitPrefixUnaryExpression(node);
+                this.setAST(node, result);
+            }
+
+            return result;
+        }
+
+        public visitArrayLiteralExpression(node: ArrayLiteralExpressionSyntax): UnaryExpression {
+            var result: UnaryExpression = this.getAndMovePastAST(node);
+            if (!result) {
+                result = super.visitArrayLiteralExpression(node);
+                this.setAST(node, result);
+            }
+
+            return result;
+        }
+
+        public visitOmittedExpression(node: OmittedExpressionSyntax): OmittedExpression {
+            var result: OmittedExpression = this.getAndMovePastAST(node);
+            if (!result) {
+                result = super.visitOmittedExpression(node);
+                this.setAST(node, result);
+            }
+
+            return result;
+        }
+
+        public visitParenthesizedExpression(node: ParenthesizedExpressionSyntax): ParenthesizedExpression {
+            var result: ParenthesizedExpression = this.getAndMovePastAST(node);
+            if (!result) {
+                result = super.visitParenthesizedExpression(node);
+                this.setAST(node, result);
+            }
+
+            return result;
+        }
+
+        public visitSimpleArrowFunctionExpression(node: SimpleArrowFunctionExpressionSyntax): FunctionDeclaration {
+            var result: FunctionDeclaration = this.getAndMovePastAST(node);
+            if (!result) {
+                result = super.visitSimpleArrowFunctionExpression(node);
+                this.setAST(node, result);
+            }
+
+            return result;
+        }
+
+        public visitParenthesizedArrowFunctionExpression(node: ParenthesizedArrowFunctionExpressionSyntax): FunctionDeclaration {
+            var result: FunctionDeclaration = this.getAndMovePastAST(node);
+            if (!result) {
+                result = super.visitParenthesizedArrowFunctionExpression(node);
+                this.setAST(node, result);
+            }
+
+            return result;
+        }
+
+        public visitQualifiedName(node: QualifiedNameSyntax): TypeReference {
+            var result: TypeReference = this.getAndMovePastAST(node);
+            if (!result) {
+                var result = super.visitQualifiedName(node);
+                this.setAST(node, result);
+            }
+
+            return result;
+        }
+
+        public visitConstructorType(node: ConstructorTypeSyntax): TypeReference {
+            var result: TypeReference = this.getAndMovePastAST(node);
+            if (!result) {
+                result = super.visitConstructorType(node);
+                this.setAST(node, result);
+            }
+
+            return result;
+        }
+
+        public visitFunctionType(node: FunctionTypeSyntax): TypeReference {
+            var result: TypeReference = this.getAndMovePastAST(node);
+            if (!result) {
+                result = super.visitFunctionType(node);
+                this.setAST(node, result);
+            }
+
+            return result;
+        }
+
+        public visitObjectType(node: ObjectTypeSyntax): TypeReference {
+            var start = this.position;
+            var result: TypeReference = this.getAndMovePastAST(node);
+            if (!result) {
+                result = super.visitObjectType(node);
+                this.setAST(node, result);
+            }
+
+            return result;
+        }
+
+        public visitArrayType(node: ArrayTypeSyntax): TypeReference {
+            var result: TypeReference = this.getAndMovePastAST(node);
+            if (!result) {
+                result = super.visitArrayType(node);
+                this.setAST(node, result);
+            }
+
+            return result;
+        }
+
+        public visitGenericType(node: GenericTypeSyntax): TypeReference {
+            var result: TypeReference = this.getAndMovePastAST(node);
+            if (!result) {
+                result = super.visitGenericType(node);
+                this.setAST(node, result);
+            }
+
+            return result;
+        }
+
+        public visitBlock(node: BlockSyntax): Block {
+            var result: Block = this.getAndMovePastAST(node);
+            if (!result) {
+                result = super.visitBlock(node);
+                this.setAST(node, result);
+            }
+
+            return result;
+        }
+
+        public visitParameter(node: ParameterSyntax): Parameter {
+            var result: Parameter = this.getAndMovePastAST(node);
+            if (!result) {
+                result = super.visitParameter(node);
+                this.setAST(node, result);
+            }
+
+            return result;
+        }
+
+        public visitMemberAccessExpression(node: MemberAccessExpressionSyntax): BinaryExpression {
+            var result: BinaryExpression = this.getAndMovePastAST(node);
+            if (!result) {
+                result = super.visitMemberAccessExpression(node);
+                this.setAST(node, result);
+            }
+
+            return result;
+        }
+
+        public visitPostfixUnaryExpression(node: PostfixUnaryExpressionSyntax): UnaryExpression {
+            var result: UnaryExpression = this.getAndMovePastAST(node);
+            if (!result) {
+                result = super.visitPostfixUnaryExpression(node);
+                this.setAST(node, result);
+            }
+
+            return result;
+        }
+
+        public visitElementAccessExpression(node: ElementAccessExpressionSyntax): BinaryExpression {
+            var result: BinaryExpression = this.getAndMovePastAST(node);
+            if (!result) {
+                result = super.visitElementAccessExpression(node);
+                this.setAST(node, result);
+            }
+
+            return result;
+        }
+
+        public visitInvocationExpression(node: InvocationExpressionSyntax): InvocationExpression {
+            var result: InvocationExpression = this.getAndMovePastAST(node);
+            if (!result) {
+                result = super.visitInvocationExpression(node);
+                this.setAST(node, result);
+            }
+
+            return result;
+        }
+
+        public visitBinaryExpression(node: BinaryExpressionSyntax): BinaryExpression {
+            var result: BinaryExpression = this.getAndMovePastAST(node);
+            if (!result) {
+                result = super.visitBinaryExpression(node);
+                this.setAST(node, result);
+            }
+
+            return result;
+        }
+
+        public visitConditionalExpression(node: ConditionalExpressionSyntax): ConditionalExpression {
+            var result: ConditionalExpression = this.getAndMovePastAST(node);
+            if (!result) {
+                result = super.visitConditionalExpression(node);
+                this.setAST(node, result);
+            }
+
+            return result;
+        }
+
+        public visitConstructSignature(node: ConstructSignatureSyntax): FunctionDeclaration {
+            var result: FunctionDeclaration = this.getAndMovePastAST(node);
+            if (!result) {
+                result = super.visitConstructSignature(node);
+                this.setAST(node, result);
+            }
+
+            return result;
+        }
+
+        public visitMethodSignature(node: MethodSignatureSyntax): FunctionDeclaration {
+            var result: FunctionDeclaration = this.getAndMovePastAST(node);
+            if (!result) {
+                result = super.visitMethodSignature(node);
+                this.setAST(node, result);
+            }
+
+            return result;
+        }
+
+        public visitIndexSignature(node: IndexSignatureSyntax): FunctionDeclaration {
+            var result: FunctionDeclaration = this.getAndMovePastAST(node);
+            if (!result) {
+                result = super.visitIndexSignature(node);
+                this.setAST(node, result);
+            }
+
+            return result;
+        }
+
+        public visitPropertySignature(node: PropertySignatureSyntax): VariableDeclarator {
+            var result: VariableDeclarator = this.getAndMovePastAST(node);
+            if (!result) {
+                result = super.visitPropertySignature(node);
+                this.setAST(node, result);
+            }
+
+            return result;
+        }
+
+        public visitCallSignature(node: CallSignatureSyntax): FunctionDeclaration {
+            var result: FunctionDeclaration = this.getAndMovePastAST(node);
+            if (!result) {
+                result = super.visitCallSignature(node);
+                this.setAST(node, result);
+            }
+
+            return result;
+        }
+
+        public visitTypeParameter(node: TypeParameterSyntax): TypeParameter {
+            var result: TypeParameter = this.getAndMovePastAST(node);
+            if (!result) {
+                result = super.visitTypeParameter(node);
+                this.setAST(node, result);
+            }
+
+            return result;
+        }
+
+        public visitIfStatement(node: IfStatementSyntax): IfStatement {
+            var result: IfStatement = this.getAndMovePastAST(node);
+            if (!result) {
+                result = super.visitIfStatement(node);
+                this.setAST(node, result);
+            }
+
+            return result;
+        }
+
+        public visitExpressionStatement(node: ExpressionStatementSyntax): ExpressionStatement {
+            var result: ExpressionStatement = this.getAndMovePastAST(node);
+            if (!result) {
+                result = super.visitExpressionStatement(node);
+                this.setAST(node, result);
+            }
+
+            return result;
+        }
+
+        public visitConstructorDeclaration(node: ConstructorDeclarationSyntax): FunctionDeclaration {
+            var result: FunctionDeclaration = this.getAndMovePastAST(node);
+            if (!result) {
+                result = super.visitConstructorDeclaration(node);
+                this.setAST(node, result);
+            }
+
+            return result;
+        }
+
+        public visitMemberFunctionDeclaration(node: MemberFunctionDeclarationSyntax): FunctionDeclaration {
+            var result: FunctionDeclaration = this.getAndMovePastAST(node);
+            if (!result) {
+                result = super.visitMemberFunctionDeclaration(node);
+                this.setAST(node, result);
+            }
+
+            return result;
+        }
+
+        public visitMemberAccessorDeclaration(node: MemberAccessorDeclarationSyntax, typeAnnotation: TypeAnnotationSyntax): FunctionDeclaration {
+            var result: FunctionDeclaration = this.getAndMovePastAST(node);
+            if (!result) {
+                result = super.visitMemberAccessorDeclaration(node, typeAnnotation);
+                this.setAST(node, result);
+            }
+
+            return result;
+        }
+
+        public visitMemberVariableDeclaration(node: MemberVariableDeclarationSyntax): VariableDeclarator {
+            var result: VariableDeclarator = this.getAndMovePastAST(node);
+            if (!result) {
+                result = super.visitMemberVariableDeclaration(node);
+                this.setAST(node, result);
+            }
+
+            return result;
+        }
+
+        public visitThrowStatement(node: ThrowStatementSyntax): ThrowStatement {
+            var result: ThrowStatement = this.getAndMovePastAST(node);
+            if (!result) {
+                result = super.visitThrowStatement(node);
+                this.setAST(node, result);
+            }
+
+            return result;
+        }
+
+        public visitReturnStatement(node: ReturnStatementSyntax): ReturnStatement {
+            var result: ReturnStatement = this.getAndMovePastAST(node);
+            if (!result) {
+                result = super.visitReturnStatement(node);
+                this.setAST(node, result);
+            }
+
+            return result;
+        }
+
+        public visitObjectCreationExpression(node: ObjectCreationExpressionSyntax): ObjectCreationExpression {
+            var result: ObjectCreationExpression = this.getAndMovePastAST(node);
+            if (!result) {
+                result = super.visitObjectCreationExpression(node);
+                this.setAST(node, result);
+            }
+
+            return result;
+        }
+
+        public visitSwitchStatement(node: SwitchStatementSyntax): SwitchStatement {
+            var result: SwitchStatement = this.getAndMovePastAST(node);
+            if (!result) {
+                result = super.visitSwitchStatement(node);
+                this.setAST(node, result);
+            }
+
+            return result;
+        }
+
+        public visitCaseSwitchClause(node: CaseSwitchClauseSyntax): CaseClause {
+            var result: CaseClause = this.getAndMovePastAST(node);
+            if (!result) {
+                result = super.visitCaseSwitchClause(node);
+                this.setAST(node, result);
+            }
+
+            return result;
+        }
+
+        public visitDefaultSwitchClause(node: DefaultSwitchClauseSyntax): CaseClause {
+            var result: CaseClause = this.getAndMovePastAST(node);
+            if (!result) {
+                result = super.visitDefaultSwitchClause(node);
+                this.setAST(node, result);
+            }
+
+            return result;
+        }
+
+        public visitBreakStatement(node: BreakStatementSyntax): Jump {
+            var result: Jump = this.getAndMovePastAST(node);
+            if (!result) {
+                result = super.visitBreakStatement(node);
+                this.setAST(node, result);
+            }
+
+            return result;
+        }
+
+        public visitContinueStatement(node: ContinueStatementSyntax): Jump {
+            var result: Jump = this.getAndMovePastAST(node);
+            if (!result) {
+                result = super.visitContinueStatement(node);
+                this.setAST(node, result);
+            }
+
+            return result;
+        }
+
+        public visitForStatement(node: ForStatementSyntax): ForStatement {
+            var result: ForStatement = this.getAndMovePastAST(node);
+            if (!result) {
+                result = super.visitForStatement(node);
+                this.setAST(node, result);
+            }
+
+            return result;
+        }
+
+        public visitForInStatement(node: ForInStatementSyntax): ForInStatement {
+            var result: ForInStatement = this.getAndMovePastAST(node);
+            if (!result) {
+                result = super.visitForInStatement(node);
+                this.setAST(node, result);
+            }
+
+            return result;
+        }
+
+        public visitWhileStatement(node: WhileStatementSyntax): WhileStatement {
+            var result: WhileStatement = this.getAndMovePastAST(node);
+            if (!result) {
+                result = super.visitWhileStatement(node);
+                this.setAST(node, result);
+            }
+
+            return result;
+        }
+
+        public visitWithStatement(node: WithStatementSyntax): WithStatement {
+            var result: WithStatement = this.getAndMovePastAST(node);
+            if (!result) {
+                result = super.visitWithStatement(node);
+                this.setAST(node, result);
+            }
+
+            return result;
+        }
+
+        public visitCastExpression(node: CastExpressionSyntax): UnaryExpression {
+            var result: UnaryExpression = this.getAndMovePastAST(node);
+            if (!result) {
+                result = super.visitCastExpression(node);
+                this.setAST(node, result);
+            }
+
+            return result;
+        }
+
+        public visitObjectLiteralExpression(node: ObjectLiteralExpressionSyntax): UnaryExpression {
+            var result: UnaryExpression = this.getAndMovePastAST(node);
+            if (!result) {
+                result = super.visitObjectLiteralExpression(node);
+                this.setAST(node, result);
+            }
+
+            return result;
+        }
+
+        public visitSimplePropertyAssignment(node: SimplePropertyAssignmentSyntax): BinaryExpression {
+            var result: BinaryExpression = this.getAndMovePastAST(node);
+            if (!result) {
+                result = super.visitSimplePropertyAssignment(node);
+                this.setAST(node, result);
+            }
+
+            return result;
+        }
+
+        public visitFunctionPropertyAssignment(node: FunctionPropertyAssignmentSyntax): BinaryExpression {
+            var result: BinaryExpression = this.getAndMovePastAST(node);
+            if (!result) {
+                result = super.visitFunctionPropertyAssignment(node);
+                this.setAST(node, result);
+            }
+
+            return result;
+        }
+
+        public visitGetAccessorPropertyAssignment(node: GetAccessorPropertyAssignmentSyntax): BinaryExpression {
+            var result: BinaryExpression = this.getAndMovePastAST(node);
+            if (!result) {
+                result = super.visitGetAccessorPropertyAssignment(node);
+                this.setAST(node, result);
+            }
+
+            return result;
+        }
+
+        public visitSetAccessorPropertyAssignment(node: SetAccessorPropertyAssignmentSyntax): BinaryExpression {
+            var result: BinaryExpression = this.getAndMovePastAST(node);
+            if (!result) {
+                result = super.visitSetAccessorPropertyAssignment(node);
+                this.setAST(node, result);
+            }
+
+            return result;
+        }
+
+        public visitFunctionExpression(node: FunctionExpressionSyntax): FunctionDeclaration {
+            var result: FunctionDeclaration = this.getAndMovePastAST(node);
+            if (!result) {
+                result = super.visitFunctionExpression(node);
+                this.setAST(node, result);
+            }
+
+            return result;
+        }
+
+        public visitEmptyStatement(node: EmptyStatementSyntax): EmptyStatement {
+            var result: EmptyStatement = this.getAndMovePastAST(node);
+            if (!result) {
+                result = super.visitEmptyStatement(node);
+                this.setAST(node, result);
+            }
+
+            return result;
+        }
+
+        public visitTryStatement(node: TryStatementSyntax): TryStatement {
+            var result: TryStatement = this.getAndMovePastAST(node);
+            if (!result) {
+                result = super.visitTryStatement(node);
+                this.setAST(node, result);
+            }
+
+            return result;
+        }
+
+        public visitCatchClause(node: CatchClauseSyntax): CatchClause {
+            var result: CatchClause = this.getAndMovePastAST(node);
+            if (!result) {
+                result = super.visitCatchClause(node);
+                this.setAST(node, result);
+            }
+
+            return result;
+        }
+
+        public visitLabeledStatement(node: LabeledStatementSyntax): LabeledStatement {
+            var result: LabeledStatement = this.getAndMovePastAST(node);
+            if (!result) {
+                result = super.visitLabeledStatement(node);
+                this.setAST(node, result);
+            }
+
+            return result;
+        }
+
+        public visitDoStatement(node: DoStatementSyntax): DoStatement {
+            var result: DoStatement = this.getAndMovePastAST(node);
+            if (!result) {
+                result = super.visitDoStatement(node);
+                this.setAST(node, result);
+            }
+
+            return result;
+        }
+
+        public visitTypeOfExpression(node: TypeOfExpressionSyntax): UnaryExpression {
+            var result: UnaryExpression = this.getAndMovePastAST(node);
+            if (!result) {
+                result = super.visitTypeOfExpression(node);
+                this.setAST(node, result);
+            }
+
+            return result;
+        }
+
+        public visitDeleteExpression(node: DeleteExpressionSyntax): UnaryExpression {
+            var result: UnaryExpression = this.getAndMovePastAST(node);
+            if (!result) {
+                result = super.visitDeleteExpression(node);
+                this.setAST(node, result);
+            }
+
+            return result;
+        }
+
+        public visitVoidExpression(node: VoidExpressionSyntax): UnaryExpression {
+            var result: UnaryExpression = this.getAndMovePastAST(node);
+            if (!result) {
+                result = super.visitVoidExpression(node);
+                this.setAST(node, result);
+            }
+
+            return result;
+        }
+
+        public visitDebuggerStatement(node: DebuggerStatementSyntax): DebuggerStatement {
+            var result: DebuggerStatement = this.getAndMovePastAST(node);
+            if (!result) {
+                result = super.visitDebuggerStatement(node);
+                this.setAST(node, result);
+            }
+
             return result;
         }
     }

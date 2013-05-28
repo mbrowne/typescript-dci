@@ -1072,11 +1072,11 @@ module Harness {
                 }
             }
 
-            private getTypeInfoName(ast: TypeScript.AST) {
+            private getTypeInfoName(ast: TypeScript.IAST) {
                 var name = '';
                 // Depending on the node type one of these properties will be there and have the value we care about
                 var a = <any>ast;
-                name = (a.id) ? (a.id.actualText) : (a.name) ? a.name.actualText : (a.text) ? a.text : '';
+                name = a.id ? a.id.actualText : a.name ? a.name.actualText : a.text ? a.text : '';
 
                 return name;
             }
@@ -1779,7 +1779,7 @@ module Harness {
             var parseOptions = TypeScript.getParseOptions(compilationSettings);
             return TypeScript.SyntaxTreeToAstVisitor.visit(
                 TypeScript.Parser.parse(fileName, TypeScript.SimpleText.fromScriptSnapshot(sourceText), TypeScript.isDTSFile(fileName), TypeScript.LanguageVersion.EcmaScript5, parseOptions),
-                fileName, compilationSettings);
+                fileName, compilationSettings, /*incrementalAST: */ true);
         }
 
         /** Parse a file on disk given its fileName */

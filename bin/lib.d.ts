@@ -962,8 +962,10 @@ interface Array<T> {
     forEach(callbackfn: (value: T, index: number, array: T[]) => void , thisArg?: any): void;
     map<U>(callbackfn: (value: T, index: number, array: T[]) => U, thisArg?: any): U[];
     filter(callbackfn: (value: T, index: number, array: T[]) => boolean, thisArg?: any): T[];
-    reduce<U>(callbackfn: (previousValue: U, currentValue: T, currentIndex: number, array: T[]) => U, initialValue?: U): U;
-    reduceRight<U>(callbackfn: (previousValue: U, currentValue: T, currentIndex: number, array: T[]) => U, initialValue?: U): U;
+    reduce(callbackfn: (previousValue: T, currentValue: T, currentIndex: number, array: T[]) => T, initialValue?: T): T;
+    reduce<U>(callbackfn: (previousValue: U, currentValue: T, currentIndex: number, array: T[]) => U, initialValue: U): U;
+    reduceRight(callbackfn: (previousValue: T, currentValue: T, currentIndex: number, array: T[]) => T, initialValue?: T): T;
+    reduceRight<U>(callbackfn: (previousValue: U, currentValue: T, currentIndex: number, array: T[]) => U, initialValue: U): U;
 
     length: number;
 
@@ -974,7 +976,7 @@ declare var Array: {
     <T>(arrayLength: number): T[];
     <T>(...items: T[]): T[];
     isArray(arg: any): boolean;
-    prototype: Array;
+    prototype: Array<any>;
 }
 
 
@@ -8895,7 +8897,7 @@ interface HTMLTrackElement extends HTMLElement {
     srclang: string;
     track: TextTrack;
     label: string;
-    defaul: boolean;
+    default: boolean;
 }
 declare var HTMLTrackElement: {
     prototype: HTMLTrackElement;

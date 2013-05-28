@@ -194,8 +194,7 @@ module TypeScript {
         return { noDefaultLib: noDefaultLib};
     }
 
-    export function preProcessFile(fileName: string, sourceText: IScriptSnapshot, settings?: CompilationSettings, readImportFiles = true): IPreProcessedFileInfo {
-        settings = settings || new CompilationSettings();
+    export function preProcessFile(fileName: string, sourceText: IScriptSnapshot, settings: CompilationSettings = new CompilationSettings(), readImportFiles = true): IPreProcessedFileInfo {
         var text = SimpleText.fromScriptSnapshot(sourceText);
         var scanner = new Scanner(fileName, text, settings.codeGenTarget, scannerWindow);
 

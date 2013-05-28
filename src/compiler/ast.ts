@@ -28,7 +28,7 @@ module TypeScript {
         public trailingTriviaWidth = 0;
     }
 
-    export var astID = 0;
+    var astID = 0;
 
     export function structuralEqualsNotIncludingPosition(ast1: AST, ast2: AST): boolean {
         return structuralEquals(ast1, ast2, false);
@@ -44,7 +44,7 @@ module TypeScript {
         }
 
         return ast1 !== null && ast2 !== null &&
-               ast1.nodeType === ast2.nodeType &&
+               ast1.nodeType() === ast2.nodeType() &&
                ast1.structuralEquals(ast2, includingPosition);
     }
 
@@ -53,7 +53,13 @@ module TypeScript {
             includingPosition ? structuralEqualsIncludingPosition : structuralEqualsNotIncludingPosition);
     }
 
-    export class AST implements IASTSpan {
+    export interface IAST extends IASTSpan {
+        nodeType(): NodeType;
+        getID(): number;
+        getLength(): number;
+    }
+
+    export class AST implements IAST {
         public minChar: number = -1;  // -1 = "undefined" or "compiler generated"
         public limChar: number = -1;  // -1 = "undefined" or "compiler generated"
         public trailingTriviaWidth = 0;
@@ -62,24 +68,52 @@ module TypeScript {
 
         public typeCheckPhase = -1;
 
-        private astID = astID++;
+        private astID: number = -1;
 
-        // REVIEW: for diagnostic purposes
-        public passCreated: number = CompilerDiagnostics.analysisPass;
+        private _preComments: Comment[] = null;
+        private _postComments: Comment[] = null;
+        private _docComments: Comment[] = null;
 
-        public preComments: Comment[] = null;
-        public postComments: Comment[] = null;
-        private docComments: Comment[] = null;
+        constructor() {
+        }
 
-        constructor(public nodeType: NodeType) {
+        public nodeType(): NodeType {
+            throw Errors.abstract();
+        }
+
+        public isStatement() {
+            return false;
+        }
+
+        public preComments(): Comment[] {
+            return this._preComments;
+        }
+
+        public postComments(): Comment[] {
+            return this._postComments;
+        }
+
+        public setPreComments(comments: Comment[]) {
+            if (comments && comments.length) {
+                this._preComments = comments;
+            }
+            else if (this._preComments) {
+                this._preComments = null;
+            }
+        }
+
+        public setPostComments(comments: Comment[]) {
+            if (comments && comments.length) {
+                this._postComments = comments;
+            }
+            else if (this._postComments) {
+                this._postComments = null;
+            }
         }
 
         public shouldEmit(): boolean {
             return true;
         }
-
-        public isExpression() { return false; }
-        public isStatementOrExpression() { return false; }
 
         public getFlags(): ASTFlags {
             return this._flags;
@@ -90,15 +124,21 @@ module TypeScript {
             this._flags = flags;
         }
 
-        public getLength() { return this.limChar - this.minChar; }
+        public getLength(): number {
+            return this.limChar - this.minChar;
+        }
 
-        public getID() { return this.astID; }
+        public getID(): number {
+            var result = this.astID;
+            if (result === -1) {
+                result = astID++;
+                this.astID = result;
+            }
+
+            return result;
+        }
 
         public isDeclaration() { return false; }
-
-        public isStatement() {
-            return false;
-        }
 
         public emit(emitter: Emitter) {
             emitter.emitComments(this, true);
@@ -112,31 +152,27 @@ module TypeScript {
             throw new Error("please implement in derived class");
         }
 
-        public getDocComments(): Comment[] {
-            if (!this.isDeclaration() || !this.preComments || this.preComments.length === 0) {
+        public docComments(): Comment[] {
+            if (!this.isDeclaration() || !this.preComments() || this.preComments().length === 0) {
                 return [];
             }
 
-            if (!this.docComments) {
-                var preCommentsLength = this.preComments.length;
-                var docComments: Comment[] = [];
+            if (!this._docComments) {
+                var preComments = this.preComments();
+                var preCommentsLength = preComments.length;
+                var docComments = new Array<Comment>();
                 for (var i = preCommentsLength - 1; i >= 0; i--) {
-                    if (this.preComments[i].isDocComment()) {
-                        var prevDocComment = docComments.length > 0 ? docComments[docComments.length - 1] : null;
-                        if (prevDocComment === null || // If the help comments were not yet set then this is the comment
-                             (this.preComments[i].limLine === prevDocComment.minLine ||
-                              this.preComments[i].limLine + 1 === prevDocComment.minLine)) { // On same line or next line
-                            docComments.push(this.preComments[i]);
-                            continue;
-                        }
+                    if (preComments[i].isDocComment()) {
+                        docComments.push(preComments[i]);
+                        continue;
                     }
                     break;
                 }
 
-                this.docComments = docComments.reverse();
+                this._docComments = docComments.reverse();
             }
 
-            return this.docComments;
+            return this._docComments;
         }
 
         public structuralEquals(ast: AST, includingPosition: boolean): boolean {
@@ -147,21 +183,18 @@ module TypeScript {
             }
 
             return this._flags === ast._flags &&
-                   astArrayStructuralEquals(this.preComments, ast.preComments, includingPosition) &&
-                   astArrayStructuralEquals(this.postComments, ast.postComments, includingPosition)
+                   astArrayStructuralEquals(this.preComments(), ast.preComments(), includingPosition) &&
+                   astArrayStructuralEquals(this.postComments(), ast.postComments(), includingPosition)
         }
     }
 
     export class ASTList extends AST {
-        public members: AST[] = [];
-
-        constructor() {
-            super(NodeType.List);
+        constructor(public members: AST[]) {
+            super();
         }
 
-        public append(ast: AST) {
-            this.members[this.members.length] = ast;
-            return this;
+        public nodeType(): NodeType {
+            return NodeType.List;
         }
 
         public emit(emitter: Emitter) {
@@ -176,14 +209,8 @@ module TypeScript {
         }
     }
 
-    export class Expression extends AST {
-        constructor(nodeType: NodeType) {
-            super(nodeType);
-        }
-    }
-
-    export class Identifier extends Expression {
-        public text: string;
+    export class Identifier extends AST {
+        private _text: string;
 
         // 'actualText' is the text that the user has entered for the identifier. the text might 
         // include any Unicode escape sequences (e.g.: \u0041 for 'A'). 'text', however, contains 
@@ -193,18 +220,21 @@ module TypeScript {
         // For purposes of finding a symbol, use text, as this will allow you to match all 
         // variations of the variable text. For full-fidelity translation of the user input, such
         // as emitting, use the actualText field.
-        // 
-        // Note: 
-        //    To change text, and to avoid running into a situation where 'actualText' does not 
-        //    match 'text', always use setText.
-        constructor(public actualText: string) {
-            super(NodeType.Name);
-            this.setText(actualText);
+        constructor(public actualText: string, text: string) {
+            super();
+            this._text = text;
         }
 
-        public setText(actualText: string) {
-            this.actualText = actualText;
-            this.text = actualText;
+        public text(): string {
+            if (!this._text) {
+                this._text = Syntax.massageEscapes(this.actualText);
+            }
+
+            return this._text;
+        }
+
+        public nodeType(): NodeType {
+            return NodeType.Name;
         }
 
         public isMissing() { return false; }
@@ -215,7 +245,6 @@ module TypeScript {
 
         public structuralEquals(ast: Identifier, includingPosition: boolean): boolean {
             return super.structuralEquals(ast, includingPosition) &&
-                   this.text === ast.text &&
                    this.actualText === ast.actualText &&
                    this.isMissing() === ast.isMissing();
         }
@@ -223,7 +252,7 @@ module TypeScript {
 
     export class MissingIdentifier extends Identifier {
         constructor() {
-            super("__missing");
+            super("__missing", "__missing");
         }
 
         public isMissing() {
@@ -235,13 +264,17 @@ module TypeScript {
         }
     }
 
-    export class LiteralExpression extends Expression {
-        constructor(nodeType: NodeType) {
-            super(nodeType);
+    export class LiteralExpression extends AST {
+        constructor(private _nodeType: NodeType) {
+            super();
+        }
+
+        public nodeType(): NodeType {
+            return this._nodeType;
         }
 
         public emitWorker(emitter: Emitter) {
-            switch (this.nodeType) {
+            switch (this.nodeType()) {
                 case NodeType.NullLiteral:
                     emitter.writeToOutput("null");
                     break;
@@ -261,9 +294,9 @@ module TypeScript {
         }
     }
 
-    export class ThisExpression extends Expression {
-        constructor() {
-            super(NodeType.ThisExpression);
+    export class ThisExpression extends AST {
+        public nodeType(): NodeType {
+            return NodeType.ThisExpression;
         }
 
         public emitWorker(emitter: Emitter) {
@@ -280,9 +313,9 @@ module TypeScript {
         }
     }
 
-    export class SuperExpression extends Expression {
-        constructor() {
-            super(NodeType.SuperExpression);
+    export class SuperExpression extends AST {
+        public nodeType(): NodeType {
+            return NodeType.SuperExpression;
         }
 
         public emitWorker(emitter: Emitter) {
@@ -294,9 +327,13 @@ module TypeScript {
         }
     }
 
-    export class ParenthesizedExpression extends Expression {
+    export class ParenthesizedExpression extends AST {
         constructor(public expression: AST) {
-            super(NodeType.ParenthesizedExpression);
+            super();
+        }
+
+        public nodeType(): NodeType {
+            return NodeType.ParenthesizedExpression;
         }
 
         public emitWorker(emitter: Emitter) {
@@ -311,15 +348,17 @@ module TypeScript {
         }
     }
 
-    export class UnaryExpression extends Expression {
-        public castTerm: TypeReference = null;
+    export class UnaryExpression extends AST {
+        constructor(private _nodeType: NodeType, public operand: AST, public castTerm: TypeReference) {
+            super();
+        }
 
-        constructor(nodeType: NodeType, public operand: AST) {
-            super(nodeType);
+        public nodeType(): NodeType {
+            return this._nodeType;
         }
 
         public emitWorker(emitter: Emitter) {
-            switch (this.nodeType) {
+            switch (this.nodeType()) {
                 case NodeType.PostIncrementExpression:
                     this.operand.emit(emitter);
                     emitter.writeToOutput("++");
@@ -344,14 +383,14 @@ module TypeScript {
                     break;
                 case NodeType.NegateExpression:
                     emitter.writeToOutput("-");
-                    if (this.operand.nodeType === NodeType.NegateExpression || this.operand.nodeType === NodeType.PreDecrementExpression) {
+                    if (this.operand.nodeType() === NodeType.NegateExpression || this.operand.nodeType() === NodeType.PreDecrementExpression) {
                         emitter.writeToOutput(" ");
                     }
                     this.operand.emit(emitter);
                     break;
                 case NodeType.PlusExpression:
                     emitter.writeToOutput("+");
-                    if (this.operand.nodeType === NodeType.PlusExpression || this.operand.nodeType === NodeType.PreIncrementExpression) {
+                    if (this.operand.nodeType() === NodeType.PlusExpression || this.operand.nodeType() === NodeType.PreIncrementExpression) {
                         emitter.writeToOutput(" ");
                     }
                     this.operand.emit(emitter);
@@ -391,24 +430,54 @@ module TypeScript {
         }
     }
 
-    export class CallExpression extends Expression {
-        constructor(nodeType: NodeType,
-                    public target: AST,
+    export interface ICallExpression extends IAST {
+        target: AST;
+        typeArguments: ASTList;
+        arguments: ASTList;
+        closeParenSpan: ASTSpan;
+    }
+
+    export class ObjectCreationExpression extends AST implements ICallExpression {
+        constructor(public target: AST,
                     public typeArguments: ASTList,
-                    public arguments: ASTList) {
-            super(nodeType);
+                    public arguments: ASTList,
+                    public closeParenSpan: ASTSpan) {
+            super();
+        }
+
+        public nodeType(): NodeType {
+            return NodeType.ObjectCreationExpression;
         }
 
         public emitWorker(emitter: Emitter) {
-            if (this.nodeType === NodeType.ObjectCreationExpression) {
-                emitter.emitNew(this.target, this.arguments);
-            }
-            else {
-                emitter.emitCall(this, this.target, this.arguments);
-            }
+            emitter.emitNew(this, this.target, this.arguments);
         }
 
-        public structuralEquals(ast: CallExpression, includingPosition: boolean): boolean {
+        public structuralEquals(ast: ObjectCreationExpression, includingPosition: boolean): boolean {
+            return super.structuralEquals(ast, includingPosition) &&
+                structuralEquals(this.target, ast.target, includingPosition) &&
+                structuralEquals(this.typeArguments, ast.typeArguments, includingPosition) &&
+                structuralEquals(this.arguments, ast.arguments, includingPosition);
+        }
+    }
+
+    export class InvocationExpression extends AST implements ICallExpression {
+        constructor(public target: AST,
+                    public typeArguments: ASTList,
+                    public arguments: ASTList,
+                    public closeParenSpan: ASTSpan) {
+            super();
+        }
+
+        public nodeType(): NodeType {
+            return NodeType.InvocationExpression;
+        }
+
+        public emitWorker(emitter: Emitter) {
+            emitter.emitCall(this, this.target, this.arguments);
+        }
+
+        public structuralEquals(ast: InvocationExpression, includingPosition: boolean): boolean {
             return super.structuralEquals(ast, includingPosition) &&
                    structuralEquals(this.target, ast.target, includingPosition) &&
                    structuralEquals(this.typeArguments, ast.typeArguments, includingPosition) &&
@@ -416,11 +485,15 @@ module TypeScript {
         }
     }
 
-    export class BinaryExpression extends Expression {
-        constructor(nodeType: NodeType,
+    export class BinaryExpression extends AST {
+        constructor(private _nodeType: NodeType,
                     public operand1: AST,
                     public operand2: AST) {
-            super(nodeType);
+            super();
+        }
+
+        public nodeType(): NodeType {
+            return this._nodeType;
         }
 
         public static getTextForBinaryToken(nodeType: NodeType): string {
@@ -467,7 +540,7 @@ module TypeScript {
         }
 
         public emitWorker(emitter: Emitter) {
-            switch (this.nodeType) {
+            switch (this.nodeType()) {
                 case NodeType.MemberAccessExpression:
                     if (!emitter.tryEmitConstant(this)) {
                         this.operand1.emit(emitter);
@@ -480,7 +553,7 @@ module TypeScript {
                     break;
 
                 case NodeType.Member:
-                    if (this.operand2.nodeType === NodeType.FunctionDeclaration && (<FunctionDeclaration>this.operand2).isAccessor()) {
+                    if (this.operand2.nodeType() === NodeType.FunctionDeclaration && (<FunctionDeclaration>this.operand2).isAccessor()) {
                         var funcDecl = <FunctionDeclaration>this.operand2;
                         if (hasFlag(funcDecl.getFunctionFlags(), FunctionFlags.GetAccessor)) {
                             emitter.writeToOutput("get ");
@@ -504,7 +577,7 @@ module TypeScript {
                 default:
                     {
                         this.operand1.emit(emitter);
-                        var binOp = BinaryExpression.getTextForBinaryToken(this.nodeType);
+                        var binOp = BinaryExpression.getTextForBinaryToken(this.nodeType());
                         if (binOp === "instanceof") {
                             emitter.writeToOutput(" instanceof ");
                         }
@@ -526,11 +599,15 @@ module TypeScript {
         }
     }
 
-    export class ConditionalExpression extends Expression {
+    export class ConditionalExpression extends AST {
         constructor(public operand1: AST,
                     public operand2: AST,
                     public operand3: AST) {
-            super(NodeType.ConditionalExpression);
+            super();
+        }
+
+        public nodeType(): NodeType {
+            return NodeType.ConditionalExpression;
         }
 
         public emitWorker(emitter: Emitter) {
@@ -549,25 +626,41 @@ module TypeScript {
         }
     }
 
-    export class NumberLiteral extends Expression {
-        constructor(public value: number, public text: string) {
-            super(NodeType.NumericLiteral);
+    export class NumberLiteral extends AST {
+        private _text: string;
+
+        constructor(public value: number,
+                    text: string) {
+            super();
+            this._text = text;
+        }
+
+        public text(): string {
+            return this._text;
+        }
+
+        public nodeType(): NodeType {
+            return NodeType.NumericLiteral;
         }
 
         public emitWorker(emitter: Emitter) {
-            emitter.writeToOutput(this.text);
+            emitter.writeToOutput(this._text);
         }
 
         public structuralEquals(ast: NumberLiteral, includingPosition: boolean): boolean {
             return super.structuralEquals(ast, includingPosition) &&
                    this.value === ast.value &&
-                   this.text === ast.text;
+                   this._text === ast._text;
         }
     }
 
-    export class RegexLiteral extends Expression {
+    export class RegexLiteral extends AST {
         constructor(public text: string) {
-            super(NodeType.RegularExpressionLiteral);
+            super();
+        }
+
+        public nodeType(): NodeType {
+            return NodeType.RegularExpressionLiteral;
         }
 
         public emitWorker(emitter: Emitter) {
@@ -580,9 +673,20 @@ module TypeScript {
         }
     }
 
-    export class StringLiteral extends Expression {
-        constructor(public actualText: string, public text: string) {
-            super(NodeType.StringLiteral);
+    export class StringLiteral extends AST {
+        private _text: string;
+
+        constructor(public actualText: string, text: string) {
+            super();
+            this._text = text;
+        }
+
+        public text(): string {
+            return this._text;
+        }
+
+        public nodeType(): NodeType {
+            return NodeType.StringLiteral;
         }
 
         public emitWorker(emitter: Emitter) {
@@ -597,10 +701,13 @@ module TypeScript {
 
     export class ImportDeclaration extends AST {
         public isDynamicImport = false;
-        public isStatementOrExpression() { return true; }
 
         constructor(public id: Identifier, public alias: AST) {
-            super(NodeType.ImportDeclaration);
+            super();
+        }
+
+        public nodeType(): NodeType {
+            return NodeType.ImportDeclaration;
         }
 
         public isDeclaration() { return true; }
@@ -617,7 +724,7 @@ module TypeScript {
                 emitter.writeToOutput("var " + this.id.actualText + " = ");
                 emitter.modAliasId = this.id.actualText;
                 emitter.firstModAlias = this.firstAliasedModToString();
-                var aliasAST = this.alias.nodeType === NodeType.TypeRef ? (<TypeReference>this.alias).term : this.alias;
+                var aliasAST = this.alias.nodeType() === NodeType.TypeRef ? (<TypeReference>this.alias).term : this.alias;
 
                 emitter.emitJavascript(aliasAST, false);
                 emitter.writeToOutput(";");
@@ -631,7 +738,7 @@ module TypeScript {
         }
 
         public getAliasName(aliasAST: AST = this.alias): string {
-            if (aliasAST.nodeType === NodeType.Name) {
+            if (aliasAST.nodeType() === NodeType.Name) {
                 return (<Identifier>aliasAST).actualText;
             } else {
                 var dotExpr = <BinaryExpression>aliasAST;
@@ -640,7 +747,7 @@ module TypeScript {
         }
 
         public firstAliasedModToString() {
-            if (this.alias.nodeType === NodeType.Name) {
+            if (this.alias.nodeType() === NodeType.Name) {
                 return (<Identifier>this.alias).actualText;
             }
             else {
@@ -659,7 +766,11 @@ module TypeScript {
 
     export class ExportAssignment extends AST {
         constructor(public id: Identifier) {
-            super(NodeType.ExportAssignment);
+            super();
+        }
+
+        public nodeType(): NodeType {
+            return NodeType.ExportAssignment;
         }
 
         public structuralEquals(ast: ExportAssignment, includingPosition: boolean): boolean {
@@ -673,15 +784,13 @@ module TypeScript {
     }
 
     export class BoundDecl extends AST {
-        public init: AST = null;
-        public typeExpr: AST = null;
         private _varFlags = VariableFlags.None;
-        public isDeclaration() { return true; }
-        public isStatementOrExpression() { return true; }
 
-        constructor(public id: Identifier, nodeType: NodeType) {
-            super(nodeType);
+        constructor(public id: Identifier, public typeExpr: AST, public init: AST) {
+            super();
         }
+
+        public isDeclaration() { return true; }
 
         public getVarFlags(): VariableFlags {
             return this._varFlags;
@@ -704,8 +813,12 @@ module TypeScript {
     }
 
     export class VariableDeclarator extends BoundDecl {
-        constructor(id: Identifier) {
-            super(id, NodeType.VariableDeclarator);
+        constructor(id: Identifier, typeExpr: AST, init: AST) {
+            super(id, typeExpr, init);
+        }
+
+        public nodeType(): NodeType {
+            return NodeType.VariableDeclarator;
         }
 
         public isExported() { return hasFlag(this.getVarFlags(), VariableFlags.Exported); }
@@ -718,11 +831,13 @@ module TypeScript {
     }
 
     export class Parameter extends BoundDecl {
-        constructor(id: Identifier) {
-            super(id, NodeType.Parameter);
+        constructor(id: Identifier, typeExpr: AST, init: AST, public isOptional: boolean) {
+            super(id, typeExpr, init);
         }
 
-        public isOptional = false;
+        public nodeType(): NodeType {
+            return NodeType.Parameter;
+        }
 
         public isOptionalArg() { return this.isOptional || this.init; }
 
@@ -739,21 +854,24 @@ module TypeScript {
     export class FunctionDeclaration extends AST {
         public hint: string = null;
         private _functionFlags = FunctionFlags.None;
-        public returnTypeAnnotation: AST = null;
-        public variableArgList = false;
-        public classDecl: NamedDeclaration = null;
+        public classDecl: ClassDeclaration = null;
 
         public returnStatementsWithExpressions: ReturnStatement[];
-        public isDeclaration() { return true; }
 
         constructor(public name: Identifier,
                     public block: Block,
                     public isConstructor: boolean,
                     public typeArguments: ASTList,
                     public arguments: ASTList,
-                    nodeType: number) {
+                    public returnTypeAnnotation: AST,
+                    public variableArgList: boolean) {
+            super();
+        }
 
-            super(nodeType);
+        public isDeclaration() { return true; }
+
+        public nodeType(): NodeType {
+            return NodeType.FunctionDeclaration;
         }
 
         public getFunctionFlags(): FunctionFlags {
@@ -813,16 +931,13 @@ module TypeScript {
 
     export class Script extends AST {
         public moduleElements: ASTList = null;
-        public referencedFiles: IFileReference[] = [];
+        public referencedFiles = new Array<IFileReference>();
         public requiresExtendsBlock = false;
         public isDeclareFile = false;
         public topLevelMod: ModuleDeclaration = null;
-        // Remember if the script contains Unicode chars, that is needed when generating code for this script object to decide the output file correct encoding.
-        public containsUnicodeChar = false;
-        public containsUnicodeCharInComment = false;
 
-        constructor() {
-            super(NodeType.Script);
+        public nodeType(): NodeType {
+            return NodeType.Script;
         }
 
         public emit(emitter: Emitter) {
@@ -837,34 +952,25 @@ module TypeScript {
         }
     }
 
-    export class NamedDeclaration extends AST {
-        public isDeclaration() { return true; }
-
-        constructor(nodeType: NodeType,
-                    public name: Identifier,
-                    public members: ASTList) {
-            super(nodeType);
-        }
-
-        public structuralEquals(ast: NamedDeclaration, includingPosition: boolean): boolean {
-            return super.structuralEquals(ast, includingPosition) &&
-                   structuralEquals(this.name, ast.name, includingPosition) &&
-                   structuralEquals(this.members, ast.members, includingPosition);
-        }
-    }
-
-    export class ModuleDeclaration extends NamedDeclaration {
+    export class ModuleDeclaration extends AST {
         private _moduleFlags = ModuleFlags.None;
         public prettyName: string;
-        public amdDependencies: string[] = [];
-        // Remember if the module contains Unicode chars, that is needed for dynamic module as we will generate a file for each.
-        public containsUnicodeChar = false;
-        public containsUnicodeCharInComment = false;
+        public amdDependencies = new Array<string>();
 
-        constructor(name: Identifier, members: ASTList, public endingToken: ASTSpan) {
-            super(NodeType.ModuleDeclaration, name, members);
+        constructor(public name: Identifier,
+                    public members: ASTList,
+                    public endingToken: ASTSpan) {
+            super();
 
             this.prettyName = this.name.actualText;
+        }
+
+        public isDeclaration() {
+            return true;
+        }
+
+        public nodeType(): NodeType {
+            return NodeType.ModuleDeclaration;
         }
 
         public getModuleFlags(): ModuleFlags {
@@ -876,12 +982,11 @@ module TypeScript {
             this._moduleFlags = flags;
         }
 
-        public structuralEquals(ast: ModuleDeclaration, includePosition: boolean): boolean {
-            if (super.structuralEquals(ast, includePosition)) {
-                return this._moduleFlags === ast._moduleFlags;
-            }
-
-            return false;
+        public structuralEquals(ast: ModuleDeclaration, includingPosition: boolean): boolean {
+            return super.structuralEquals(ast, includingPosition) &&
+                this._moduleFlags === ast._moduleFlags &&
+                structuralEquals(this.name, ast.name, includingPosition) &&
+                structuralEquals(this.members, ast.members, includingPosition);
         }
 
         public isEnum() { return hasFlag(this.getModuleFlags(), ModuleFlags.IsEnum); }
@@ -903,12 +1008,12 @@ module TypeScript {
                 // We should emit *this* module if it contains any non-interface types. 
                 // Caveat: if we have contain a module, then we should be emitted *if we want to
                 // emit that inner module as well.
-                if (member.nodeType === NodeType.ModuleDeclaration) {
+                if (member.nodeType() === NodeType.ModuleDeclaration) {
                     if ((<ModuleDeclaration>member).shouldEmit()) {
                         return true;
                     }
                 }
-                else if (member.nodeType !== NodeType.InterfaceDeclaration) {
+                else if (member.nodeType() !== NodeType.InterfaceDeclaration) {
                     return true;
                 }
             }
@@ -925,16 +1030,19 @@ module TypeScript {
         }
     }
 
-    export class TypeDeclaration extends NamedDeclaration {
+    export class TypeDeclaration extends AST {
         private _varFlags = VariableFlags.None;
 
-        constructor(nodeType: NodeType,
-                    name: Identifier,
+        constructor(public name: Identifier,
                     public typeParameters: ASTList,
                     public extendsList: ASTList,
                     public implementsList: ASTList,
-                    members: ASTList) {
-            super(nodeType, name, members);
+                    public members: ASTList) {
+            super();
+        }
+
+        public isDeclaration() {
+            return true;
         }
 
         public getVarFlags(): VariableFlags {
@@ -949,6 +1057,8 @@ module TypeScript {
         public structuralEquals(ast: TypeDeclaration, includingPosition: boolean): boolean {
             return super.structuralEquals(ast, includingPosition) &&
                    this._varFlags === ast._varFlags &&
+                   structuralEquals(this.name, ast.name, includingPosition) &&
+                   structuralEquals(this.members, ast.members, includingPosition) &&
                    structuralEquals(this.typeParameters, ast.typeParameters, includingPosition) &&
                    structuralEquals(this.extendsList, ast.extendsList, includingPosition) &&
                    structuralEquals(this.implementsList, ast.implementsList, includingPosition);
@@ -957,14 +1067,18 @@ module TypeScript {
 
     export class ClassDeclaration extends TypeDeclaration {
         public constructorDecl: FunctionDeclaration = null;
-        public endingToken: ASTSpan = null;
 
         constructor(name: Identifier,
                     typeParameters: ASTList,
                     members: ASTList,
                     extendsList: ASTList,
-                    implementsList: ASTList) {
-            super(NodeType.ClassDeclaration, name, typeParameters, extendsList, implementsList, members);
+                    implementsList: ASTList,
+                    public endingToken: ASTSpan) {
+            super(name, typeParameters, extendsList, implementsList, members);
+        }
+
+        public nodeType(): NodeType {
+            return NodeType.ClassDeclaration;
         }
 
         public shouldEmit(): boolean {
@@ -978,11 +1092,16 @@ module TypeScript {
 
     export class InterfaceDeclaration extends TypeDeclaration {
         constructor(name: Identifier,
-            typeParameters: ASTList,
-            members: ASTList,
-            extendsList: ASTList,
-            implementsList: ASTList) {
-            super(NodeType.InterfaceDeclaration, name, typeParameters, extendsList, implementsList, members);
+                    typeParameters: ASTList,
+                    members: ASTList,
+                    extendsList: ASTList,
+                    implementsList: ASTList,
+                    public isObjectTypeLiteral: boolean) {
+            super(name, typeParameters, extendsList, implementsList, members);
+        }
+
+        public nodeType(): NodeType {
+            return NodeType.InterfaceDeclaration;
         }
 
         public shouldEmit(): boolean {
@@ -990,21 +1109,17 @@ module TypeScript {
         }
     }
 
-    export class Statement extends AST {
-        constructor(nodeType: NodeType) {
-            super(nodeType);
+    export class ThrowStatement extends AST {
+        constructor(public expression: AST) {
+            super();
+        }
+
+        public nodeType(): NodeType {
+            return NodeType.ThrowStatement;
         }
 
         public isStatement() {
             return true;
-        }
-
-        public isStatementOrExpression() { return true; }
-    }
-
-    export class ThrowStatement extends Statement {
-        constructor(public expression: Expression) {
-            super(NodeType.ThrowStatement);
         }
 
         public emitWorker(emitter: Emitter) {
@@ -1019,9 +1134,17 @@ module TypeScript {
         }
     }
 
-    export class ExpressionStatement extends Statement {
+    export class ExpressionStatement extends AST {
         constructor(public expression: AST) {
-            super(NodeType.ExpressionStatement);
+            super();
+        }
+
+        public nodeType(): NodeType {
+            return NodeType.ExpressionStatement;
+        }
+
+        public isStatement() {
+            return true;
         }
 
         public emitWorker(emitter: Emitter) {
@@ -1035,9 +1158,17 @@ module TypeScript {
         }
     }
 
-    export class LabeledStatement extends Statement {
+    export class LabeledStatement extends AST {
         constructor(public identifier: Identifier, public statement: AST) {
-            super(NodeType.LabeledStatement);
+            super();
+        }
+
+        public nodeType(): NodeType {
+            return NodeType.LabeledStatement;
+        }
+
+        public isStatement() {
+            return true;
         }
 
         public emitWorker(emitter: Emitter) {
@@ -1057,7 +1188,11 @@ module TypeScript {
 
     export class VariableDeclaration extends AST {
         constructor(public declarators: ASTList) {
-            super(NodeType.VariableDeclaration);
+            super();
+        }
+
+        public nodeType(): NodeType {
+            return NodeType.VariableDeclaration;
         }
 
         public emit(emitter: Emitter) {
@@ -1070,9 +1205,17 @@ module TypeScript {
         }
     }
 
-    export class VariableStatement extends Statement {
+    export class VariableStatement extends AST {
         constructor(public declaration: VariableDeclaration) {
-            super(NodeType.VariableStatement);
+            super();
+        }
+
+        public nodeType(): NodeType {
+            return NodeType.VariableStatement;
+        }
+
+        public isStatement() {
+            return true;
         }
 
         public shouldEmit(): boolean {
@@ -1100,10 +1243,17 @@ module TypeScript {
         }
     }
 
-    export class Block extends Statement {
-        public closeBraceSpan: IASTSpan = null;
-        constructor(public statements: ASTList) {
-            super(NodeType.Block);
+    export class Block extends AST {
+        constructor(public statements: ASTList, public closeBraceSpan: IASTSpan) {
+            super();
+        }
+
+        public nodeType(): NodeType {
+            return NodeType.Block;
+        }
+
+        public isStatement() {
+            return true;
         }
 
         public emitWorker(emitter: Emitter) {
@@ -1123,17 +1273,23 @@ module TypeScript {
         }
     }
 
-    export class Jump extends Statement {
-        public target: string = null;
-        public hasExplicitTarget() { return (this.target); }
-        public resolvedTarget: Statement = null;
-
-        constructor(nodeType: NodeType) {
-            super(nodeType);
+    export class Jump extends AST {
+        constructor(private _nodeType: NodeType, public target: string) {
+            super();
         }
 
+        public nodeType(): NodeType {
+            return this._nodeType;
+        }
+
+        public isStatement() {
+            return true;
+        }
+        
+        public hasExplicitTarget() { return this.target; }
+
         public emitWorker(emitter: Emitter) {
-            if (this.nodeType === NodeType.BreakStatement) {
+            if (this.nodeType() === NodeType.BreakStatement) {
                 emitter.writeToOutput("break");
             }
             else {
@@ -1151,9 +1307,17 @@ module TypeScript {
         }
     }
 
-    export class WhileStatement extends Statement {
+    export class WhileStatement extends AST {
         constructor(public cond: AST, public body: AST) {
-            super(NodeType.WhileStatement);
+            super();
+        }
+
+        public nodeType(): NodeType {
+            return NodeType.WhileStatement;
+        }
+
+        public isStatement() {
+            return true;
         }
 
         public emitWorker(emitter: Emitter) {
@@ -1170,11 +1334,17 @@ module TypeScript {
         }
     }
 
-    export class DoStatement extends Statement {
-        public whileSpan: ASTSpan = null;
+    export class DoStatement extends AST {
+        constructor(public body: AST, public cond: AST, public whileSpan: ASTSpan) {
+            super();
+        }
 
-        constructor(public body: AST, public cond: AST) {
-            super(NodeType.DoStatement);
+        public nodeType(): NodeType {
+            return NodeType.DoStatement;
+        }
+
+        public isStatement() {
+            return true;
         }
 
         public emitWorker(emitter: Emitter) {
@@ -1196,26 +1366,30 @@ module TypeScript {
         }
     }
 
-    export class IfStatement extends Statement {
-        public statement: ASTSpan = new ASTSpan();
-
+    export class IfStatement extends AST {
         constructor(public cond: AST,
                     public thenBod: AST,
                     public elseBod: AST) {
-            super(NodeType.IfStatement);
+            super();
+        }
+
+        public nodeType(): NodeType {
+            return NodeType.IfStatement;
+        }
+
+        public isStatement() {
+            return true;
         }
 
         public emitWorker(emitter: Emitter) {
-            emitter.recordSourceMappingStart(this.statement);
             emitter.writeToOutput("if (");
             this.cond.emit(emitter);
             emitter.writeToOutput(")");
-            emitter.recordSourceMappingEnd(this.statement);
 
             emitter.emitBlockOrStatement(this.thenBod);
 
             if (this.elseBod) {
-                if (this.elseBod.nodeType === NodeType.IfStatement) {
+                if (this.elseBod.nodeType() === NodeType.IfStatement) {
                     emitter.writeToOutput(" else ");
                     this.elseBod.emit(emitter);
                 }
@@ -1234,9 +1408,17 @@ module TypeScript {
         }
     }
 
-    export class ReturnStatement extends Statement {
+    export class ReturnStatement extends AST {
         constructor(public returnExpression: AST) {
-            super(NodeType.ReturnStatement);
+            super();
+        }
+
+        public nodeType(): NodeType {
+            return NodeType.ReturnStatement;
+        }
+
+        public isStatement() {
+            return true;
         }
 
         public emitWorker(emitter: Emitter) {
@@ -1256,21 +1438,25 @@ module TypeScript {
         }
     }
 
-    export class ForInStatement extends Statement {
+    export class ForInStatement extends AST {
         constructor(public lval: AST, public obj: AST, public body: AST) {
-            super(NodeType.ForInStatement);
+            super();
         }
 
-        public statement: ASTSpan = new ASTSpan();
+        public nodeType(): NodeType {
+            return NodeType.ForInStatement;
+        }
+
+        public isStatement() {
+            return true;
+        }
 
         public emitWorker(emitter: Emitter) {
-            emitter.recordSourceMappingStart(this.statement);
             emitter.writeToOutput("for (");
             this.lval.emit(emitter);
             emitter.writeToOutput(" in ");
             this.obj.emit(emitter);
             emitter.writeToOutput(")");
-            emitter.recordSourceMappingEnd(this.statement);
             emitter.emitBlockOrStatement(this.body);
         }
 
@@ -1282,18 +1468,26 @@ module TypeScript {
         }
     }
 
-    export class ForStatement extends Statement {
+    export class ForStatement extends AST {
         constructor(public init: AST,
                     public cond: AST,
                     public incr: AST,
                     public body: AST) {
-            super(NodeType.ForStatement);
+            super();
+        }
+
+        public nodeType(): NodeType {
+            return NodeType.ForStatement;
+        }
+
+        public isStatement() {
+            return true;
         }
 
         public emitWorker(emitter: Emitter) {
             emitter.writeToOutput("for (");
             if (this.init) {
-                if (this.init.nodeType !== NodeType.List) {
+                if (this.init.nodeType() !== NodeType.List) {
                     this.init.emit(emitter);
                 }
                 else {
@@ -1319,9 +1513,17 @@ module TypeScript {
         }
     }
 
-    export class WithStatement extends Statement {
+    export class WithStatement extends AST {
         constructor(public expr: AST, public body: AST) {
-            super(NodeType.WithStatement);
+            super();
+        }
+
+        public nodeType(): NodeType {
+            return NodeType.WithStatement;
+        }
+
+        public isStatement() {
+            return true;
         }
 
         public emitWorker(emitter: Emitter) {
@@ -1341,13 +1543,17 @@ module TypeScript {
         }
     }
 
-    export class SwitchStatement extends Statement {
-        public caseList: ASTList;
-        public defaultCase: CaseClause = null;
-        public statement: ASTSpan = new ASTSpan();
+    export class SwitchStatement extends AST {
+        constructor(public val: AST, public caseList: ASTList, public defaultCase: CaseClause, public statement: ASTSpan) {
+            super();
+        }
 
-        constructor(public val: AST) {
-            super(NodeType.SwitchStatement);
+        public nodeType(): NodeType {
+            return NodeType.SwitchStatement;
+        }
+
+        public isStatement() {
+            return true;
         }
 
         public emitWorker(emitter: Emitter) {
@@ -1381,12 +1587,12 @@ module TypeScript {
     }
 
     export class CaseClause extends AST {
-        public expr: AST = null;
-        public body: ASTList;
-        public colonSpan: ASTSpan = new ASTSpan();
+        constructor(public expr: AST, public body: ASTList) {
+            super();
+        }
 
-        constructor() {
-            super(NodeType.CaseClause);
+        public nodeType(): NodeType {
+            return NodeType.CaseClause;
         }
 
         public emitWorker(emitter: Emitter) {
@@ -1397,11 +1603,9 @@ module TypeScript {
             else {
                 emitter.writeToOutput("default");
             }
-            emitter.recordSourceMappingStart(this.colonSpan);
             emitter.writeToOutput(":");
-            emitter.recordSourceMappingEnd(this.colonSpan);
 
-            if (this.body.members.length === 1 && this.body.members[0].nodeType === NodeType.Block) {
+            if (this.body.members.length === 1 && this.body.members[0].nodeType() === NodeType.Block) {
                 // The case statement was written with curly braces, so emit it with the appropriate formatting
                 this.body.members[0].emit(emitter);
                 emitter.writeLineToOutput("");
@@ -1424,7 +1628,11 @@ module TypeScript {
 
     export class TypeParameter extends AST {
         constructor(public name: Identifier, public constraint: AST) {
-            super(NodeType.TypeParameter);
+            super();
+        }
+
+        public nodeType(): NodeType {
+            return NodeType.TypeParameter;
         }
 
         public structuralEquals(ast: TypeParameter, includingPosition: boolean): boolean {
@@ -1436,7 +1644,11 @@ module TypeScript {
 
     export class GenericType extends AST {
         constructor(public name: AST, public typeArguments: ASTList) {
-            super(NodeType.GenericType);
+            super();
+        }
+
+        public nodeType(): NodeType {
+            return NodeType.GenericType;
         }
 
         public emit(emitter: Emitter): void {
@@ -1452,7 +1664,11 @@ module TypeScript {
 
     export class TypeReference extends AST {
         constructor(public term: AST, public arrayCount: number) {
-            super(NodeType.TypeRef);
+            super();
+        }
+
+        public nodeType(): NodeType {
+            return NodeType.TypeRef;
         }
 
         public emit(emitter: Emitter) {
@@ -1466,9 +1682,17 @@ module TypeScript {
         }
     }
 
-    export class TryStatement extends Statement {
+    export class TryStatement extends AST {
         constructor(public tryBody: Block, public catchClause: CatchClause, public finallyBody: Block) {
-            super(NodeType.TryStatement);
+            super();
+        }
+
+        public nodeType(): NodeType {
+            return NodeType.TryStatement;
+        }
+
+        public isStatement() {
+            return true;
         }
 
         public emitWorker(emitter: Emitter) {
@@ -1492,18 +1716,18 @@ module TypeScript {
 
     export class CatchClause extends AST {
         constructor(public param: VariableDeclarator, public body: Block) {
-            super(NodeType.CatchClause);
+            super();
         }
 
-        public statement: ASTSpan = new ASTSpan();
+        public nodeType(): NodeType {
+            return NodeType.CatchClause;
+        }
 
         public emitWorker(emitter: Emitter) {
             emitter.writeToOutput(" ");
-            emitter.recordSourceMappingStart(this.statement);
             emitter.writeToOutput("catch (");
             this.param.id.emit(emitter);
             emitter.writeToOutput(")");
-            emitter.recordSourceMappingEnd(this.statement);
             this.body.emit(emitter);
         }
 
@@ -1514,9 +1738,13 @@ module TypeScript {
         }
     }
 
-    export class DebuggerStatement extends Statement {
-        constructor() {
-            super(NodeType.DebuggerStatement);
+    export class DebuggerStatement extends AST {
+        public nodeType(): NodeType {
+            return NodeType.DebuggerStatement;
+        }
+
+        public isStatement() {
+            return true;
         }
 
         public emitWorker(emitter: Emitter) {
@@ -1524,9 +1752,9 @@ module TypeScript {
         }
     }
 
-    export class OmittedExpression extends Expression {
-        constructor() {
-            super(NodeType.OmittedExpression);
+    export class OmittedExpression extends AST {
+        public nodeType(): NodeType {
+            return NodeType.OmittedExpression;
         }
 
         public emitWorker(emitter: Emitter) {
@@ -1537,9 +1765,13 @@ module TypeScript {
         }
     }
 
-    export class EmptyStatement extends Statement {
-        constructor() {
-            super(NodeType.EmptyStatement);
+    export class EmptyStatement extends AST {
+        public nodeType(): NodeType {
+            return NodeType.EmptyStatement;
+        }
+
+        public isStatement() {
+            return true;
         }
 
         public emitWorker(emitter: Emitter) {
@@ -1553,19 +1785,20 @@ module TypeScript {
 
     export class Comment extends AST {
         public text: string[] = null;
-        public minLine: number;
-        public limLine: number;
         private docCommentText: string = null;
 
         constructor(public content: string,
                     public isBlockComment: boolean,
                     public endsLine) {
-            super(NodeType.Comment);
+            super();
+        }
+
+        public nodeType(): NodeType {
+            return NodeType.Comment;
         }
 
         public structuralEquals(ast: Comment, includingPosition: boolean): boolean {
             return super.structuralEquals(ast, includingPosition) &&
-                   this.minLine === ast.minLine &&
                    this.content === ast.content &&
                    this.isBlockComment === ast.isBlockComment &&
                    this.endsLine === ast.endsLine;
@@ -1662,7 +1895,7 @@ module TypeScript {
 
         static cleanJSDocComment(content: string, spacesToRemove?: number) {
 
-            var docCommentLines: string[] = [];
+            var docCommentLines = new Array<string>();
             content = content.replace("/**", ""); // remove /**
             if (content.length >= 2 && content.charAt(content.length - 1) === "/" && content.charAt(content.length - 2) === "*") {
                 content = content.substring(0, content.length - 2); // remove last */
@@ -1722,7 +1955,7 @@ module TypeScript {
         }
 
         static getDocCommentText(comments: Comment[]) {
-            var docCommentText: string[] = [];
+            var docCommentText = new Array<string>();
             for (var c = 0 ; c < comments.length; c++) {
                 var commentText = comments[c].getDocCommentTextValue();
                 if (commentText !== "") {

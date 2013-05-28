@@ -17,7 +17,7 @@ module TypeScript {
     }
 
     export class PullDeclDiffer {
-        private differences: PullDeclDiff[] = [];
+        private differences = new Array<PullDeclDiff>();
 
         constructor(private oldSemanticInfo: SemanticInfo,
                     private newSemanticInfo: SemanticInfo) {
@@ -59,7 +59,7 @@ module TypeScript {
             }
         }
 
-        private static emptyDeclArray: PullDecl[] = [];
+        private static emptyDeclArray = new Array<PullDecl>();
 
         private diff1(oldDecl: PullDecl,
                       newDecl: PullDecl,
@@ -167,12 +167,12 @@ module TypeScript {
             //    return true;
             //}
 
-            if (oldAST.nodeType !== newAST.nodeType ||
+            if (oldAST.nodeType() !== newAST.nodeType() ||
                 oldAST.getFlags() !== newAST.getFlags()) {
                 return false;
             }
 
-            switch (oldAST.nodeType) {
+            switch (oldAST.nodeType()) {
                 case NodeType.ImportDeclaration:
                     return this.importDeclarationIsEquivalent(<ImportDeclaration>oldAST, <ImportDeclaration>newAST);
                 case NodeType.ModuleDeclaration:
