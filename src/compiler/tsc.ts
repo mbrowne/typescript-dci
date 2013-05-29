@@ -109,6 +109,8 @@ class BatchCompiler {
     }
 
     public resolve() {
+        var start = new Date().getTime();
+
         var resolver = new TypeScript.CodeResolver(this.compilationEnvironment);
         var commandLineHost = new CommandLineHost(this.compilationSettings, (err) => this.errorReporter.WriteLine(err));
         var ret = commandLineHost.resolveCompilationEnvironment(this.compilationEnvironment, resolver, true);
@@ -125,6 +127,7 @@ class BatchCompiler {
             }
         }
 
+        TypeScript.fileResolutionTime = new Date().getTime() - start;
         return ret;
     }
     
@@ -203,12 +206,20 @@ class BatchCompiler {
 
         try {
             if (!this.compilationSettings.parseOnly) {
+                var start = new Date().getTime();
                 compiler.typeCheck();
+                TypeScript.typeCheckTime = new Date().getTime() - start;
+
                 var mapInputToOutput = (unitIndex: number, outFile: string): void => {
                     this.compilationEnvironment.inputOutputMap[unitIndex] = outFile;
                 };
+                var start = new Date().getTime();
                 compiler.emit(emitterIOHost, mapInputToOutput);
+                TypeScript.emitTime = new Date().getTime() - start;
+                
+                var start = new Date().getTime();
                 compiler.emitDeclarations();
+                TypeScript.declarationEmitTime = new Date().getTime() - start;
             }
             else {
                 compiler.emitAST(emitterIOHost);
@@ -237,6 +248,7 @@ class BatchCompiler {
 
     /// Begin batch compilation
     public batchCompile() {
+        var start = new Date().getTime();
         TypeScript.CompilerDiagnostics.diagnosticWriter = { Alert: (s: string) => { this.ioHost.printLine(s); } }
 
         var code: TypeScript.SourceUnit;
@@ -509,6 +521,45 @@ class BatchCompiler {
         this.resolvedEnvironment = this.compilationSettings.resolve ? this.resolve() : this.compilationEnvironment;
 
         this.compile();
+
+        this.ioHost.printLine("");
+        this.ioHost.printLine("File resolution time:                     " + TypeScript.fileResolutionTime);
+        this.ioHost.printLine("SyntaxTree parse time:                    " + TypeScript.syntaxTreeParseTime);
+        this.ioHost.printLine("Syntax Diagnostics time:                  " + TypeScript.syntaxDiagnosticsTime);
+        this.ioHost.printLine("AST translation time:                     " + TypeScript.astTranslationTime);
+        this.ioHost.printLine("");
+        this.ioHost.printLine("Type check time:                          " + TypeScript.typeCheckTime);
+        this.ioHost.printLine("");
+        this.ioHost.printLine("Emit time:                                " + TypeScript.emitTime);
+        this.ioHost.printLine("Declaration emit time:                    " + TypeScript.declarationEmitTime);
+        
+        this.ioHost.printLine("  IsExternallyVisibleTime:                " + TypeScript.declarationEmitIsExternallyVisibleTime);
+        this.ioHost.printLine("  TypeSignatureTime:                      " + TypeScript.declarationEmitTypeSignatureTime);
+        this.ioHost.printLine("  GetBoundDeclTypeTime:                   " + TypeScript.declarationEmitGetBoundDeclTypeTime);
+        this.ioHost.printLine("  IsOverloadedCallSignatureTime:          " + TypeScript.declarationEmitIsOverloadedCallSignatureTime);
+        this.ioHost.printLine("  FunctionDeclarationGetSymbolTime:       " + TypeScript.declarationEmitFunctionDeclarationGetSymbolTime);
+        this.ioHost.printLine("  GetBaseTypeTime:                        " + TypeScript.declarationEmitGetBaseTypeTime);
+        this.ioHost.printLine("  GetAccessorFunctionTime:                " + TypeScript.declarationEmitGetAccessorFunctionTime);
+        this.ioHost.printLine("  GetTypeParameterSymbolTime:             " + TypeScript.declarationEmitGetTypeParameterSymbolTime);
+        this.ioHost.printLine("  GetImportDeclarationSymbolTime:         " + TypeScript.declarationEmitGetImportDeclarationSymbolTime);
+        
+        this.ioHost.printLine("Emit write file time:                     " + TypeScript.emitWriteFileTime);
+        this.ioHost.printLine("Emit directory exists time:               " + TypeScript.emitDirectoryExistsTime);
+        this.ioHost.printLine("Emit file exists time:                    " + TypeScript.emitFileExistsTime);
+        this.ioHost.printLine("Emit resolve path time:                   " + TypeScript.emitResolvePathTime);
+        
+        this.ioHost.printLine("IO host resolve path time:                " + TypeScript.ioHostResolvePathTime);
+        this.ioHost.printLine("IO host directory name time:              " + TypeScript.ioHostDirectoryNameTime);
+        this.ioHost.printLine("IO host create directory structure time:  " + TypeScript.ioHostCreateDirectoryStructureTime);
+        this.ioHost.printLine("IO host write file time:                  " + TypeScript.ioHostWriteFileTime);
+        
+        this.ioHost.printLine("Node make directory time:                 " + TypeScript.nodeMakeDirectoryTime);
+        this.ioHost.printLine("Node writeFileSync time:                  " + TypeScript.nodeWriteFileSyncTime);
+        this.ioHost.printLine("Node createBuffer time:                   " + TypeScript.nodeCreateBufferTime);
+        
+        this.ioHost.printLine("");
+        this.ioHost.printLine("Source characters compiled:               " + TypeScript.sourceCharactersCompiled);
+        this.ioHost.printLine("Compile time:                             " + (new Date().getTime() - start));
 
         if (!this.errorReporter.hasErrors) {
             if (this.compilationSettings.exec) {

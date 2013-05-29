@@ -47,6 +47,38 @@
 ///<reference path='declarationEmitter.ts' />
 
 module TypeScript {
+    export var fileResolutionTime = 0;
+    export var sourceCharactersCompiled = 0;
+    export var syntaxTreeParseTime = 0;
+    export var syntaxDiagnosticsTime = 0;
+    export var astTranslationTime = 0;
+    export var typeCheckTime = 0;
+
+    export var emitTime = 0;
+    export var emitWriteFileTime = 0;
+    export var emitDirectoryExistsTime = 0;
+    export var emitFileExistsTime = 0;
+    export var emitResolvePathTime = 0;
+
+    export var declarationEmitTime = 0;
+    export var declarationEmitIsExternallyVisibleTime = 0;
+    export var declarationEmitTypeSignatureTime = 0;
+    export var declarationEmitGetBoundDeclTypeTime = 0;
+    export var declarationEmitIsOverloadedCallSignatureTime = 0;
+    export var declarationEmitFunctionDeclarationGetSymbolTime = 0;
+    export var declarationEmitGetBaseTypeTime = 0;
+    export var declarationEmitGetAccessorFunctionTime = 0;
+    export var declarationEmitGetTypeParameterSymbolTime = 0;
+    export var declarationEmitGetImportDeclarationSymbolTime = 0;
+
+    export var ioHostResolvePathTime = 0;
+    export var ioHostDirectoryNameTime = 0;
+    export var ioHostCreateDirectoryStructureTime = 0;
+    export var ioHostWriteFileTime = 0;
+
+    export var nodeMakeDirectoryTime = 0;
+    export var nodeWriteFileSyncTime = 0;
+    export var nodeCreateBufferTime = 0;
 
     export enum UpdateUnitKind {
         Unknown,
@@ -273,13 +305,22 @@ module TypeScript {
 
         public addSourceUnit(sourceText: ISourceText, filename: string, keepResident:bool, referencedFiles?: IFileReference[] = []): Script {
             return this.timeFunction("addSourceUnit(" + filename + ", " + keepResident + ")", () => {
+                TypeScript.sourceCharactersCompiled += sourceText.getLength();
+
+                var start = new Date().getTime();
                 var script: Script = this.parser.parse(sourceText, filename, this.units.length, AllowedElements.Global);
+                TypeScript.syntaxTreeParseTime += new Date().getTime() - start;
+
                 script.referencedFiles = referencedFiles;
                 script.isResident = keepResident;
                 this.persistentTypeState.setCollectionMode(keepResident ? TypeCheckCollectionMode.Resident : TypeCheckCollectionMode.Transient);
                 var index = this.units.length;
                 this.units[index] = script.locationInfo;
+                
+                var start = new Date().getTime();
                 this.typeChecker.collectTypes(script);
+                TypeScript.typeCheckTime += new Date().getTime() - start;
+
                 this.scripts.append(script);
                 return script
             });
