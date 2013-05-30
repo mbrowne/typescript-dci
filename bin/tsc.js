@@ -22891,6 +22891,7 @@ var TypeScript;
 var TypeScript;
 (function (TypeScript) {
     TypeScript.fileResolutionTime = 0;
+    TypeScript.consumeTime = 0;
     TypeScript.sourceCharactersCompiled = 0;
     TypeScript.syntaxTreeParseTime = 0;
     TypeScript.syntaxDiagnosticsTime = 0;
@@ -22916,7 +22917,8 @@ var TypeScript;
     TypeScript.ioHostCreateDirectoryStructureTime = 0;
     TypeScript.ioHostWriteFileTime = 0;
     TypeScript.nodeMakeDirectoryTime = 0;
-    TypeScript.nodeWriteFileSyncTime = 0;
+    TypeScript.nodeReadFileSyncTimeNS = 0;
+    TypeScript.nodeWriteFileSyncTimeNS = 0;
     TypeScript.nodeCreateBufferTime = 0;
     (function (UpdateUnitKind) {
         UpdateUnitKind._map = [];
@@ -23982,6 +23984,7 @@ var IO = (function () {
         var _module = require('module');
         return {
             readFile: function (file) {
+                var start = (process).hrtime();
                 try  {
                     var buffer = _fs.readFileSync(file);
                     switch(buffer[0]) {
@@ -24007,7 +24010,10 @@ var IO = (function () {
                                 return buffer.toString("utf8", 3);
                             }
                     }
-                    return buffer.toString();
+                    var result = buffer.toString();
+                    var diff = (process).hrtime(start);
+                    TypeScript.nodeReadFileSyncTimeNS += (diff[0] * 1e9 + diff[1]);
+                    return result;
                 } catch (e) {
                     IOUtils.throwIOError("Error reading file \"" + file + "\".", e);
                 }
@@ -24043,7 +24049,10 @@ var IO = (function () {
                 }
                 return new IOUtils.BufferedTextWriter({
                     Write: function (str) {
+                        var start = (process).hrtime();
                         _fs.writeSync(fd, str);
+                        var diff = (process).hrtime(start);
+                        TypeScript.nodeWriteFileSyncTimeNS += (diff[0] * 1e9 + diff[1]);
                     },
                     Close: function () {
                         _fs.closeSync(fd);
@@ -24448,6 +24457,7 @@ var BatchCompiler = (function () {
     };
     BatchCompiler.prototype.compile = function () {
         var _this = this;
+        var start1 = new Date().getTime();
         var compiler;
         compiler = new TypeScript.TypeScriptCompiler(this.errorReporter, new TypeScript.NullLogger(), this.compilationSettings);
         compiler.setErrorOutput(this.errorReporter);
@@ -24498,6 +24508,7 @@ var BatchCompiler = (function () {
                 consumeUnit(this.resolvedEnvironment.code[iCode], false);
             }
         }
+        TypeScript.consumeTime = new Date().getTime() - start1;
         var emitterIOHost = {
             createFile: function (fileName, useUTF8) {
                 return IOUtils.createFileAndFolderStructure(_this.ioHost, fileName, useUTF8);
@@ -24510,7 +24521,7 @@ var BatchCompiler = (function () {
             if(!this.compilationSettings.parseOnly) {
                 var start = new Date().getTime();
                 compiler.typeCheck();
-                TypeScript.typeCheckTime = new Date().getTime() - start;
+                TypeScript.typeCheckTime += new Date().getTime() - start;
                 var mapInputToOutput = function (unitIndex, outFile) {
                     _this.compilationEnvironment.inputOutputMap[unitIndex] = outFile;
                 };
@@ -24781,9 +24792,8 @@ var BatchCompiler = (function () {
         this.compile();
         this.ioHost.printLine("");
         this.ioHost.printLine("File resolution time:                     " + TypeScript.fileResolutionTime);
-        this.ioHost.printLine("SyntaxTree parse time:                    " + TypeScript.syntaxTreeParseTime);
-        this.ioHost.printLine("Syntax Diagnostics time:                  " + TypeScript.syntaxDiagnosticsTime);
-        this.ioHost.printLine("AST translation time:                     " + TypeScript.astTranslationTime);
+        this.ioHost.printLine("Consume time:                             " + TypeScript.consumeTime);
+        this.ioHost.printLine("Parse time:                               " + TypeScript.syntaxTreeParseTime);
         this.ioHost.printLine("");
         this.ioHost.printLine("Type check time:                          " + TypeScript.typeCheckTime);
         this.ioHost.printLine("");
@@ -24807,7 +24817,8 @@ var BatchCompiler = (function () {
         this.ioHost.printLine("IO host create directory structure time:  " + TypeScript.ioHostCreateDirectoryStructureTime);
         this.ioHost.printLine("IO host write file time:                  " + TypeScript.ioHostWriteFileTime);
         this.ioHost.printLine("Node make directory time:                 " + TypeScript.nodeMakeDirectoryTime);
-        this.ioHost.printLine("Node writeFileSync time:                  " + TypeScript.nodeWriteFileSyncTime);
+        this.ioHost.printLine("Node readFileSync time:                  " + (TypeScript.nodeReadFileSyncTimeNS / 1000000));
+        this.ioHost.printLine("Node writeFileSync time:                  " + (TypeScript.nodeWriteFileSyncTimeNS / 1000000));
         this.ioHost.printLine("Node createBuffer time:                   " + TypeScript.nodeCreateBufferTime);
         this.ioHost.printLine("");
         this.ioHost.printLine("Source characters compiled:               " + TypeScript.sourceCharactersCompiled);

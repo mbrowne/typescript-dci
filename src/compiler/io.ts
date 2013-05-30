@@ -342,7 +342,8 @@ var IO = (function() {
         var _module = require('module');
 
         return {
-            readFile: function(file) {
+            readFile: function (file) {
+                var start = (<any>process).hrtime();
                 try {
                     var buffer = _fs.readFileSync(file);
                     switch (buffer[0]) {
@@ -373,7 +374,10 @@ var IO = (function() {
                             }
                     }
                     // Default behaviour
-                    return buffer.toString();
+                    var result = buffer.toString();
+                    var diff = (<any>process).hrtime(start);
+                    TypeScript.nodeReadFileSyncTimeNS += (diff[0] * 1e9 + diff[1])
+                    return result;
                 } catch (e) {
                     IOUtils.throwIOError("Error reading file \"" + file + "\".", e);
                 }
@@ -411,7 +415,12 @@ var IO = (function() {
                 }
                 // Writing to a buffer to improve performance
                 return new IOUtils.BufferedTextWriter({
-                    Write: function (str) { _fs.writeSync(fd, str); },
+                    Write: function (str) {
+                        var start = (<any>process).hrtime();
+                        _fs.writeSync(fd, str);
+                        var diff = (<any>process).hrtime(start);
+                        TypeScript.nodeWriteFileSyncTimeNS += (diff[0] * 1e9 + diff[1]);
+                    },
                     Close: function () { _fs.closeSync(fd); fd = null; }
                 });
             },

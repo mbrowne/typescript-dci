@@ -22891,6 +22891,7 @@ var TypeScript;
 var TypeScript;
 (function (TypeScript) {
     TypeScript.fileResolutionTime = 0;
+    TypeScript.consumeTime = 0;
     TypeScript.sourceCharactersCompiled = 0;
     TypeScript.syntaxTreeParseTime = 0;
     TypeScript.syntaxDiagnosticsTime = 0;
@@ -22916,7 +22917,8 @@ var TypeScript;
     TypeScript.ioHostCreateDirectoryStructureTime = 0;
     TypeScript.ioHostWriteFileTime = 0;
     TypeScript.nodeMakeDirectoryTime = 0;
-    TypeScript.nodeWriteFileSyncTime = 0;
+    TypeScript.nodeReadFileSyncTimeNS = 0;
+    TypeScript.nodeWriteFileSyncTimeNS = 0;
     TypeScript.nodeCreateBufferTime = 0;
     (function (UpdateUnitKind) {
         UpdateUnitKind._map = [];

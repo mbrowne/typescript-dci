@@ -48,6 +48,7 @@
 
 module TypeScript {
     export var fileResolutionTime = 0;
+    export var consumeTime = 0;
     export var sourceCharactersCompiled = 0;
     export var syntaxTreeParseTime = 0;
     export var syntaxDiagnosticsTime = 0;
@@ -77,7 +78,8 @@ module TypeScript {
     export var ioHostWriteFileTime = 0;
 
     export var nodeMakeDirectoryTime = 0;
-    export var nodeWriteFileSyncTime = 0;
+    export var nodeReadFileSyncTimeNS = 0;
+    export var nodeWriteFileSyncTimeNS = 0;
     export var nodeCreateBufferTime = 0;
 
     export enum UpdateUnitKind {

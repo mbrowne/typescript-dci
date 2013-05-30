@@ -134,9 +134,10 @@ class BatchCompiler {
     /// Do the actual compilation reading from input files and
     /// writing to output file(s).
     public compile(): bool {
+        var start1 = new Date().getTime();
         var compiler: TypeScript.TypeScriptCompiler;
-
         compiler = new TypeScript.TypeScriptCompiler(this.errorReporter, new TypeScript.NullLogger(), this.compilationSettings);
+
         compiler.setErrorOutput(this.errorReporter);
         compiler.setErrorCallback(
             (minChar, charLen, message, unitIndex) => {
@@ -167,6 +168,7 @@ class BatchCompiler {
                     // preprocess the file contents and add in referenced files as well
                     if (this.compilationSettings.generateDeclarationFiles) {
                         TypeScript.CompilerDiagnostics.assert(code.referencedFiles == null, "With no resolve option, referenced files need to null");
+                        
                         code.referencedFiles = TypeScript.getReferencedFiles(code);
                     }
                 }
@@ -188,7 +190,6 @@ class BatchCompiler {
                 // This includes syntax errors thrown from error callback if not in recovery mode
                 this.errorReporter.WriteLine(err.message);
             }
-
         }
 
         for (var iCode = 0 ; iCode < this.resolvedEnvironment.code.length; iCode++) {
@@ -196,6 +197,8 @@ class BatchCompiler {
                 consumeUnit(this.resolvedEnvironment.code[iCode], false);
             }
         }
+
+        TypeScript.consumeTime = new Date().getTime() - start1;
 
         var emitterIOHost = {
             createFile: (fileName: string, useUTF8?: bool) => IOUtils.createFileAndFolderStructure(this.ioHost, fileName, useUTF8),
@@ -208,7 +211,7 @@ class BatchCompiler {
             if (!this.compilationSettings.parseOnly) {
                 var start = new Date().getTime();
                 compiler.typeCheck();
-                TypeScript.typeCheckTime = new Date().getTime() - start;
+                TypeScript.typeCheckTime += new Date().getTime() - start;
 
                 var mapInputToOutput = (unitIndex: number, outFile: string): void => {
                     this.compilationEnvironment.inputOutputMap[unitIndex] = outFile;
@@ -231,6 +234,7 @@ class BatchCompiler {
                 throw err;
             }
         }
+
 
         return compiler.errorReporter.hasErrors;
     }
@@ -524,9 +528,8 @@ class BatchCompiler {
 
         this.ioHost.printLine("");
         this.ioHost.printLine("File resolution time:                     " + TypeScript.fileResolutionTime);
-        this.ioHost.printLine("SyntaxTree parse time:                    " + TypeScript.syntaxTreeParseTime);
-        this.ioHost.printLine("Syntax Diagnostics time:                  " + TypeScript.syntaxDiagnosticsTime);
-        this.ioHost.printLine("AST translation time:                     " + TypeScript.astTranslationTime);
+        this.ioHost.printLine("Consume time:                             " + TypeScript.consumeTime);
+        this.ioHost.printLine("Parse time:                               " + TypeScript.syntaxTreeParseTime);
         this.ioHost.printLine("");
         this.ioHost.printLine("Type check time:                          " + TypeScript.typeCheckTime);
         this.ioHost.printLine("");
@@ -554,7 +557,8 @@ class BatchCompiler {
         this.ioHost.printLine("IO host write file time:                  " + TypeScript.ioHostWriteFileTime);
         
         this.ioHost.printLine("Node make directory time:                 " + TypeScript.nodeMakeDirectoryTime);
-        this.ioHost.printLine("Node writeFileSync time:                  " + TypeScript.nodeWriteFileSyncTime);
+        this.ioHost.printLine("Node readFileSync time:                  " + (TypeScript.nodeReadFileSyncTimeNS / 1000000));
+        this.ioHost.printLine("Node writeFileSync time:                  " + (TypeScript.nodeWriteFileSyncTimeNS / 1000000));
         this.ioHost.printLine("Node createBuffer time:                   " + TypeScript.nodeCreateBufferTime);
         
         this.ioHost.printLine("");
