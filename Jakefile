@@ -31,7 +31,8 @@ var compilerSources = [
 	"precompile.ts",
 	"pathUtils.ts",
 	"referenceResolution.ts",
-	"typecheck/dataMap.ts",
+	"referenceResolver.ts",
+	"core/environment.ts",
 	"typecheck/pullFlags.ts",
 	"typecheck/pullDecls.ts",
 	"typecheck/pullSymbols.ts",
@@ -166,7 +167,7 @@ var useDebugMode = false;
 function compileFile(outFile, sources, prereqs, prefixes, useBuiltCompiler) {
 	file(outFile, prereqs, function() {
 		var dir = useBuiltCompiler ? builtLocalDirectory : LKGDirectory;
-		var cmd = (process.env.TYPESCRIPT_HOST || "node") + " " + dir + "tsc.js -const -declaration -disallowbool -disallowimportmodule " + sources.join(" ") + " -out " + outFile;
+		var cmd = (process.env.host || process.env.TYPESCRIPT_HOST || "node") + " " + dir + "tsc.js -const -declaration -disallowbool -disallowimportmodule " + sources.join(" ") + " -out " + outFile;
 		if (useDebugMode) {
 			cmd = cmd + " -sourcemap -fullSourceMapPath";
 		}
@@ -333,7 +334,7 @@ compileFile(syntaxGeneratorOutFile, [syntaxGeneratorInFile], [tscFile], [], true
 
 desc("Builds and runs the syntax generator");
 task("run-syntax-generator", [syntaxGeneratorOutFile], function() {
-	host = process.env.TYPESCRIPT_HOST || "node";
+	host = process.env.host || process.env.TYPESCRIPT_HOST || "node";
 	var cmd = host + " " + syntaxGeneratorOutFile;
 	console.log(cmd);
 	var ex = jake.createExec([cmd]);

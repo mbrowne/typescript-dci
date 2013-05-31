@@ -1201,6 +1201,7 @@ module TypeScript {
             if ((declFlags & PullElementFlags.ImplicitVariable) === 0) {
                 if (!variableSymbol) {
                     variableSymbol = new PullSymbol(declName, declKind);
+                    this.semanticInfoChain.cacheGlobalSymbol(variableSymbol, declKind);
                 }
 
                 variableSymbol.addDeclaration(variableDeclaration);

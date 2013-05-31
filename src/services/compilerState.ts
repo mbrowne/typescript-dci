@@ -197,15 +197,15 @@ module Services {
             }
 
             // If any compilation settings changes, a new compiler instance is needed
-            //if (!Services.compareDataObjects(this.compilationSettings, this.getHostCompilationSettings())) {
-            //    this.logger.log("Creating new compiler instance because compilation settings have changed.");
-            //    this.createCompiler();
-            //    return true;
-            //}
+            if (!Services.compareDataObjects(this.compilationSettings(), this.getHostCompilationSettings())) {
+                this.logger.log("Creating new compiler instance because compilation settings have changed.");
+                this.createCompiler();
+                return true;
+            }
 
-            /// If any file was deleted, we need to create a new compiler, because we are not
-            /// even close to supporting removing symbols (unitindex will be all over the place
-            /// if we remove scripts from the list).
+            // If any file was deleted, we need to create a new compiler, because we are not
+            // even close to supporting removing symbols (unitindex will be all over the place
+            // if we remove scripts from the list).
             var fileNames = this.compiler.fileNameToDocument.getAllKeys();
             for (var unitIndex = 0, len = fileNames.length; unitIndex < len; unitIndex++) {
                 var fileName = fileNames[unitIndex];
@@ -266,6 +266,9 @@ module Services {
                 // This file has at least one syntactic error, return and do not emit code.
                 return result;
             }
+            
+            // Force a type check before emit
+            this.compiler.getSemanticDiagnostics(fileName);
 
             var emitterIOHost: TypeScript.EmitterIOHost = {
                 writeFile: (fileName: string, contents: string, writeByteOrderMark: boolean) => {

@@ -30,6 +30,7 @@
 ///<reference path='pathUtils.ts' />
 ///<reference path='referenceResolution.ts' />
 ///<reference path='precompile.ts' />
+///<reference path='referenceResolver.ts' />
 ///<reference path='declarationEmitter.ts' />
 ///<reference path='bloomFilter.ts' />
 ///<reference path='identifierWalker.ts' />
@@ -55,6 +56,39 @@
 module TypeScript {
 
     declare var IO;
+
+    export var fileResolutionTime = 0;
+    export var sourceCharactersCompiled = 0;
+    export var syntaxTreeParseTime = 0;
+    export var syntaxDiagnosticsTime = 0;
+    export var astTranslationTime = 0;
+    export var typeCheckTime = 0;
+
+    export var emitTime = 0;
+    export var emitWriteFileTime = 0;
+    export var emitDirectoryExistsTime = 0;
+    export var emitFileExistsTime = 0;
+    export var emitResolvePathTime = 0;
+
+    export var declarationEmitTime = 0;
+    export var declarationEmitIsExternallyVisibleTime = 0;
+    export var declarationEmitTypeSignatureTime = 0;
+    export var declarationEmitGetBoundDeclTypeTime = 0;
+    export var declarationEmitIsOverloadedCallSignatureTime = 0;
+    export var declarationEmitFunctionDeclarationGetSymbolTime = 0;
+    export var declarationEmitGetBaseTypeTime = 0;
+    export var declarationEmitGetAccessorFunctionTime = 0;
+    export var declarationEmitGetTypeParameterSymbolTime = 0;
+    export var declarationEmitGetImportDeclarationSymbolTime = 0;
+
+    export var ioHostResolvePathTime = 0;
+    export var ioHostDirectoryNameTime = 0;
+    export var ioHostCreateDirectoryStructureTime = 0;
+    export var ioHostWriteFileTime = 0;
+
+    export var nodeMakeDirectoryTime = 0;
+    export var nodeWriteFileSyncTime = 0;
+    export var nodeCreateBufferTime = 0;
 
     export interface EmitterIOHost {
         // function that can even create a folder structure if needed
@@ -119,11 +153,16 @@ module TypeScript {
             }
             else {
                 // Don't store the syntax tree for a closed file.
+                var start = new Date().getTime();
                 this._diagnostics = syntaxTree.diagnostics();
+                TypeScript.syntaxDiagnosticsTime += new Date().getTime() - start;
             }
 
             this.lineMap = syntaxTree.lineMap();
+
+            var start = new Date().getTime();
             this.script = SyntaxTreeToAstVisitor.visit(syntaxTree, fileName, compilationSettings, isOpen);
+            TypeScript.astTranslationTime += new Date().getTime() - start;
         }
 
         public diagnostics(): IDiagnostic[]{
@@ -193,10 +232,11 @@ module TypeScript {
             return new Document(this.fileName, this.compilationSettings, scriptSnapshot, this.byteOrderMark, version, isOpen, newSyntaxTree);
         }
 
-        public static create(fileName: string, scriptSnapshot: IScriptSnapshot, byteOrderMark: ByteOrderMark, version: number, isOpen: boolean, referencedFiles: IFileReference[], compilationSettings): Document {
+        public static create(fileName: string, scriptSnapshot: IScriptSnapshot, byteOrderMark: ByteOrderMark, version: number, isOpen: boolean, referencedFiles: string[], compilationSettings): Document {
             // for an open file, make a syntax tree and a script, and store both around.
-
+            var start = new Date().getTime();
             var syntaxTree = Parser.parse(fileName, SimpleText.fromScriptSnapshot(scriptSnapshot), TypeScript.isDTSFile(fileName), compilationSettings.codeGenTarget, getParseOptions(compilationSettings));
+            TypeScript.syntaxTreeParseTime += new Date().getTime() - start;
 
             var document = new Document(fileName, compilationSettings, scriptSnapshot, byteOrderMark, version, isOpen, syntaxTree);
             document.script.referencedFiles = referencedFiles;
@@ -240,13 +280,14 @@ module TypeScript {
                              byteOrderMark: ByteOrderMark,
                              version: number,
                              isOpen: boolean,
-                             referencedFiles: IFileReference[] = []): Document {
-            return this.timeFunction("addSourceUnit(" + fileName + ")", () => {
-                var document = Document.create(fileName, scriptSnapshot, byteOrderMark, version, isOpen, referencedFiles, this.emitOptions.compilationSettings);
-                this.fileNameToDocument.addOrUpdate(fileName, document);
+                             referencedFiles: string[]= []): Document {
 
-                return document;
-            } );
+            TypeScript.sourceCharactersCompiled += scriptSnapshot.getLength();
+
+            var document = Document.create(fileName, scriptSnapshot, byteOrderMark, version, isOpen, referencedFiles, this.emitOptions.compilationSettings);
+            this.fileNameToDocument.addOrUpdate(fileName, document);
+
+            return document;
         }
 
         public updateSourceUnit(fileName: string, scriptSnapshot: IScriptSnapshot, version: number, isOpen: boolean, textChangeRange: TextChangeRange): Document {
@@ -424,7 +465,9 @@ module TypeScript {
         }
 
         // Will not throw exceptions.
-        public emitAllDeclarations(): IDiagnostic[] {
+        public emitAllDeclarations(): IDiagnostic[]{
+            var start = new Date().getTime();
+
             if (this.canEmitDeclarations()) {
                 var sharedEmitter: DeclarationEmitter = null;
                 var fileNames = this.fileNameToDocument.getAllKeys();
@@ -460,6 +503,8 @@ module TypeScript {
                     }
                 }
             }
+
+            declarationEmitTime += new Date().getTime() - start;
 
             return [];
         }
@@ -545,12 +590,12 @@ module TypeScript {
 
         // Will not throw exceptions.
         public emitAll(ioHost: EmitterIOHost, inputOutputMapper?: (inputFile: string, outputFile: string) => void ): IDiagnostic[] {
+            var start = new Date().getTime();
+
             var optionsDiagnostic = this.parseEmitOption(ioHost);
             if (optionsDiagnostic) {
                 return [optionsDiagnostic];
             }
-            
-            var startEmitTime = (new Date()).getTime();
 
             var fileNames = this.fileNameToDocument.getAllKeys();
             var sharedEmitter: Emitter = null;
@@ -582,8 +627,6 @@ module TypeScript {
                 }
             }
 
-            this.logger.log("Emit: " + ((new Date()).getTime() - startEmitTime));
-
             if (sharedEmitter) {
                 try {
                     sharedEmitter.emitSourceMapsAndClose();
@@ -593,6 +636,7 @@ module TypeScript {
                 }
             }
 
+            emitTime += new Date().getTime() - start;
             return [];
         }
 
@@ -684,69 +728,65 @@ module TypeScript {
         }
 
         public pullTypeCheck() {
-            return this.timeFunction("pullTypeCheck()", () => {
+            var start = new Date().getTime();
 
-                this.semanticInfoChain = new SemanticInfoChain();
-                this.pullTypeChecker = new PullTypeChecker(this.settings, this.semanticInfoChain);
+            this.semanticInfoChain = new SemanticInfoChain();
+            this.pullTypeChecker = new PullTypeChecker(this.settings, this.semanticInfoChain);
 
-                var declCollectionContext: DeclCollectionContext = null;
-                var i: number, n: number;
+            var declCollectionContext: DeclCollectionContext = null;
+            var i: number, n: number;
 
-                var createDeclsStartTime = new Date().getTime();
+            var createDeclsStartTime = new Date().getTime();
 
-                var fileNames = this.fileNameToDocument.getAllKeys();
-                for (var i = 0, n = fileNames.length; i < n; i++) {
-                    var fileName = fileNames[i];
-                    var document = this.getDocument(fileName);
-                    var semanticInfo = new SemanticInfo(fileName);
+            var fileNames = this.fileNameToDocument.getAllKeys();
+            for (var i = 0, n = fileNames.length; i < n; i++) {
+                var fileName = fileNames[i];
+                var document = this.getDocument(fileName);
+                var semanticInfo = new SemanticInfo(fileName);
 
-                    declCollectionContext = new DeclCollectionContext(semanticInfo);
-                    declCollectionContext.scriptName = fileName;
+                declCollectionContext = new DeclCollectionContext(semanticInfo);
+                declCollectionContext.scriptName = fileName;
 
-                    // create decls
-                    getAstWalkerFactory().walk(document.script, preCollectDecls, postCollectDecls, null, declCollectionContext);
+                // create decls
+                getAstWalkerFactory().walk(document.script, preCollectDecls, postCollectDecls, null, declCollectionContext);
 
-                    semanticInfo.addTopLevelDecl(declCollectionContext.getParent());
+                semanticInfo.addTopLevelDecl(declCollectionContext.getParent());
 
-                    this.semanticInfoChain.addUnit(semanticInfo);
-                }
+                this.semanticInfoChain.addUnit(semanticInfo);
+            }
 
-                var createDeclsEndTime = new Date().getTime();
+            var createDeclsEndTime = new Date().getTime();
 
-                // bind declaration symbols
-                var bindStartTime = new Date().getTime();
+            // bind declaration symbols
+            var bindStartTime = new Date().getTime();
 
-                var binder = new PullSymbolBinder(this.settings, this.semanticInfoChain);
+            var binder = new PullSymbolBinder(this.settings, this.semanticInfoChain);
 
-                // start at '1', so as to skip binding for global primitives such as 'any'
-                for (var i = 1; i < this.semanticInfoChain.units.length; i++) {
-                    binder.bindDeclsForUnit(this.semanticInfoChain.units[i].getPath());
-                }
+            // start at '1', so as to skip binding for global primitives such as 'any'
+            for (var i = 1; i < this.semanticInfoChain.units.length; i++) {
+                binder.bindDeclsForUnit(this.semanticInfoChain.units[i].getPath());
+            }
 
-                var bindEndTime = new Date().getTime();
+            var bindEndTime = new Date().getTime();
 
-                var findErrorsStartTime = new Date().getTime();
+            var findErrorsStartTime = new Date().getTime();
 
-                //// type check
-                for (var i = 0, n = fileNames.length; i < n; i++) {
-                    fileName = fileNames[i];
+            //// type check
+            for (var i = 0, n = fileNames.length; i < n; i++) {
+                fileName = fileNames[i];
+                this.pullTypeChecker.typeCheckScript(this.getDocument(fileName).script, fileName, this);
+            }
 
-                    this.logger.log("Type checking " + fileName);
-                    this.pullTypeChecker.typeCheckScript(this.getDocument(fileName).script, fileName, this);
-                }
+            var findErrorsEndTime = new Date().getTime();
 
-                var findErrorsEndTime = new Date().getTime();
-
-                this.logger.log("Decl creation: " + (createDeclsEndTime - createDeclsStartTime));
-                this.logger.log("Binding: " + (bindEndTime - bindStartTime));
-                this.logger.log("    Time in findSymbol: " + time_in_findSymbol);
-                this.logger.log("Find errors: " + (findErrorsEndTime - findErrorsStartTime));
-
-                this.logger.log("Symbols created: " + pullSymbolID);
-                this.logger.log("Specialized types created: " + nSpecializationsCreated);
-                this.logger.log("Specialized signatures created: " + nSpecializedSignaturesCreated);
-                this.logger.log("Specialized members created: " + nSpecializedMembersCreated);
-            } );
+            typeCheckTime += new Date().getTime() - start;
+            this.logger.log("Number of symbols created:                " + pullSymbolID);
+            this.logger.log("Number of specialized types created:      " + nSpecializationsCreated);
+            this.logger.log("Number of specialized signatures created: " + nSpecializedSignaturesCreated);
+            this.logger.log("Decl creation:                            " + (createDeclsEndTime - createDeclsStartTime));
+            this.logger.log("Binding:                                  " + (bindEndTime - bindStartTime));
+            this.logger.log("    Time in findSymbol:                   " + time_in_findSymbol);
+            this.logger.log("Find errors:                              " + (findErrorsEndTime - findErrorsStartTime));
         }
 
         private pullUpdateScript(oldDocument: Document, newDocument: Document): void {
@@ -1535,7 +1575,7 @@ module TypeScript {
             return unit.getTopLevelDecls();
         }
 
-        public reportDiagnostics(errors: IDiagnostic[], errorReporter: TypeScript.IDignosticsReporter): void {
+        public reportDiagnostics(errors: IDiagnostic[], errorReporter: TypeScript.IDiagnosticReporter): void {
             for (var i = 0; i < errors.length; i++) {
                 errorReporter.addDiagnostic(errors[i]);
             }

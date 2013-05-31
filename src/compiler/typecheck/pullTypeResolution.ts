@@ -356,6 +356,7 @@ module TypeScript {
             var kind: PullElementKind;
             var instanceSymbol: PullSymbol = null;
             var instanceType: PullTypeSymbol = null;
+            var childSymbol: PullSymbol = null;
 
             for (var i = declPath.length - 1; i >= 0; i--) {
                 decl = declPath[i];
@@ -383,6 +384,19 @@ module TypeScript {
 
                             if (valDecl) {
                                 return valDecl.getSymbol();
+                            }
+                        }
+
+                        // search "split" exported members
+                        instanceSymbol = (<PullContainerTypeSymbol>decl.getSymbol()).getInstanceSymbol();
+
+                        if (instanceSymbol) {
+                            instanceType = instanceSymbol.getType();
+
+                            childSymbol = instanceType.findMember(symbolName, false);
+
+                            if (childSymbol && (childSymbol.getKind() & declSearchKind)) {
+                                return childSymbol;
                             }
                         }
 
@@ -612,11 +626,19 @@ module TypeScript {
 
         public getVisibleMembersFromExpression(expression: AST, enclosingDecl: PullDecl, context: PullTypeResolutionContext): PullSymbol[]{
             var prevCanUseTypeSymbol = context.canUseTypeSymbol;
+            var prevResolvingNamespaceMemberAccess = context.resolvingNamespaceMemberAccess;
             context.canUseTypeSymbol = true;
+            context.resolvingNamespaceMemberAccess = true;
             var lhs = this.resolveAST(expression, false, enclosingDecl, context).symbol;
             context.canUseTypeSymbol = prevCanUseTypeSymbol;
-            var lhsType = lhs.getType();
+            context.resolvingNamespaceMemberAccess = prevResolvingNamespaceMemberAccess;
 
+            if (context.resolvingTypeReference && (lhs.getKind() === PullElementKind.Class || lhs.getKind() === PullElementKind.Interface)) {
+                // No more sub types in these types
+                return null;
+            }
+
+            var lhsType = lhs.getType();
             if (!lhsType) {
                 return null;
             }
@@ -698,6 +720,12 @@ module TypeScript {
                         var instanceType = associatedInstance.getType();
                         var instanceMembers = instanceType.getAllMembers(declSearchKind, includePrivate);
                         members = members.concat(instanceMembers);
+                    }
+
+                    var exportedContainer = (<PullContainerTypeSymbol>lhsType).getExportAssignedContainerSymbol();
+                    if (exportedContainer) {
+                        var exportedContainerMembers = exportedContainer.getAllMembers(declSearchKind, includePrivate);
+                        members = members.concat(exportedContainerMembers);
                     }
                 }
                 // Constructor types have a "prototype" property
@@ -789,12 +817,12 @@ module TypeScript {
 
                 // Check the literal path first
                 if (!symbol) {
-                    idText = stripQuotes(originalIdText) + ".ts";
+                    idText = stripQuotes(originalIdText) + ".d.ts";
                     symbol = search(idText);
                 }
 
                 if (!symbol) {
-                    idText = stripQuotes(originalIdText) + ".d.ts";
+                    idText = stripQuotes(originalIdText) + ".ts";
                     symbol = search(idText);
                 }
 
@@ -810,12 +838,13 @@ module TypeScript {
                     var path = getRootFilePath(switchToForwardSlashes(currentFileName));
 
                     while (symbol === null && path != "") {
-                        idText = normalizePath(path + strippedIdText + ".ts");
+                        // Check for .d.ts
+                        idText = normalizePath(path + strippedIdText + ".d.ts");
                         symbol = search(idText);
 
-                        // check for .d.ts
+                        // check for .ts
                         if (symbol === null) {
-                            idText = changePathToDTS(idText);
+                            idText = normalizePath(path + strippedIdText + ".ts");
                             symbol = search(idText);
                         }
 
@@ -1613,7 +1642,7 @@ module TypeScript {
             if (!symbolAndDiagnostics) {
                 symbolAndDiagnostics = this.computeTypeReferenceSymbol(typeRef, enclosingDecl, context);
 
-                if (!symbolAndDiagnostics.symbol.isGeneric()) {
+                if (symbolAndDiagnostics.symbol && !symbolAndDiagnostics.symbol.isGeneric()) {
                     this.setSymbolAndDiagnosticsForAST(typeRef, symbolAndDiagnostics, context);
                 }
             }
@@ -1793,13 +1822,16 @@ module TypeScript {
                             typeExprSymbol = exportedTypeSymbol;
                         }
                         else {
-                            var instanceSymbol = (<PullContainerTypeSymbol>typeExprSymbol.getType()).getInstanceSymbol()
+                            typeExprSymbol = typeExprSymbol.getType();
+                            if (typeExprSymbol.isContainer()) {
+                                var instanceSymbol = (<PullContainerTypeSymbol>typeExprSymbol).getInstanceSymbol();
 
-                            if (!instanceSymbol || !PullHelpers.symbolIsEnum(instanceSymbol)) {
-                                typeExprSymbol = this.getNewErrorTypeSymbol(diagnostic);
-                            }
-                            else {
-                                typeExprSymbol = instanceSymbol.getType();
+                                if (!instanceSymbol || !PullHelpers.symbolIsEnum(instanceSymbol)) {
+                                    typeExprSymbol = this.getNewErrorTypeSymbol(diagnostic);
+                                }
+                                else {
+                                    typeExprSymbol = instanceSymbol.getType();
+                                }
                             }
                         }
                     }

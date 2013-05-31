@@ -1006,6 +1006,51 @@ module TypeScript {
             super.invalidate();
         }
 
+        public destroy() {
+            // destroy parameters
+            if (this.parameterLinks) {
+                var paramType: PullTypeSymbol;
+                
+                var sigs: PullSignatureSymbol[];
+
+                for (var i = 0; i < this.parameterLinks.length; i++) {
+                    //paramType = this.parameterLinks[i].end.getType();
+
+                    //if (paramType && (paramType.getKind() & (PullElementKind.ObjectType | PullElementKind.FunctionType)) && paramType.hasOwnCallSignatures()) {
+                    //    sigs = paramType.getCallSignatures();
+
+                    //    for (var j = 0; j < sigs.length; j++) {
+                    //        paramType.removeCallSignature(sigs[j]);
+                    //    }
+
+                    //    sigs = paramType.getConstructSignatures();
+
+                    //    for (var j = 0; j < sigs.length; j++) {
+                    //        paramType.removeCallSignature(sigs[j]);
+                    //    }
+
+                    //    sigs = paramType.getIndexSignatures();
+
+                    //    for (var j = 0; j < sigs.length; j++) {
+                    //        paramType.removeCallSignature(sigs[j]);
+                    //    }
+                    //}
+
+                    this.parameterLinks[i].end.removeAllLinks();
+                }
+            }
+
+            // destroy type parameters
+            if (this.typeParameterLinks) {
+                for (var i = 0; i < this.typeParameterLinks.length; i++) {
+                    this.typeParameterLinks[i].end.removeAllLinks();
+                }
+            }
+
+            // don't destroy the return type, just remove all links
+            this.removeAllLinks();
+        }
+
         public isStringConstantOverloadSignature() {
             if (this.stringConstantOverload === undefined) {
                 var params = this.getParameters();
@@ -1036,6 +1081,10 @@ module TypeScript {
                                        getPrettyTypeName?: boolean,
                                        candidateSignature?: PullSignatureSymbol) {
             var result: MemberName[] = [];
+            if (!signatures) {
+                return result;
+            }
+
             var len = signatures.length;
             if (!getPrettyTypeName && len > 1) {
                 shortform = false;
@@ -1272,7 +1321,12 @@ module TypeScript {
             arrayType.addOutgoingLink(this, SymbolLinkKind.ArrayOf);
         }
 
-        public addContainedByLink(containedByLink: PullSymbolLink): void {
+        public setUnresolved() {
+            this.invalidatedSpecializations = false;
+            super.setUnresolved();
+        }
+
+        public addContainedByLink(containedByLink: PullSymbolLink) {
             if (!this.containedByLinks) {
                 this.containedByLinks = [];
             }
@@ -1522,8 +1576,31 @@ module TypeScript {
             }
 
             var specializations = this.getKnownSpecializations();
+            var signatures: PullSignatureSymbol[] = null;
 
             for (var i = 0; i < specializations.length; i++) {
+
+                signatures = specializations[i].getCallSignatures();
+
+                for (var j = 0; j < signatures.length; j++) {
+                    specializations[i].removeCallSignature(signatures[j], false);
+                }
+
+                signatures = specializations[i].getConstructSignatures();
+
+                for (var j = 0; j < signatures.length; j++) {
+                    specializations[i].removeConstructSignature(signatures[j], false);
+                }
+
+                signatures = specializations[i].getIndexSignatures();
+
+                for (var j = 0; j < signatures.length; j++) {
+                    specializations[i].removeIndexSignature(signatures[j], false);
+                }
+
+                specializations[i].recomputeCallSignatures();
+                specializations[i].recomputeConstructSignatures();
+                specializations[i].recomputeIndexSignatures();
                 specializations[i].invalidate();
             }
 
@@ -1722,6 +1799,7 @@ module TypeScript {
                     if (signature === this.callSignatureLinks[i].end) {
                         signatureLink = this.callSignatureLinks[i];
                         this.removeOutgoingLink(signatureLink);
+                        signature.destroy();
                         break;
                     }
                 }
@@ -2075,8 +2153,7 @@ module TypeScript {
             this.memberTypeParameterNameCache = null;
         }
 
-        public setResolved(): void {
-            this.invalidatedSpecializations = true;
+        public setResolved() {
             super.setResolved();
         }
 
@@ -3023,14 +3100,17 @@ module TypeScript {
         var prevInSpecialization = context.inSpecialization;
         context.inSpecialization = true;
 
-        nSpecializationsCreated++;
+        if (!newType) {
+            nSpecializationsCreated++;
 
-        newType = typeToSpecialize.isClass() ? new PullTypeSymbol(typeToSpecialize.getName(), PullElementKind.Class) :
-                    isArray ? new PullArrayTypeSymbol() :
-                    typeToSpecialize.isTypeParameter() ? // watch out for replacing one tyvar with another
-                        new PullTypeVariableSymbol(typeToSpecialize.getName(), (<PullTypeParameterSymbol>typeToSpecialize).isFunctionTypeParameter()) :
-                        new PullTypeSymbol(typeToSpecialize.getName(), typeToSpecialize.getKind());
-        newType.setRootSymbol(rootType);
+            newType = typeToSpecialize.isClass() ? new PullTypeSymbol(typeToSpecialize.getName(), PullElementKind.Class) :
+                        isArray ? new PullArrayTypeSymbol() :
+                        typeToSpecialize.isTypeParameter() ? // watch out for replacing one tyvar with another
+                            new PullTypeVariableSymbol(typeToSpecialize.getName(), (<PullTypeParameterSymbol>typeToSpecialize).isFunctionTypeParameter()) :
+                            new PullTypeSymbol(typeToSpecialize.getName(), typeToSpecialize.getKind());
+            newType.setRootSymbol(rootType);
+        }
+
 
         newType.setIsBeingSpecialized();
 
@@ -3118,6 +3198,7 @@ module TypeScript {
 
         // specialize call signatures
         var newSignature: PullSignatureSymbol;
+        var placeHolderSignature: PullSignatureSymbol;
         var signature: PullSignatureSymbol;
 
         var decl: PullDecl = null;
@@ -3168,8 +3249,14 @@ module TypeScript {
 
                 signature.setIsBeingSpecialized();
                 newSignature.setRootSymbol(signature);
+                placeHolderSignature = newSignature;
                 newSignature = specializeSignature(newSignature, true, typeReplacementMap, null, resolver, newTypeDecl, context);
                 signature.setIsSpecialized();
+
+                if (newSignature != placeHolderSignature) {
+                    newSignature.setRootSymbol(signature);
+                    placeHolderSignature.destroy();
+                }
 
                 context.popTypeSpecializationCache();
 
@@ -3235,8 +3322,14 @@ module TypeScript {
 
                 signature.setIsBeingSpecialized();
                 newSignature.setRootSymbol(signature);
+                placeHolderSignature = newSignature;
                 newSignature = specializeSignature(newSignature, true, typeReplacementMap, null, resolver, newTypeDecl, context);
                 signature.setIsSpecialized();
+
+                if (newSignature != placeHolderSignature) {
+                    newSignature.setRootSymbol(signature);
+                    placeHolderSignature.destroy();
+                }
 
                 context.popTypeSpecializationCache();
 
@@ -3302,8 +3395,14 @@ module TypeScript {
 
                 signature.setIsBeingSpecialized();
                 newSignature.setRootSymbol(signature);
+                placeHolderSignature = newSignature;
                 newSignature = specializeSignature(newSignature, true, typeReplacementMap, null, resolver, newTypeDecl, context);
                 signature.setIsSpecialized();
+
+                if (newSignature != placeHolderSignature) {
+                    newSignature.setRootSymbol(signature);
+                    placeHolderSignature.destroy();
+                }
 
                 context.popTypeSpecializationCache();
 
