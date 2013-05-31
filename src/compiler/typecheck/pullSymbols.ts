@@ -1274,7 +1274,7 @@ module TypeScript {
 
             return false;
         }
-        public isFunction(): boolean { return (this.getKind() & PullElementKind.SomeFunction) != 0; }
+        public isFunction(): boolean { return (this.getKind() & PullElementKind.FunctionType) != 0; }
         public isConstructor(): boolean { return this.getKind() == PullElementKind.ConstructorType; }
         public isTypeParameter(): boolean { return false; }
         public isTypeVariable(): boolean { return false; }

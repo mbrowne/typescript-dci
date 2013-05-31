@@ -539,7 +539,7 @@ module TypeScript {
             this._rootSignature = rootSignature;
             this._typeArguments = typeArguments;
 
-            this._rootSignature.addSpecialization(this, typeArguments);
+            //this._rootSignature.addSpecialization(this, typeArguments);
             nSpecializedSignaturesCreated++;
         }
 
