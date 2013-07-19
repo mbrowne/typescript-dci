@@ -1,4 +1,4 @@
-﻿//﻿
+//
 // Copyright (c) Microsoft Corporation.  All rights reserved.
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,10 +17,10 @@
 
 module Tools {
     export interface IWalkContext {
-        goChildren: bool;
-        goNextSibling: bool;
+        goChildren: boolean;
+        goNextSibling: boolean;
         // visit siblings in reverse execution order
-        reverseSiblings: bool;
+        reverseSiblings: boolean;
     }
 
     export class BaseWalkContext implements IWalkContext {

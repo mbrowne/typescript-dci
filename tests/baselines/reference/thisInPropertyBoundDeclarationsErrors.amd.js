@@ -1,6 +1,5 @@
 var B = (function () {
-    function B() {        var _this = this;
-
+    function B() {
         this.prop1 = this;
         this.prop2 = function () {
             return _this;
@@ -8,7 +7,6 @@ var B = (function () {
         this.prop3 = function () {
             return function () {
                 return function () {
-                    var _this = this;
                     return function () {
                         return _this;
                     };
@@ -18,7 +16,6 @@ var B = (function () {
         this.prop4 = '  ' + function () {
         } + ' ' + function () {
             return function () {
-                var _this = this;
                 return function () {
                     return _this;
                 };
@@ -30,7 +27,6 @@ var B = (function () {
             }
         };
         this.prop6 = function () {
-            var _this = this;
             return {
                 a: function () {
                     return _this;

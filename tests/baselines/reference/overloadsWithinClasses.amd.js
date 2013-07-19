@@ -1,19 +1,25 @@
 var foo = (function () {
-    function foo() { }
-    foo.fnOverload = function fnOverload() {
+    function foo() {
+    }
+    foo.fnOverload = function () {
     };
-    foo.fnOverload = function fnOverload(foo) {
+
+    foo.fnOverload = function (foo) {
     };
     return foo;
 })();
+
 var bar = (function () {
-    function bar() { }
-    bar.fnOverload = function fnOverload(foo) {
+    function bar() {
+    }
+    bar.fnOverload = function (foo) {
     };
     return bar;
 })();
+
 var X = (function () {
-    function X() { }
+    function X() {
+    }
     X.prototype.attr = function (first, second) {
     };
     return X;

@@ -1,15 +1,15 @@
 var Foo = (function () {
-    function Foo() { }
+    function Foo() {
+    }
     return Foo;
 })();
+
 var Bar = (function () {
-    function Bar() { }
+    function Bar() {
+    }
     return Bar;
 })();
-;
+
 function Goo() {
-    return {
-        a: 1,
-        b: 2
-    };
+    return { a: 1, b: 2 };
 }

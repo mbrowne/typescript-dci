@@ -1,9 +1,11 @@
 var Tools;
 (function (Tools) {
     var NullLogger = (function () {
-        function NullLogger() { }
+        function NullLogger() {
+        }
         return NullLogger;
     })();
-    Tools.NullLogger = NullLogger;    
+    Tools.NullLogger = NullLogger;
 })(Tools || (Tools = {}));
+
 var logger = Tools.NullLogger();

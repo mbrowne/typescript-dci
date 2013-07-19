@@ -2,5 +2,4 @@ debugger;
 
 function foo() {
     debugger;
-
 }

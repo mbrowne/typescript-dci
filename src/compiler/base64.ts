@@ -1,4 +1,4 @@
-﻿//﻿
+//
 // Copyright (c) Microsoft Corporation.  All rights reserved.
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,14 +18,14 @@ module TypeScript {
         static encodedValues = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
         static encode(inValue: number) {
             if (inValue < 64) {
-                return encodedValues.charAt(inValue);
+                return Base64Format.encodedValues.charAt(inValue);
             }
             throw TypeError(inValue + ": not a 64 based value");
         }
 
         static decodeChar(inChar: string) {
             if (inChar.length === 1) {
-                return encodedValues.indexOf(inChar);
+                return Base64Format.encodedValues.indexOf(inChar);
             } else {
                 throw TypeError('"' + inChar + '" must have length 1');
             }
@@ -78,7 +78,7 @@ module TypeScript {
                     result = result | ((byte & 31) << shift); // 11111
                 }
 
-                shift += (i == 0) ? 4 : 5;
+                shift += (i === 0) ? 4 : 5;
 
                 if ((byte & 32) === 32) {
                     // Continue

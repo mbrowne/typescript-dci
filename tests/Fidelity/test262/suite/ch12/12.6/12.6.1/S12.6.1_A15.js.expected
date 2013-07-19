@@ -1,0 +1,283 @@
+{
+    "isDeclaration": false,
+    "languageVersion": "EcmaScript5",
+    "parseOptions": {
+        "allowAutomaticSemicolonInsertion": true,
+        "allowModuleKeywordInExternalModuleReference": true
+    },
+    "diagnostics": [
+        {
+            "start": 412,
+            "length": 1,
+            "diagnosticCode": "_0_expected",
+            "arguments": [
+                ":"
+            ]
+        }
+    ],
+    "sourceUnit": {
+        "kind": "SourceUnit",
+        "fullWidth": 499,
+        "isIncrementallyUnusable": true,
+        "moduleElements": [
+            {
+                "kind": "DoStatement",
+                "fullWidth": 416,
+                "isIncrementallyUnusable": true,
+                "doKeyword": {
+                    "kind": "DoKeyword",
+                    "width": 2,
+                    "fullWidth": 395,
+                    "text": "do",
+                    "value": "do",
+                    "valueText": "do",
+                    "hasLeadingTrivia": true,
+                    "hasLeadingComment": true,
+                    "hasLeadingNewLine": true,
+                    "leadingTrivia": [
+                        {
+                            "kind": "SingleLineCommentTrivia",
+                            "text": "// Copyright 2009 the Sputnik authors.  All rights reserved."
+                        },
+                        {
+                            "kind": "NewLineTrivia",
+                            "text": "\n"
+                        },
+                        {
+                            "kind": "SingleLineCommentTrivia",
+                            "text": "// This code is governed by the BSD license found in the LICENSE file."
+                        },
+                        {
+                            "kind": "NewLineTrivia",
+                            "text": "\n"
+                        },
+                        {
+                            "kind": "NewLineTrivia",
+                            "text": "\n"
+                        },
+                        {
+                            "kind": "MultiLineCommentTrivia",
+                            "text": "/**\n * Block within a \"do-while\" Expression is not allowed\n *\n * @path ch12/12.6/12.6.1/S12.6.1_A15.js\n * @description Using \"{0}\" Block as an Expression\n * @negative\n */"
+                        },
+                        {
+                            "kind": "NewLineTrivia",
+                            "text": "\n"
+                        },
+                        {
+                            "kind": "NewLineTrivia",
+                            "text": "\n"
+                        },
+                        {
+                            "kind": "SingleLineCommentTrivia",
+                            "text": "//////////////////////////////////////////////////////////////////////////////"
+                        },
+                        {
+                            "kind": "NewLineTrivia",
+                            "text": "\n"
+                        },
+                        {
+                            "kind": "SingleLineCommentTrivia",
+                            "text": "//CHECK#"
+                        },
+                        {
+                            "kind": "NewLineTrivia",
+                            "text": "\n"
+                        }
+                    ]
+                },
+                "statement": {
+                    "kind": "Block",
+                    "fullWidth": 9,
+                    "openBraceToken": {
+                        "kind": "OpenBraceToken",
+                        "width": 1,
+                        "fullWidth": 2,
+                        "text": "{",
+                        "value": "{",
+                        "valueText": "{",
+                        "hasTrailingTrivia": true,
+                        "hasTrailingNewLine": true,
+                        "trailingTrivia": [
+                            {
+                                "kind": "NewLineTrivia",
+                                "text": "\n"
+                            }
+                        ]
+                    },
+                    "statements": [
+                        {
+                            "kind": "EmptyStatement",
+                            "fullWidth": 6,
+                            "semicolonToken": {
+                                "kind": "SemicolonToken",
+                                "width": 1,
+                                "fullWidth": 6,
+                                "text": ";",
+                                "value": ";",
+                                "valueText": ";",
+                                "hasLeadingTrivia": true,
+                                "hasTrailingTrivia": true,
+                                "hasTrailingNewLine": true,
+                                "leadingTrivia": [
+                                    {
+                                        "kind": "WhitespaceTrivia",
+                                        "text": "    "
+                                    }
+                                ],
+                                "trailingTrivia": [
+                                    {
+                                        "kind": "NewLineTrivia",
+                                        "text": "\n"
+                                    }
+                                ]
+                            }
+                        }
+                    ],
+                    "closeBraceToken": {
+                        "kind": "CloseBraceToken",
+                        "width": 1,
+                        "text": "}",
+                        "value": "}",
+                        "valueText": "}"
+                    }
+                },
+                "whileKeyword": {
+                    "kind": "WhileKeyword",
+                    "width": 5,
+                    "text": "while",
+                    "value": "while",
+                    "valueText": "while"
+                },
+                "openParenToken": {
+                    "kind": "OpenParenToken",
+                    "width": 1,
+                    "text": "(",
+                    "value": "(",
+                    "valueText": "("
+                },
+                "condition": {
+                    "kind": "ObjectLiteralExpression",
+                    "fullWidth": 3,
+                    "isIncrementallyUnusable": true,
+                    "openBraceToken": {
+                        "kind": "OpenBraceToken",
+                        "width": 1,
+                        "text": "{",
+                        "value": "{",
+                        "valueText": "{"
+                    },
+                    "propertyAssignments": [
+                        {
+                            "kind": "SimplePropertyAssignment",
+                            "fullWidth": 1,
+                            "isIncrementallyUnusable": true,
+                            "propertyName": {
+                                "kind": "NumericLiteral",
+                                "width": 1,
+                                "text": "0",
+                                "value": 0,
+                                "valueText": "0"
+                            },
+                            "colonToken": {
+                                "kind": "ColonToken",
+                                "width": 0,
+                                "text": ""
+                            },
+                            "expression": {
+                                "kind": "IdentifierName",
+                                "width": 0,
+                                "text": ""
+                            }
+                        }
+                    ],
+                    "closeBraceToken": {
+                        "kind": "CloseBraceToken",
+                        "width": 1,
+                        "text": "}",
+                        "value": "}",
+                        "valueText": "}"
+                    }
+                },
+                "closeParenToken": {
+                    "kind": "CloseParenToken",
+                    "width": 1,
+                    "text": ")",
+                    "value": ")",
+                    "valueText": ")"
+                },
+                "semicolonToken": {
+                    "kind": "SemicolonToken",
+                    "width": 1,
+                    "fullWidth": 2,
+                    "text": ";",
+                    "value": ";",
+                    "valueText": ";",
+                    "hasTrailingTrivia": true,
+                    "hasTrailingNewLine": true,
+                    "trailingTrivia": [
+                        {
+                            "kind": "NewLineTrivia",
+                            "text": "\n"
+                        }
+                    ]
+                }
+            }
+        ],
+        "endOfFileToken": {
+            "kind": "EndOfFileToken",
+            "width": 0,
+            "fullWidth": 83,
+            "text": "",
+            "hasLeadingTrivia": true,
+            "hasLeadingComment": true,
+            "hasLeadingNewLine": true,
+            "leadingTrivia": [
+                {
+                    "kind": "SingleLineCommentTrivia",
+                    "text": "//"
+                },
+                {
+                    "kind": "NewLineTrivia",
+                    "text": "\n"
+                },
+                {
+                    "kind": "SingleLineCommentTrivia",
+                    "text": "//////////////////////////////////////////////////////////////////////////////"
+                },
+                {
+                    "kind": "NewLineTrivia",
+                    "text": "\n"
+                },
+                {
+                    "kind": "NewLineTrivia",
+                    "text": "\n"
+                }
+            ]
+        }
+    },
+    "lineMap": {
+        "lineStarts": [
+            0,
+            61,
+            132,
+            133,
+            137,
+            192,
+            195,
+            236,
+            287,
+            300,
+            304,
+            305,
+            384,
+            393,
+            397,
+            403,
+            416,
+            419,
+            498,
+            499
+        ],
+        "length": 499
+    }
+}

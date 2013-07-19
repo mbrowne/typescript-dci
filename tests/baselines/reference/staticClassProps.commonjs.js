@@ -1,6 +1,8 @@
 var C = (function () {
-    function C() { }
+    function C() {
+    }
     C.prototype.foo = function () {
     };
+    C.z = 1;
     return C;
 })();

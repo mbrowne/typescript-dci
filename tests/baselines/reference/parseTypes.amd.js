@@ -5,9 +5,11 @@ var w = null;
 function f() {
     return 3;
 }
+;
 function g(s) {
-    return true;
+    true;
 }
+;
 y = f;
 y = g;
 x = g;

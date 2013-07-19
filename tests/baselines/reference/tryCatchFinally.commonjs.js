@@ -1,10 +1,12 @@
 try  {
 } catch (e) {
-}finally {
+} finally {
 }
+
 try  {
 } catch (e) {
 }
+
 try  {
-}finally {
+} finally {
 }

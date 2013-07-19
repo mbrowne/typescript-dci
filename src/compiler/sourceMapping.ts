@@ -1,4 +1,4 @@
-﻿//﻿
+//
 // Copyright (c) Microsoft Corporation.  All rights reserved.
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,7 +14,6 @@
 //
 
 ///<reference path='typescript.ts' />
-///<reference path='..\harness\external\json2Stringify.ts' />
 
 module TypeScript {
     export class SourceMapPosition {
@@ -43,8 +42,12 @@ module TypeScript {
         public jsFileName: string;
         public tsFileName: string;
 
-        constructor(tsFileName: string, jsFileName: string, public jsFile: ITextWriter, public sourceMapOut: ITextWriter,
-            public errorReporter: ErrorReporter, emitFullPathOfSourceMap: bool) {
+        constructor(tsFileName: string,
+                    jsFileName: string,
+                    public sourceMapFileName: string,
+                    public jsFile: ITextWriter,
+                    public sourceMapOut: ITextWriter,
+                    emitFullPathOfSourceMap: boolean) {
             this.currentMappings.push(this.sourceMappings);
 
             jsFileName = switchToForwardSlashes(jsFileName);
@@ -54,7 +57,7 @@ module TypeScript {
             var fixedPath = jsFileName.substring(0, removalIndex);
 
             if (emitFullPathOfSourceMap) {
-                if (jsFileName.indexOf("://") == -1) {
+                if (jsFileName.indexOf("://") === -1) {
                     jsFileName = "file:///" + jsFileName;
                 }
                 this.jsFileName = jsFileName;
@@ -63,8 +66,9 @@ module TypeScript {
             this.tsFileName = TypeScript.getRelativePathToFixedPath(fixedPath, tsFileName);
         }
         
-        // Generate source mapping
-        static EmitSourceMapping(allSourceMappers: SourceMapper[]) {
+        // Generate source mapping.
+        // Creating files can cause exceptions, they will be caught higher up in TypeScriptCompiler.emit
+        static emitSourceMapping(allSourceMappers: SourceMapper[]): void {
             // At this point we know that there is at least one source mapper present.
             // If there are multiple source mappers, all will correspond to same map file but different sources
 
@@ -101,9 +105,9 @@ module TypeScript {
                 }
 
                 var recordSourceMapping = (mappedPosition: SourceMapPosition, nameIndex: number) => {
-                    if (recordedPosition != null &&
-                        recordedPosition.emittedColumn == mappedPosition.emittedColumn &&
-                        recordedPosition.emittedLine == mappedPosition.emittedLine) {
+                    if (recordedPosition !== null &&
+                        recordedPosition.emittedColumn === mappedPosition.emittedColumn &&
+                        recordedPosition.emittedLine === mappedPosition.emittedLine) {
                         // This position is already recorded
                         return;
                     }
@@ -157,12 +161,12 @@ module TypeScript {
                     }
                 }
 
-                recordSourceMappingSiblings(sourceMapper.sourceMappings, -1);
+                recordSourceMappingSiblings(sourceMapper.sourceMappings);
                 namesCount = namesCount + sourceMapper.names.length;
             }
 
             // Write the actual map file
-            sourceMapOut.Write(JSON2.stringify({
+            sourceMapOut.Write(JSON.stringify({
                 version: 3,
                 file: sourceMapper.jsFileName,
                 sources: tsFiles,
@@ -170,13 +174,8 @@ module TypeScript {
                 mappings: mappingsString
             }));
 
-            // Done, close the file
-            try {
-                // Closing files could result in exceptions, report them if they occur
-                sourceMapOut.Close();
-            } catch (ex) {
-                sourceMapper.errorReporter.emitterError(null, ex.message);
-            }
+            // Closing files could result in exceptions, report them if they occur
+            sourceMapOut.Close();
         }
     }
 }

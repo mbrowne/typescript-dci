@@ -1,9 +1,22 @@
 class Base { 
-    constructor (x: string) {}
+    constructor(x: any) {}
 }
 
 class Foo extends Base {
-    constructor (public x: string) {
-        super(this.x);
+    constructor() {
+        super(this); // no error
+    }
+}
+
+class Foo2 extends Base {
+    public p = 0;
+    constructor() {
+        super(this); // error
+    }
+}
+
+class Foo3 extends Base {
+    constructor(public p) {
+        super(this); // error
     }
 }

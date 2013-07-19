@@ -1,2 +1,1 @@
-// 0.ts  line 1 col 7: Expected '{'
-// 0.ts  line 1 col 16: Expected '}'
+0.ts line 1 col 8: error TS1060: Module name cannot be 'string'.

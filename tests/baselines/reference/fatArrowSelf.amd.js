@@ -1,13 +1,15 @@
 var Events;
 (function (Events) {
     var EventEmitter = (function () {
-        function EventEmitter() { }
+        function EventEmitter() {
+        }
         EventEmitter.prototype.addListener = function (type, listener) {
         };
         return EventEmitter;
     })();
-    Events.EventEmitter = EventEmitter;    
+    Events.EventEmitter = EventEmitter;
 })(Events || (Events = {}));
+
 var Consumer;
 (function (Consumer) {
     var EventEmitterConsummer = (function () {
@@ -20,8 +22,9 @@ var Consumer;
                 _this.changed();
             });
         };
+
         EventEmitterConsummer.prototype.changed = function () {
         };
         return EventEmitterConsummer;
-    })();    
+    })();
 })(Consumer || (Consumer = {}));

@@ -1,13 +1,13 @@
 // @declaration: true
 interface a0 {
     (): string;
-    (a, b, c?: string, ): number;
+    (a, b, c?: string): number;
     
     new (): string;
     new (s: string);
 
     [n: number]: ()=>string;
-    [s: string]: ()=>string;
+    [s: string]: any;
 
     p1;
     p2: string;
@@ -23,7 +23,7 @@ interface a0 {
 
 
 interface a1 {
-    [n: number];
+    [n: number]: number;
 }
 
 interface a2 {

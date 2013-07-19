@@ -1,4 +1,4 @@
-﻿//﻿
+//
 // Copyright (c) Microsoft Corporation.  All rights reserved.
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,71 +15,27 @@
 ///<reference path='typescriptServices.ts' />
 
 module Services {
-    //
-    // Cache known state of scripts information from host across language service calls.
-    // Used to help with incremental behavior of language service.
-    //
-    export class ScriptMap {
-        private map: TypeScript.StringHashTable;
-
-        constructor() {
-            // script id => ScriptMapEntry
-            this.map = new TypeScript.StringHashTable();
-        }
-
-        public setEntry(id: string, isResident: bool, version: number) {
-            var entry: ScriptMapEntry = this.map.lookup(id);
-            if (entry == null) {
-                entry = new ScriptMapEntry(isResident, version);
-                this.map.add(id, entry);
-            }
-            else {
-                entry.isResident = isResident;
-                entry.version = version;
-            }
-        }
-
-        public getEntry(id: string): ScriptMapEntry {
-            return this.map.lookup(id);
-        }
-    }
-
-    export class ScriptMapEntry {
-        constructor(public isResident: bool, public version: number) {
-        }
-    }
 
     //
     // An cache entry in HostCache 
     //
     export class HostCacheEntry {
-        private _cachedSourceText: TypeScript.ISourceText;
-        private _sourceText: TypeScript.ISourceText;
+        private _sourceText: TypeScript.IScriptSnapshot;
 
         constructor(
+            private fileName: string,
             private host: ILanguageServiceHost,
-            public hostUnitIndex: number,
-            public id: string,
             public version: number,
-            public isResident: bool) {
-            this._cachedSourceText = null;
+            public isOpen: boolean) {
             this._sourceText = null;
         }
-
-
-        public getSourceText(cached: bool): TypeScript.ISourceText {
-            if (cached) {
-                if (this._cachedSourceText === null) {
-                    this._cachedSourceText = new CachedSourceTextAdapter(this.host, this.hostUnitIndex);
-                }
-                return this._cachedSourceText;
+        
+        public getScriptSnapshot(): TypeScript.IScriptSnapshot {
+            if (this._sourceText === null) {
+                this._sourceText = this.host.getScriptSnapshot(this.fileName);
             }
-            else {
-                if (this._sourceText === null) {
-                    this._sourceText = new SourceTextAdapter(this.host, this.hostUnitIndex);
-                }
-                return this._sourceText;
-            }
+
+            return this._sourceText;
         }
     }
 
@@ -89,332 +45,94 @@ module Services {
     // set of scripts handled by the host changes.
     //
     export class HostCache {
-
-        private map: TypeScript.StringHashTable;
-        private array: HostCacheEntry[];
+        private map: TypeScript.StringHashTable<HostCacheEntry>;
 
         constructor(public host: ILanguageServiceHost) {
-
             // script id => script index
-            this.map = new TypeScript.StringHashTable();
-            // script index => HostCacheEntry
-            this.array = [];
+            this.map = new TypeScript.StringHashTable<HostCacheEntry>();
 
-            this.init();
-        }
-
-        private init() {
-            for (var i = 0, len = this.host.getScriptCount() ; i < len; i++) {
-                var scriptId = this.host.getScriptId(i);
-                this.map.add(scriptId, i);
-                this.array[i] = new HostCacheEntry(this.host, i, scriptId, this.host.getScriptVersion(i), this.host.getScriptIsResident(i));
+            var fileNames = this.host.getScriptFileNames();
+            for (var i = 0, n = fileNames.length; i < n; i++) {
+                var fileName = fileNames[i];
+                this.map.add(fileName, new HostCacheEntry(
+                    fileName, this.host, this.host.getScriptVersion(fileName), this.host.getScriptIsOpen(fileName)));
             }
         }
 
-        public count() {
-            return this.map.count();
+        public contains(fileName: string): boolean {
+            return this.map.lookup(fileName) !== null;
         }
 
-        public getUnitIndex(scriptId: string): number {
-            var result: number = this.map.lookup(scriptId);
-            if (result == null)
-                return -1;
-            return result;
+        public getFileNames(): string[]{
+            return this.map.getAllKeys();
         }
 
-        public getVersion(scriptIndex: number): number {
-            return this.array[scriptIndex].version;
+        public getVersion(fileName: string): number {
+            return this.map.lookup(fileName).version;
         }
 
-        public getIsResident(scriptIndex: number): bool {
-            return this.array[scriptIndex].isResident;
+        public isOpen(fileName: string): boolean {
+            return this.map.lookup(fileName).isOpen;
         }
 
-        public getScriptId(scriptIndex: number): string {
-            return this.array[scriptIndex].id;
-        }
-
-        public getSourceText(scriptIndex: number, cached: bool = false): TypeScript.ISourceText {
-            return this.array[scriptIndex].getSourceText(cached);
-        }
-    }
-
-    //
-    // Cache compiler instance mapping from filename to unitindex.
-    // A new cache instance should be created whenever the set of scripts
-    // passed to the compiler changes. 
-    //
-    export class CompilerCache {
-
-        private map: TypeScript.StringHashTable;
-
-        constructor(public compiler: TypeScript.TypeScriptCompiler) {
-
-            // script id => compiler unit index
-            this.map = new TypeScript.StringHashTable();
-
-            this.init();
-        }
-
-        private init() {
-            for (var i = 0, len = this.compiler.units.length; i < len; i++) {
-                this.map.add(this.compiler.units[i].filename, i);
-            }
-        }
-
-        public getUnitIndex(scriptId: string): number {
-            var result: number = this.map.lookup(scriptId);
-            if (result == null)
-                return -1;
-            return result;
-        }
-    }
-
-    export class UnitErrors {
-
-        public parseErrors: TypeScript.ErrorEntry[];
-        public typeCheckErrors: TypeScript.ErrorEntry[];
-
-        constructor() {
-            this.parseErrors = [];
-            this.typeCheckErrors = [];
-        }
-    }
-
-    export class CompilerErrorCollector {
-
-        private parseMode: bool;
-        public fileMap: UnitErrors[];
-
-        constructor(public logger: TypeScript.ILogger) {
-            this.parseMode = false;
-            this.fileMap = [];
-        }
-
-        public startParsing(unitIndex: number) {
-            //logger.log("Start parsing unit " + unitIndex);
-            this.parseMode = true;
-            var errors = this.fileMap[unitIndex];
-            if (errors !== undefined) {
-                errors.parseErrors.length = 0;
-            }
-        }
-
-        public startTypeChecking() {
-            //logger.log("Start type checking");
-
-            this.parseMode = false;
-            for (var i = 0; i < this.fileMap.length; i++) {
-                var errors = this.fileMap[i];
-                if (errors !== undefined) {
-                    errors.typeCheckErrors.length = 0;
-                }
-            }
-        }
-
-        public reportError(pos: number, len: number, message: string, unitIndex: number) {
-            //logger.log("Compiler reported error in unit index " + unitIndex + " at span(" + pos + ", " + (pos + len) + "): " + message + " (parseMode=" + parseMode + ")");
-
-            var entry = new TypeScript.ErrorEntry(unitIndex, pos, pos + len, message);
-            var unitErrors = this.fileMap[unitIndex];
-            if (unitErrors == undefined) {
-                unitErrors = new UnitErrors();
-                this.fileMap[unitIndex] = unitErrors;
-            }
-
-            if (this.parseMode) {
-                unitErrors.parseErrors.push(entry);
-            }
-            else {
-                unitErrors.typeCheckErrors.push(entry);
-            }
-        }
-    }
-
-    class TextWriter implements ITextWriter {
-        public text: string;
-        constructor(public name: string, public useUTF8encoding: bool) {
-            this.text = "";
-        }
-
-        public Write(s) {
-            this.text += s;
-        }
-
-        public WriteLine(s) {
-            this.text += s + '\n';
-        }
-
-        public Close() {
+        public getScriptSnapshot(fileName: string): TypeScript.IScriptSnapshot {
+            return this.map.lookup(fileName).getScriptSnapshot();
         }
     }
 
     export class CompilerState {
+        private logger: TypeScript.ILogger;
+        private diagnostics: ICompilerDiagnostics;
 
-        public logger: TypeScript.ILogger;
         //
         // State related to compiler instance
         //
-        private compiler: TypeScript.TypeScriptCompiler;
-        private errorCollector: CompilerErrorCollector;
-        private unitIndexMap: number[];
-        private scriptMap: ScriptMap;
-        private hostCache: HostCache;
-        private compilerCache: CompilerCache;
-        private symbolTree: SymbolTree;
-        private compilationSettings: TypeScript.CompilationSettings;
+        private compiler: TypeScript.TypeScriptCompiler = null;
+        private hostCache: HostCache = null;
+        private _compilationSettings: TypeScript.CompilationSettings = null;
 
-        constructor(public host: ILanguageServiceHost) {
+        constructor(private host: ILanguageServiceHost) {
             this.logger = this.host;
-            //
-            // State related to compiler instance
-            //
-            this.compiler = null;
-            this.errorCollector = null;
-            this.unitIndexMap = []; // Map from compiler unit index to host unitindex
-            this.scriptMap = null; // Map from filename to FileMapEntry
 
             //
-            // State recomputed at every "refresh" call (performance)
+            // Object for logging user edits into Documents/Diagnostics.txt
             //
-            this.hostCache = null;
-            this.compilerCache = null;
-            this.symbolTree = null;
-            this.compilationSettings = null;
+            this.diagnostics = new CompilerDiagnostics(host);
         }
 
-        public getCompilationSettings() {
-            return this.compilationSettings;
+        public compilationSettings() {
+            return this._compilationSettings;
         }
 
-        private setUnitMapping(unitIndex: number, hostUnitIndex: number) {
-            this.scriptMap.setEntry(this.hostCache.getScriptId(hostUnitIndex), this.hostCache.getIsResident(hostUnitIndex), this.hostCache.getVersion(hostUnitIndex));
-            this.setUnitIndexMapping(unitIndex, hostUnitIndex);
+        public getFileNames(): string[] {
+            return this.compiler.fileNameToDocument.getAllKeys();
         }
 
-        private setUnitIndexMapping(unitIndex: number, hostUnitIndex: number) {
-            this.unitIndexMap[unitIndex] = hostUnitIndex;
-        }
-
-        private onTypeCheckStarting(): void {
-            this.errorCollector.startTypeChecking();
-            this.symbolTree = new SymbolTree(this);
-        }
-
-        public getSymbolTree(): ISymbolTree {
-            return this.symbolTree;
-        }
-
-        public mapToHostUnitIndex(unitIndex: number): number {
-            return this.unitIndexMap[unitIndex];
-        }
-
-        public anyType() {
-            return this.compiler.typeFlow.anyType;
-        }
-
-        public getScriptCount() {
-            return this.compiler.scripts.members.length;
-        }
-
-        public getScript(index: number): TypeScript.Script {
-            return <TypeScript.Script>this.compiler.scripts.members[index];
+        public getScript(fileName: string): TypeScript.Script {
+            return this.compiler.getDocument(fileName).script;
         }
 
         public getScripts(): TypeScript.Script[] {
-            return <TypeScript.Script[]>this.compiler.scripts.members;
-        }
-
-        public getUnitIndex(fileName: string) {
-            return this.compilerCache.getUnitIndex(fileName);
+            return this.compiler.getScripts();
         }
 
         public getScriptVersion(fileName: string) {
-            return this.hostCache.getVersion(this.hostCache.getUnitIndex(fileName));
+            return this.hostCache.getVersion(fileName);
         }
 
-        private addCompilerUnit(compiler: TypeScript.TypeScriptCompiler, hostUnitIndex: number) {
-
-            var newUnitIndex = compiler.units.length;
-            this.errorCollector.startParsing(newUnitIndex);
-
-            //Note: We need to call "_setUnitMapping" _before_ calling into the compiler,
-            //      in case the compiler fails (i.e. throws an exception). This is due to the way
-            //      we recover from those failure (we still report errors to the host, 
-            //      and we need unit mapping info to do that correctly.
-            this.setUnitMapping(newUnitIndex, hostUnitIndex);
-
-            var newScript = compiler.addSourceUnit(this.hostCache.getSourceText(hostUnitIndex), this.hostCache.getScriptId(hostUnitIndex), this.hostCache.getIsResident(hostUnitIndex));
+        public getSemanticInfoChain() {
+            return this.compiler.semanticInfoChain;
         }
 
-        private updateCompilerUnit(compiler: TypeScript.TypeScriptCompiler, hostUnitIndex: number, unitIndex: number): TypeScript.UpdateUnitResult {
-            var scriptId = this.hostCache.getScriptId(hostUnitIndex);
-
-            //Note: We need to call "_setUnitIndexMapping" _before_ calling into the compiler,
-            //      in case the compiler fails (i.e. throws an exception). This is due to the way
-            //      we recover from those failure (we still report errors to the host, 
-            //      and we need unit mapping info to do that correctly.
-            this.setUnitIndexMapping(unitIndex, hostUnitIndex);
-
-            var previousEntry = this.scriptMap.getEntry(scriptId);
-
-            //
-            // If file is resident, no update for sure
-            //
-            var isResident = this.hostCache.getIsResident(hostUnitIndex);
-            if (isResident) {
-                //logger.log("Resident unit are always unchanged (until they become resident): " + unitIndex + "-" + fileName);
-                return TypeScript.UpdateUnitResult.noEdits(unitIndex); // not updated
-            }
-
-            //
-            // If file version is the same, assume no update
-            //
-            var version = this.hostCache.getVersion(hostUnitIndex);
-            if (previousEntry.version === version) {
-                //logger.log("Assumed unchanged unit: " + unitIndex + "-"+ fileName);
-                return TypeScript.UpdateUnitResult.noEdits(unitIndex); // not updated
-            }
-
-            //
-            // Otherwise, we need to re-parse/retypecheck the file (maybe incrementally)
-            //
-            var result = this.attemptIncrementalUpdateUnit(scriptId);
-            if (result != null)
-                return result;
-
-            var sourceText = this.hostCache.getSourceText(hostUnitIndex);
-            this.setUnitMapping(unitIndex, hostUnitIndex);
-            return compiler.partialUpdateUnit(sourceText, scriptId, true/*setRecovery*/);
+        private addCompilerUnit(compiler: TypeScript.TypeScriptCompiler, fileName: string): void {
+            compiler.addSourceUnit(fileName,
+                this.hostCache.getScriptSnapshot(fileName),
+                ByteOrderMark.None,
+                this.hostCache.getVersion(fileName),
+                this.hostCache.isOpen(fileName));
         }
 
-        private attemptIncrementalUpdateUnit(scriptId: string): TypeScript.UpdateUnitResult {
-            var previousScript = this.getScriptAST(scriptId);
-            var newSourceText = this.getSourceText(previousScript, false);
-            var editRange = this.getScriptEditRange(previousScript);
-
-            var result = new TypeScript.IncrementalParser(this.logger).attemptIncrementalUpdateUnit(previousScript, scriptId, newSourceText, editRange);
-            if (result == null)
-                return null;
-
-            if (result.kind === TypeScript.UpdateUnitKind.EditsInsideSingleScope) {
-                if (result.scope1.nodeType != TypeScript.NodeType.FuncDecl) {
-                    this.logger.log("  Bailing out because containing scope is not a function");
-                    return null;
-                }
-            }
-
-            //TODO: We don't enable incremental right now, as it would break IDE error reporting
-            if (true) {
-                this.logger.log("  Bailing out because incremental typecheck is not implemented yet");
-                return null;
-            }
-            else {
-                return result;
-            }
-        }
-
-        private getHostCompilationSettings() {
+        public getHostCompilationSettings(): TypeScript.CompilationSettings {
             var settings = this.host.getCompilationSettings();
             if (settings !== null) {
                 return settings;
@@ -422,85 +140,47 @@ module Services {
 
             // Set "ES5" target by default for language service
             settings = new TypeScript.CompilationSettings();
-            settings.codeGenTarget = TypeScript.CodeGenTarget.ES5;
+            settings.codeGenTarget = TypeScript.LanguageVersion.EcmaScript5;
+
             return settings;
         }
 
-        private createCompiler() {
-            var outerr = { Write: (s) => { }, WriteLine: (s) => { }, Close: () => { } };
-
+        private createCompiler(): void {
             // Create and initialize compiler
             this.logger.log("Initializing compiler");
 
-            this.compilationSettings = new TypeScript.CompilationSettings();
-            
-            Services.copyDataObject(this.compilationSettings, this.getHostCompilationSettings());
-            this.compiler = new TypeScript.TypeScriptCompiler(outerr, this.logger, this.compilationSettings);
-            this.scriptMap = new ScriptMap();
-            this.unitIndexMap = [];
-            this.errorCollector = new CompilerErrorCollector(this.logger);
+            this._compilationSettings = new TypeScript.CompilationSettings();
 
-            //TODO: "bind" doesn't work here in the context of running unit tests
-            //compiler.setErrorCallback(errorCollector.reportError.bind(errorCollector));
-            this.compiler.setErrorCallback((a, b, c, d) => { this.errorCollector.reportError(a, b, c, d); });
-            this.compiler.parser.errorRecovery = true;
+            Services.copyDataObject(this.compilationSettings(), this.getHostCompilationSettings());
+            this.compiler = new TypeScript.TypeScriptCompiler(this.logger, this.compilationSettings());
 
             // Add unit for all source files
-            for (var i = 0, length = this.host.getScriptCount() ; i < length; i++) {
-                this.addCompilerUnit(this.compiler, i);
+            var fileNames = this.host.getScriptFileNames();
+            for (var i = 0, n = fileNames.length; i < n; i++) {
+                this.addCompilerUnit(this.compiler, fileNames[i]);
             }
 
-            this.compilerCache = new CompilerCache(this.compiler);
-
             // Initial typecheck
-            this.onTypeCheckStarting();
-            this.compiler.typeCheck()
+            this.compiler.pullTypeCheck();
         }
 
         public minimalRefresh(): void {
+            //if (this.compiler === null) {
+            //    this.refresh();
+            //    return;
+            //}
+
             // Reset the cache at start of every refresh
             this.hostCache = new HostCache(this.host);
         }
 
-        public refresh(throwOnError: bool = true): void {
-            try {
-                // Reset the cache at start of every refresh
-                this.hostCache = new HostCache(this.host);
+        public refresh(): void {
+            // Reset the cache at start of every refresh
+            this.hostCache = new HostCache(this.host);
 
-                // If full refresh not needed, attempt partial refresh
-                if (!this.fullRefresh()) {
-                    this.partialRefresh();
-                }
-
-                // Debugging: log version and unit index mapping data
-                if (this.logger.information()) {
-                    for (var i = 0; i < this.compiler.units.length; i++) {
-                        this.logger.log("compiler unit[" + i + "].filename='" + this.compiler.units[i].filename + "'");
-                    }
-                    for (var i = 0; i < this.hostCache.count() ; i++) {
-                        this.logger.log("host script[" + i + "].filename='" + this.hostCache.getScriptId(i) + "', version=" + this.hostCache.getVersion(i));
-                    }
-                    for (var i = 0; i < this.unitIndexMap.length; i++) {
-                        this.logger.log("unitIndexMap[" + i + "] = " + this.unitIndexMap[i]);
-                    }
-                }
-            }
-            catch (err) {
-                var lastUnitIndex = 0;
-                if (this.compiler != null) {
-                    lastUnitIndex = this.compiler.units.length - 1;
-                }
-                this.compiler = null;
-
-                this.logger.log("WARNING: PERF: Internal error during \"Refresh\":");
-                logInternalError(this.logger, err);
-                this.logger.log("WARNING: PERF:    Compiler state is lost and will be re-initiliazed during next call.");
-
-                this.errorCollector.reportError(0, 1, "Internal error: " + err.message, lastUnitIndex);
-                this.errorCollector.reportError(0, 1, "Internal error: IntelliSense features are disabled. Try making edits to source files to restore a valid compilation state.", lastUnitIndex);
-
-                if (throwOnError)
-                    throw err;
+            // If full refresh not needed, attempt partial refresh
+            if (!this.fullRefresh()) {
+                this.partialRefresh();
             }
         }
 
@@ -508,7 +188,7 @@ module Services {
         // Re-create a fresh compiler instance if needed. 
         // Return "true" if a fresh compiler instance was created. 
         //
-        private fullRefresh(): bool {
+        private fullRefresh(): boolean {
             // Initial state: no compiler yet
             if (this.compiler == null) {
                 this.logger.log("Creating new compiler instance because there is no currently active instance");
@@ -517,36 +197,21 @@ module Services {
             }
 
             // If any compilation settings changes, a new compiler instance is needed
-            if (!Services.compareDataObjects(this.compilationSettings, this.getHostCompilationSettings())) {
-                this.logger.log("Creating new compiler instance because compilation settings have changed.");
-                this.createCompiler();
-                return true;
-            }
+            //if (!Services.compareDataObjects(this.compilationSettings, this.getHostCompilationSettings())) {
+            //    this.logger.log("Creating new compiler instance because compilation settings have changed.");
+            //    this.createCompiler();
+            //    return true;
+            //}
 
             /// If any file was deleted, we need to create a new compiler, because we are not
             /// even close to supporting removing symbols (unitindex will be all over the place
             /// if we remove scripts from the list).
-            for (var unitIndex = 0, len = this.compiler.units.length; unitIndex < len; unitIndex++) {
-                var fileName = this.compiler.units[unitIndex].filename;
+            var fileNames = this.compiler.fileNameToDocument.getAllKeys();
+            for (var unitIndex = 0, len = fileNames.length; unitIndex < len; unitIndex++) {
+                var fileName = fileNames[unitIndex];
 
-                var hostUnitIndex = this.hostCache.getUnitIndex(fileName);
-                if (hostUnitIndex < 0) {
+                if (!this.hostCache.contains(fileName)) {
                     this.logger.log("Creating new compiler instance because of unit is not part of program anymore: " + unitIndex + "-" + fileName);
-                    this.createCompiler();
-                    return true;
-                }
-            }
-
-            //
-            // If any file "isResident" status has changed, create a new compiler instance
-            //
-            for (var unitIndex = 0, len = this.compiler.units.length; unitIndex < len; unitIndex++) {
-                var fileName = this.compiler.units[unitIndex].filename;
-                var isResident = (<TypeScript.Script>this.compiler.scripts.members[unitIndex]).isResident;
-                var hostUnitIndex = this.hostCache.getUnitIndex(fileName);
-
-                if (this.hostCache.getIsResident(hostUnitIndex) != isResident) {
-                    this.logger.log("Creating new compiler instance because of unit 'isResident' status has changed: " + unitIndex + "-" + fileName);
                     this.createCompiler();
                     return true;
                 }
@@ -559,237 +224,285 @@ module Services {
         // Attempt an incremental refresh of the compiler state.
         private partialRefresh(): void {
             this.logger.log("Updating files...");
-            this.compilerCache = new CompilerCache(this.compiler);
 
-            var updateResults: TypeScript.UpdateUnitResult[] = [];
-            function getSingleFunctionEdit(updateResults: TypeScript.UpdateUnitResult[]) {
-                var result: TypeScript.UpdateUnitResult = null;
-                for (var i = 0, len = updateResults.length; i < len; i++) {
-                    var entry = updateResults[i];
-                    if (entry.kind == TypeScript.UpdateUnitKind.EditsInsideSingleScope) {
-                        if (result === null)
-                            result = entry;
-                        else {
-                            result = null;
-                            break;
-                        }
-                    } else if (entry.kind == TypeScript.UpdateUnitKind.Unknown) {
-                        result = null;
-                        break;
-                    }
-                }
-                return result;
-            }
-            var fileAdded: bool = false;
+            var fileAdded: boolean = false;
 
-            // foreach file in the list of new files
-            //   if there was a file with the same name before
-            //      update it if content has changed
-            //   else
-            //      add it
-            for (var hostUnitIndex = 0, len = this.host.getScriptCount() ; hostUnitIndex < len; hostUnitIndex++) {
-                var fileName = this.hostCache.getScriptId(hostUnitIndex);
-                var unitIndex = this.compilerCache.getUnitIndex(fileName);
+            var fileNames = this.host.getScriptFileNames();
+            for (var i = 0, n = fileNames.length; i < n; i++) {
+                var fileName = fileNames[i];
 
-                if (unitIndex >= 0) {
-                    var updateResult = this.updateCompilerUnit(this.compiler, hostUnitIndex, unitIndex);
-                    updateResults.push(updateResult);
+                if (this.compiler.getDocument(fileName)) {
+                    this.updateCompilerUnit(this.compiler, fileName);
                 }
                 else {
-                    this.addCompilerUnit(this.compiler, hostUnitIndex);
+                    this.addCompilerUnit(this.compiler, fileName);
                     fileAdded = true;
                 }
             }
 
-            // Are we in an incremental update situation?
-            var incrementalTypeCheckSuccessful = false;
-            var singleEdit = getSingleFunctionEdit(updateResults);
-            if (fileAdded === false && singleEdit !== null) {
-                this.logger.log("Attempting incremental type check because there was a single edit to the function \"" + (<TypeScript.FuncDecl>singleEdit.scope1).name.actualText + "\"");
-                incrementalTypeCheckSuccessful = this.attemptIncrementalTypeCheck(singleEdit);
-            }
-
-            // Incremental was not applicable, fall back to full typecheck
-            if (!incrementalTypeCheckSuccessful) {
-                // Apply changes to units
-                var anythingUpdated = false;
-                for (var i = 0, len = updateResults.length; i < len; i++) {
-                    var entry = updateResults[i];
-                    if (this.applyUpdateResult(entry))
-                        anythingUpdated = true;
-                }
-
-                if (anythingUpdated) {
-                    this.logger.log("Incremental type check not applicable, processing unit updates");
-                    this.onTypeCheckStarting();
-                    this.compiler.reTypeCheck();
-                }
-                else {
-                    this.logger.log("No updates to source files, no typecheck needed");
-                }
+            if (fileAdded) {
+                this.compiler.pullTypeCheck();
             }
         }
 
-        private attemptIncrementalTypeCheck(updateResult: TypeScript.UpdateUnitResult): bool {
-            var success = this.compiler.attemptIncrementalTypeCheck(updateResult);
-            if (success) {
-                this.applyUpdateResult(updateResult);
-            }
-            return success;
+        public getDocument(fileName: string): TypeScript.Document {
+            return this.compiler.getDocument(fileName);
         }
 
-        private applyUpdateResult(updateResult: TypeScript.UpdateUnitResult): bool {
-            switch (updateResult.kind) {
-                case TypeScript.UpdateUnitKind.NoEdits:
-                    return false;
-                case TypeScript.UpdateUnitKind.Unknown:
-                case TypeScript.UpdateUnitKind.EditsInsideSingleScope:
-                    this.errorCollector.startParsing(updateResult.unitIndex);
-                    return this.compiler.applyUpdateResult(updateResult);
-            }
+        public getSyntacticDiagnostics(fileName: string): TypeScript.IDiagnostic[] {
+            return this.compiler.getSyntacticDiagnostics(fileName);
         }
 
-        public getScriptAST(fileName: string): TypeScript.Script {
-            var unitIndex = this.compilerCache.getUnitIndex(fileName);
-            if (unitIndex < 0) {
-                throw new Error("Interal error: No AST found for file \"" + fileName + "\".");
-            }
-
-            return <TypeScript.Script>this.compiler.scripts.members[unitIndex];
+        public getSemanticDiagnostics(fileName: string): TypeScript.IDiagnostic[] {
+            return this.compiler.getSemanticDiagnostics(fileName);
         }
 
-        public getLineMap(fileName: string): number[] {
-            var unitIndex = this.compilerCache.getUnitIndex(fileName);
-            if (unitIndex < 0) {
-                throw new Error("Interal error: No AST found for file \"" + fileName + "\".");
-            }
+        public getEmitOutput(fileName: string): EmitOutput {
+            var result = new EmitOutput();
 
-            return this.compiler.units[unitIndex].lineMap;
-        }
-
-        public getScopeEntries(enclosingScopeContext: TypeScript.EnclosingScopeContext, getPrettyTypeName?: bool) {
-            return new TypeScript.ScopeTraversal(this.compiler).getScopeEntries(enclosingScopeContext, getPrettyTypeName);
-        }
-
-        public getErrorEntries(maxCount: number, filter: (unitIndex: number, error: TypeScript.ErrorEntry) =>bool): TypeScript.ErrorEntry[] {
-            var entries: TypeScript.ErrorEntry[] = [];
-            var count = 0;
-
-            var addError = (error: TypeScript.ErrorEntry): bool => {
-                entries.push(error);
-                count++;
-                return (count < maxCount);
-            }
-
-            for (var unitIndex = 0, len = this.errorCollector.fileMap.length; unitIndex < len; unitIndex++) {
-                var errors = this.errorCollector.fileMap[unitIndex];
-                if (errors !== undefined) {
-                    for (var i = 0; i < errors.parseErrors.length; i++) {
-                        var error = errors.parseErrors[i];
-                        if (filter(unitIndex, error)) {
-                            if (!addError(error))
-                                break;
-                        }
-                    }
-                    for (var i = 0; i < errors.typeCheckErrors.length; i++) {
-                        var error = errors.typeCheckErrors[i];
-                        if (filter(unitIndex, error)) {
-                            if (!addError(error))
-                                break;
-                        }
-                    }
-                }
-            }
-
-            // Convert "unitIndex" into host units
-            var result: TypeScript.ErrorEntry[] = [];
-            for (var i = 0; i < entries.length; i++) {
-                var e = entries[i];
-                var ne = new TypeScript.ErrorEntry(this.mapToHostUnitIndex(e.unitIndex), e.minChar, e.limChar, e.message);
-                result.push(ne);
-            }
-            return result;
-        }
-
-        public cleanASTTypesForReTypeCheck(ast: TypeScript.AST): void {
-            this.compiler.cleanASTTypesForReTypeCheck(ast);
-        }
-
-        public getScriptEditRange(script: TypeScript.Script): TypeScript.ScriptEditRange {
-            var lastKnownVersion = this.scriptMap.getEntry(script.locationInfo.filename).version;
-            return this.getScriptEditRangeSinceVersion(script.locationInfo.filename, lastKnownVersion);
-        }
-
-        public getScriptEditRangeSinceVersion(fileName: string, lastKnownVersion: number): TypeScript.ScriptEditRange {
-            var hostUnitIndex = this.hostCache.getUnitIndex(fileName);
-
-            var currentVersion = this.hostCache.getVersion(hostUnitIndex);
-            if (lastKnownVersion === currentVersion) {
-                return null; // "No changes"
-            }
-
-            return this.host.getScriptEditRangeSinceVersion(hostUnitIndex, lastKnownVersion);
-        }
-
-        public getSourceText(script: TypeScript.Script, cached: bool = false) {
-            return this.hostCache.getSourceText(this.hostCache.getUnitIndex(script.locationInfo.filename), cached);
-        }
-
-        public getSourceText2(fileName: string, cached: bool = false) {
-            return this.hostCache.getSourceText(this.hostCache.getUnitIndex(fileName), cached);
-        }
-
-        // Since we don't have incremental parsing or typecheck, we resort to parsing the whole source text
-        // and return a "syntax only" AST. For example, we use this for formatting engine.
-        // We will change this when we have incremental parsing.
-        public getScriptSyntaxAST(fileName: string): ScriptSyntaxAST {
-            var sourceText = this.hostCache.getSourceText(this.hostCache.getUnitIndex(fileName), /*cached*/true);
-
-            var parser = new TypeScript.Parser();
-            parser.setErrorRecovery(null);
-            parser.errorCallback = (a, b, c, d) => { };
-
-            var script = parser.parse(sourceText, fileName, 0);
-
-            return new ScriptSyntaxAST(this.logger, script, sourceText);
-        }
-
-        public getEmitOutput(fileName: string): IOutputFile[] {
-            var unitIndex = this.compilerCache.getUnitIndex(fileName);
-            if (unitIndex < 0) {
-                throw new Error("Interal error: No AST found for file \"" + fileName + "\".");
-            }
-
-            var result: IOutputFile[] = [];
-
-            // Check for parse errors
-            var errors = this.errorCollector.fileMap[unitIndex];
-            if (errors !== undefined && errors.parseErrors.length > 0) {
+            // Check for syntactic errors
+            var syntacticDiagnostics = this.compiler.getSyntacticDiagnostics(fileName);
+            if (this.containErrors(syntacticDiagnostics)) {
+                // This file has at least one syntactic error, return and do not emit code.
                 return result;
             }
+            
+            // Force a type check before emit
+            this.compiler.getSemanticDiagnostics(fileName);
 
-
-            var emitterIOHost = {
-                createFile: (fileName: string, useUTF8encoding?: bool = false) => {
-                    var outputFile = new TextWriter(fileName, useUTF8encoding);
-                    result.push(outputFile);
-                    return outputFile;
+            var emitterIOHost: TypeScript.EmitterIOHost = {
+                writeFile: (fileName: string, contents: string, writeByteOrderMark: boolean) => {
+                    var outputFile = new EmitOutputTextWriter(fileName, writeByteOrderMark);
+                    outputFile.Write(contents);
+                    result.outputFiles.push(outputFile);
                 },
-                directoryExists: (fname: string) => true,
-                fileExists: (fname: string) => false,
-                resolvePath: (fname: string) => fname
+                directoryExists: (fileName: string) => true,
+                fileExists: (fileName: string) => false,
+                resolvePath: (fileName: string) => fileName
             };
 
             // Call the emitter
-            var script = <TypeScript.Script>this.compiler.scripts.members[unitIndex];
-            this.compiler.parseEmitOption(emitterIOHost)
-            this.compiler.emitUnit(script);
-            // Only emit declarations if there are no type errors
-            if (errors == undefined || errors.typeCheckErrors.length == 0) {
-                this.compiler.emitDeclarationsUnit(script);
+            var diagnostics: TypeScript.IDiagnostic[];
+
+            diagnostics = this.compiler.parseEmitOption(emitterIOHost) || [];
+            result.diagnostics = result.diagnostics.concat(diagnostics);
+            if (this.containErrors(diagnostics)) {
+                return result;
+            }
+
+            // Emit output files and source maps
+            diagnostics = this.compiler.emitUnit(fileName, emitterIOHost) || [];
+            result.diagnostics = result.diagnostics.concat(diagnostics);
+            if (this.containErrors(diagnostics)) {
+                return result;
+            }
+
+            // Emit declarations
+            if (this.shouldEmitDeclarations(fileName)) {
+                diagnostics = this.compiler.emitUnitDeclarations(fileName) || [];
+                result.diagnostics = result.diagnostics.concat(diagnostics);
             }
 
             return result;
+        }
+
+        private shouldEmitDeclarations(fileName: string): boolean {
+            // Only emit declarations if there are no semantic errors
+            var semanticDiagnostics = this.compiler.getSemanticDiagnostics(fileName);
+            if (this.containErrors(semanticDiagnostics)) {
+                // This file has at least one semantic error, return and do not emit declaration.
+                return false;
+            }
+
+            return true;
+        }
+
+
+        private containErrors(diagnostics: TypeScript.IDiagnostic[]): boolean {
+            if (diagnostics && diagnostics.length > 0) {
+                for (var i = 0; i < diagnostics.length; i++) {
+                    var diagnosticInfo = TypeScript.getDiagnosticInfoFromCode(diagnostics[i].diagnosticCode());
+                    if (diagnosticInfo.category === TypeScript.DiagnosticCategory.Error) {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        public getScriptTextChangeRangeSinceVersion(fileName: string, lastKnownVersion: number): TypeScript.TextChangeRange {
+            var currentVersion = this.hostCache.getVersion(fileName);
+            if (lastKnownVersion === currentVersion) {
+                return TypeScript.TextChangeRange.unchanged; // "No changes"
+            }
+
+            var scriptSnapshot = this.hostCache.getScriptSnapshot(fileName);
+            return scriptSnapshot.getTextChangeRangeSinceVersion(lastKnownVersion);
+        }
+
+        public getScriptSnapshot(fileName: string): TypeScript.IScriptSnapshot {
+            return this.hostCache.getScriptSnapshot(fileName);
+        }
+
+        //
+        // New Pull stuff
+        //
+        public getDeclarationSymbolInformation(path: TypeScript.AstPath, document: TypeScript.Document) {
+            return this.compiler.pullGetDeclarationSymbolInformation(path, document);
+        }
+
+        public getSymbolInformationFromPath(path: TypeScript.AstPath, document: TypeScript.Document) {
+            return this.compiler.pullGetSymbolInformationFromPath(path, document);
+        }
+
+        public getCallInformationFromPath(path: TypeScript.AstPath, document: TypeScript.Document) {
+            return this.compiler.pullGetCallInformationFromPath(path, document);
+        }
+
+        public getVisibleMemberSymbolsFromPath(path: TypeScript.AstPath, document: TypeScript.Document) {
+            return this.compiler.pullGetVisibleMemberSymbolsFromPath(path, document);
+        }
+
+        public getVisibleDeclsFromPath(path: TypeScript.AstPath, document: TypeScript.Document) {
+            return this.compiler.pullGetVisibleDeclsFromPath(path, document);
+        }
+
+        public geContextualMembersFromPath(path: TypeScript.AstPath, document: TypeScript.Document) {
+            return this.compiler.pullGetContextualMembersFromPath(path, document);
+        }
+
+        public pullGetDeclInformation(decl: TypeScript.PullDecl, path: TypeScript.AstPath, document: TypeScript.Document) {
+            return this.compiler.pullGetDeclInformation(decl, path, document);
+        }
+
+        public getTopLevelDeclarations(fileName: string): TypeScript.PullDecl[]{
+            return this.compiler.getTopLevelDeclarations(fileName);
+        }
+
+        private updateCompilerUnit(compiler: TypeScript.TypeScriptCompiler, fileName: string): void {
+            var document: TypeScript.Document = this.compiler.getDocument(fileName);
+
+            //
+            // If the document is the same, assume no update
+            //
+            var version = this.hostCache.getVersion(fileName);
+            var isOpen = this.hostCache.isOpen(fileName);
+            if (document.version === version && document.isOpen === isOpen) {
+                return;
+            }
+
+            var textChangeRange = this.getScriptTextChangeRangeSinceVersion(fileName, document.version);
+            compiler.updateSourceUnit(fileName,
+                this.hostCache.getScriptSnapshot(fileName),
+                version, isOpen, textChangeRange);
+        }
+
+        private getDocCommentsOfDecl(decl: TypeScript.PullDecl) {
+            var ast = this.compiler.semanticInfoChain.getASTForDecl(decl);
+            if (ast && (ast.nodeType != TypeScript.NodeType.ModuleDeclaration || decl.getKind() != TypeScript.PullElementKind.Variable)) {
+                return ast.getDocComments();
+            }
+
+            return [];
+        }
+
+        private getDocCommentArray(symbol: TypeScript.PullSymbol) {
+            var docComments: TypeScript.Comment[] = [];
+            if (!symbol) {
+                return docComments;
+            }
+
+            var isParameter = symbol.getKind() == TypeScript.PullElementKind.Parameter;
+            var decls = symbol.getDeclarations();
+            for (var i = 0; i < decls.length; i++) {
+                if (isParameter && decls[i].getKind() == TypeScript.PullElementKind.Property) {
+                    // Ignore declaration for property that was defined as parameter because they both 
+                    // point to same doc comment
+                    continue;
+                }
+                docComments = docComments.concat(this.getDocCommentsOfDecl(decls[i]));
+            }
+            return docComments;
+        }
+
+        static getDefaultConstructorSymbolForDocComments(classSymbol: TypeScript.PullClassTypeSymbol) {
+            if (classSymbol.getHasDefaultConstructor()) {
+                // get from parent if possible
+                var extendedTypes = classSymbol.getExtendedTypes();
+                if (extendedTypes.length) {
+                    return CompilerState.getDefaultConstructorSymbolForDocComments(<TypeScript.PullClassTypeSymbol>extendedTypes[0]);
+                }
+            }
+
+            return classSymbol.getType().getConstructSignatures()[0];
+        }
+
+        public getDocComments(symbol: TypeScript.PullSymbol, useConstructorAsClass?: boolean): string {
+            if (!symbol) {
+                return "";
+            }
+            var decls = symbol.getDeclarations();
+            if (useConstructorAsClass && decls.length && decls[0].getKind() == TypeScript.PullElementKind.ConstructorMethod) {
+                var classDecl = decls[0].getParentDecl();
+                return TypeScript.Comment.getDocCommentText(this.getDocCommentsOfDecl(classDecl));
+            }
+
+            if (symbol.docComments === null) {
+                var docComments: string = "";
+                if (!useConstructorAsClass && symbol.getKind() == TypeScript.PullElementKind.ConstructSignature &&
+                    decls.length && decls[0].getKind() == TypeScript.PullElementKind.Class) {
+                    var classSymbol = <TypeScript.PullClassTypeSymbol>(<TypeScript.PullSignatureSymbol>symbol).getReturnType();
+                    var extendedTypes = classSymbol.getExtendedTypes();
+                    if (extendedTypes.length) {
+                        docComments = this.getDocComments((<TypeScript.PullClassTypeSymbol>extendedTypes[0]).getConstructorMethod());
+                    } else {
+                        docComments = "";
+                    }
+                } else if (symbol.getKind() == TypeScript.PullElementKind.Parameter) {
+                    var parameterComments: string[] = [];
+                    var funcContainerList = symbol.findIncomingLinks(link => link.kind == TypeScript.SymbolLinkKind.Parameter);
+                    for (var i = 0; i < funcContainerList.length; i++) {
+                        var funcContainer = funcContainerList[i].start;
+                        var funcDocComments = this.getDocCommentArray(funcContainer);
+                        var paramComment = TypeScript.Comment.getParameterDocCommentText(symbol.getDisplayName(), funcDocComments);
+                        if (paramComment != "") {
+                            parameterComments.push(paramComment);
+                        }
+                    }
+                    var paramSelfComment = TypeScript.Comment.getDocCommentText(this.getDocCommentArray(symbol));
+                    if (paramSelfComment != "") {
+                        parameterComments.push(paramSelfComment);
+                    }
+                    docComments = parameterComments.join("\n");
+                } else {
+                    var getSymbolComments = true;
+                    if (symbol.getKind() == TypeScript.PullElementKind.FunctionType) {
+                        var declarationList = symbol.findIncomingLinks(link => link.kind == TypeScript.SymbolLinkKind.TypedAs);
+                        if (declarationList.length > 0) {
+                            docComments = this.getDocComments(declarationList[0].start);
+                            getSymbolComments = false;
+                        }
+                    }
+                    if (getSymbolComments) {
+                        docComments = TypeScript.Comment.getDocCommentText(this.getDocCommentArray(symbol));
+                        if (docComments == "") {
+                            if (symbol.getKind() == TypeScript.PullElementKind.CallSignature) {
+                                var callList = symbol.findIncomingLinks(link => link.kind == TypeScript.SymbolLinkKind.CallSignature);
+                                if (callList.length == 1) {
+                                    var callTypeSymbol = <TypeScript.PullTypeSymbol>callList[0].start;
+                                    if (callTypeSymbol.getCallSignatures().length == 1) {
+                                        docComments = this.getDocComments(callTypeSymbol);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                symbol.docComments = docComments;
+            }
+
+            return symbol.docComments;
         }
     }
 }

@@ -1,12 +1,15 @@
 /** Variable comments*/
 var myVariable = 10;
+
 /** function comments*/
 function foo(/** parameter comment*/ p) {
 }
+
 /** variable with function type comment*/
 var fooVar;
 foo(50);
 fooVar();
+
 /**class comment*/
 var c = (function () {
     /** constructor comment*/
@@ -14,10 +17,11 @@ var c = (function () {
         /** property comment */
         this.b = 10;
     }
-    c.prototype.myFoo = /** function comment */
-    function () {
+    /** function comment */
+    c.prototype.myFoo = function () {
         return this.b;
     };
+
     Object.defineProperty(c.prototype, "prop1", {
         get: /** getter comment*/
         function () {
@@ -30,16 +34,21 @@ var c = (function () {
         enumerable: true,
         configurable: true
     });
-    c.prototype.foo1 = /** overload implementation signature*/
-    function (aOrb) {
+
+
+    /** overload implementation signature*/
+    c.prototype.foo1 = function (aOrb) {
         return aOrb.toString();
     };
     return c;
 })();
+
 /**instance comment*/
 var i = new c();
+
 /**interface instance comments*/
 var i1_i;
+
 /** this is module comment*/
 var m1;
 (function (m1) {
@@ -50,17 +59,18 @@ var m1;
         }
         return b;
     })();
-    m1.b = b;    
-    })(m1 || (m1 = {}));
+    m1.b = b;
+})(m1 || (m1 = {}));
+
 ////[0.d.ts]
 /** Variable comments*/
-var myVariable: number;
+declare var myVariable: number;
 /** function comments*/
-function foo(/** parameter comment*/ p: number): void;
+declare function foo(/** parameter comment*/ p: number): void;
 /** variable with function type comment*/
-var fooVar: () => void;
+declare var fooVar: () => void;
 /**class comment*/
-class c {
+declare class c {
     /** constructor comment*/
     constructor();
     /** property comment */
@@ -76,7 +86,7 @@ class c {
     public foo1(b: string): string;
 }
 /**instance comment*/
-var i: c;
+declare var i: c;
 /** interface comments*/
 interface i1 {
     /** caller comments*/
@@ -91,9 +101,9 @@ interface i1 {
     prop: string;
 }
 /**interface instance comments*/
-var i1_i: i1;
+declare var i1_i: i1;
 /** this is module comment*/
-module m1 {
+declare module m1 {
     /** class b */
     class b {
         public x: number;

@@ -1,4 +1,4 @@
-﻿//﻿
+//
 // Copyright (c) Microsoft Corporation.  All rights reserved.
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,12 +17,12 @@
 
 interface IOptions {
     name?: string;
-    flag?: bool;
+    flag?: boolean;
     short?: string;
     usage?: string;
     set?: (s: string) => void;
     type?: string;
-    experimental?: bool;
+    experimental?: boolean;
 }
 
 class OptionsParser {
@@ -60,6 +60,7 @@ class OptionsParser {
 
         var output = [];
         var maxLength = 0;
+        var i = 0;
 
         this.options = this.options.sort(function(a, b) {
             var aName = a.name.toLowerCase();
@@ -75,7 +76,7 @@ class OptionsParser {
         });
 
         // Build up output array
-        for (var i = 0; i < this.options.length; i++) {
+        for (i = 0; i < this.options.length; i++) {
             var option = this.options[i];
 
             if (option.experimental) {
@@ -105,7 +106,7 @@ class OptionsParser {
         output.push(["  @<file>", "Insert command line options and files from a file."]);
 
         // Print padded output
-        for (var i = 0; i < output.length; i++) {
+        for (i = 0; i < output.length; i++) {
             this.host.printLine(output[i][0] + (new Array(maxLength - output[i][0].length + 3)).join(" ") + output[i][1]);
         }
     }
@@ -211,7 +212,7 @@ class OptionsParser {
 
             if (match) {
                 if (match[1] === '@') {
-                    this.parseString(this.host.readFile(match[2]));
+                    this.parseString(this.host.readFile(match[2]).contents());
                 } else {
                     var arg = match[2];
                     var option = this.findOption(arg);

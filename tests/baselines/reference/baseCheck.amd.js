@@ -1,4 +1,5 @@
 var __extends = this.__extends || function (d, b) {
+    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
     __.prototype = b.prototype;
     d.prototype = new __();
@@ -25,6 +26,7 @@ var ELocVar = (function (_super) {
     };
     return ELocVar;
 })(C);
+
 var D = (function (_super) {
     __extends(D, _super);
     function D(z) {
@@ -49,8 +51,9 @@ var F = (function (_super) {
     }
     return F;
 })(C);
+
 function f() {
-    if(x < 10) {
+    if (x < 10) {
         x = 11;
     } else {
         x = 12;

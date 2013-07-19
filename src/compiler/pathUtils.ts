@@ -1,4 +1,4 @@
-﻿//﻿
+//
 // Copyright (c) Microsoft Corporation.  All rights reserved.
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,19 +16,16 @@
 ///<reference path='typescript.ts' />
 
 module TypeScript {
-
-    // We need to catch both left and right quotes
-    // (depending on your editor's font, this may not be clear...)    
     export function stripQuotes(str: string) {
-        return str.replace("\"", "").replace("'", "").replace("'", "").replace("\"", "")
+        return str.replace(/"/g, "").replace(/'/g, "");
     }
 
     export function isSingleQuoted(str: string) {
-        return str.indexOf("'") != -1;
+        return str.indexOf("'") !== -1;
     }
 
     export function isQuoted(str: string) {
-        return str.indexOf("\"") != -1 || isSingleQuoted(str);
+        return str.indexOf("\"") !== -1 || isSingleQuoted(str);
     }
 
     export function quoteStr(str: string) {
@@ -37,7 +34,7 @@ module TypeScript {
 
     export function swapQuotes(str: string) {
 
-        if (str.indexOf("\"") != -1) {
+        if (str.indexOf("\"") !== -1) {
             str = str.replace("\"", "'");
             str = str.replace("\"", "'");
         }
@@ -49,34 +46,20 @@ module TypeScript {
         return str;
     }
 
-    export function changeToSingleQuote(str: string) {
-        if (str.indexOf("\"") != -1) {
-            str = str.replace("\"", "'");
-            str = str.replace("\"", "'");
-        }
-        return str;
-    }
-
     export function switchToForwardSlashes(path: string) {
         return path.replace(/\\/g, "/");
     }
 
     export function trimModName(modName: string) {
         // in case's it's a declare file...
-        if (modName.length > 6 && modName.substring(modName.length - 6, modName.length) == ".d.str") {
-            return modName.substring(0, modName.length - 6);
-        }
-        if (modName.length > 4 && modName.substring(modName.length - 4, modName.length) == ".str") {
-            return modName.substring(0, modName.length - 4);
-        }
-        if (modName.length > 5 && modName.substring(modName.length - 5, modName.length) == ".d.ts") {
+        if (modName.length > 5 && modName.substring(modName.length - 5, modName.length) === ".d.ts") {
             return modName.substring(0, modName.length - 5);
         }
-        if (modName.length > 3 && modName.substring(modName.length - 3, modName.length) == ".ts") {
+        if (modName.length > 3 && modName.substring(modName.length - 3, modName.length) === ".ts") {
             return modName.substring(0, modName.length - 3);
         }
         // in case's it's a .js file
-        if (modName.length > 3 && modName.substring(modName.length - 3, modName.length) == ".js") {
+        if (modName.length > 3 && modName.substring(modName.length - 3, modName.length) === ".js") {
             return modName.substring(0, modName.length - 3);
         }
 
@@ -84,37 +67,29 @@ module TypeScript {
     }
 
     export function getDeclareFilePath(fname: string) {
-        return isSTRFile(fname) ? changePathToDSTR(fname) : isTSFile(fname) ? changePathToDTS(fname) : changePathToDTS(fname);
+        return isTSFile(fname) ? changePathToDTS(fname) : changePathToDTS(fname);
     }
 
     function isFileOfExtension(fname: string, ext: string) {
         var invariantFname = fname.toLocaleUpperCase();
         var invariantExt = ext.toLocaleUpperCase();
         var extLength = invariantExt.length;
-        return invariantFname.length > extLength && invariantFname.substring(invariantFname.length - extLength, invariantFname.length) == invariantExt;
+        return invariantFname.length > extLength && invariantFname.substring(invariantFname.length - extLength, invariantFname.length) === invariantExt;
     }
 
     export function isJSFile(fname: string) {
         return isFileOfExtension(fname, ".js");
     }
 
-    export function isSTRFile(fname: string) {
-        return isFileOfExtension(fname, ".str");
-    }
-
     export function isTSFile(fname: string) {
         return isFileOfExtension(fname, ".ts");
-    }
-
-    export function isDSTRFile(fname: string) {
-        return isFileOfExtension(fname, ".d.str");
     }
 
     export function isDTSFile(fname: string) {
         return isFileOfExtension(fname, ".d.ts");
     }
 
-    export function getPrettyName(modPath: string, quote?=true, treatAsFileName?=false) { 
+    export function getPrettyName(modPath: string, quote=true, treatAsFileName=false) { 
         var modName = treatAsFileName ? switchToForwardSlashes(modPath) : trimModName(stripQuotes(modPath));
         var components = this.getPathComponents(modName);
         return components.length ? (quote ? quoteStr(components[components.length - 1]) : components[components.length - 1]) : modPath;
@@ -133,17 +108,17 @@ module TypeScript {
         // Find the component that differs
         var joinStartIndex = 0;
         for (; joinStartIndex < modComponents.length && joinStartIndex < fixedModComponents.length ; joinStartIndex++) {
-            if (fixedModComponents[joinStartIndex] != modComponents[joinStartIndex]) {
+            if (fixedModComponents[joinStartIndex] !== modComponents[joinStartIndex]) {
                 break;
             }
         }
 
         // Get the relative path
-        if (joinStartIndex != 0) {
+        if (joinStartIndex !== 0) {
             var relativePath = "";
             var relativePathComponents = modComponents.slice(joinStartIndex, modComponents.length);
             for (; joinStartIndex < fixedModComponents.length; joinStartIndex++) {
-                if (fixedModComponents[joinStartIndex] != "") {
+                if (fixedModComponents[joinStartIndex] !== "") {
                     relativePath = relativePath + "../";
                 }
             }
@@ -157,7 +132,7 @@ module TypeScript {
     export function quoteBaseName(modPath: string) {
         var modName = trimModName(stripQuotes(modPath));
         var path = getRootFilePath(modName);
-        if (path == "") {
+        if (path === "") {
             return modPath;
         }
         else {
@@ -167,35 +142,23 @@ module TypeScript {
         }
     }
 
-    export function changePathToSTR(modPath: string) {
-        return trimModName(stripQuotes(modPath)) + ".str";
-    }
-
-    export function changePathToDSTR(modPath: string) {
-        return trimModName(stripQuotes(modPath)) + ".d.str";
-    }
-
-    export function changePathToTS(modPath: string) {
-        return trimModName(stripQuotes(modPath)) + ".ts";
-    }
-
     export function changePathToDTS(modPath: string) {
         return trimModName(stripQuotes(modPath)) + ".d.ts";
     }
 
     export function isRelative(path: string) {
-        return path.charAt(0) == ".";
+        return path.charAt(0) === ".";
     }
     export function isRooted(path: string) {
-        return path.charAt(0) == "\\" || path.charAt(0) == "/" || (path.indexOf(":\\") != -1) || (path.indexOf(":/") != -1);
+        return path.charAt(0) === "\\" || path.charAt(0) === "/" || (path.indexOf(":\\") !== -1) || (path.indexOf(":/") !== -1);
     }
 
     export function getRootFilePath(outFname: string) {
-        if (outFname == "") {
+        if (outFname === "") {
             return outFname;
         }
         else {
-            var isPath = outFname.indexOf("/") != -1;
+            var isPath = outFname.indexOf("/") !== -1;
             return isPath ? filePath(outFname) : "";
         }
     }
@@ -211,37 +174,28 @@ module TypeScript {
         return path.join("/") + "/";
     }
 
-    export function normalizeURL(url: string): string {
-        var hostDomainAndPortRegex = /^(https?:\/\/[\-\w\.]+(:\d+)?\/)(.*)$/i;
-        var matches = hostDomainAndPortRegex.exec(url);
-        if (matches) {
-            var hostDomainAndPort = matches[1];
-            var actualPath = matches[3];
-            return hostDomainAndPort + normalizePath(actualPath);
-        }
-        return normalizePath(url);
-    }
-
-    export var pathNormalizeRegExp = /\//g;
-
     export function normalizePath(path: string): string {
-        path = switchToForwardSlashes(path);
-        var startedWithSep = path.charAt(0) === "/";
-        var parts = this.getPathComponents(path);
-        for (var i = 0; i < parts.length; i++) {
-            if (parts[i] === "." || parts[i] === "") {
-                parts.splice(i, 1);
-                i--;
-            }
-            if (i > 0 && parts[i] === ".." && parts[i - 1] !== "..") {
-                parts.splice(i - 1, 2);
-                i -= 2;
-            }
+        // If it's a UNC style path (i.e. \\server\share), convert to a URI style (i.e. file://server/share)
+        if(/^\\\\[^\\]/.test(path)) {
+            path = "file:" + path;
         }
-        return (startedWithSep ? "/" : "") + parts.join("/");
-    }
+        var parts = this.getPathComponents(switchToForwardSlashes(path));
+        var normalizedParts: string[] = [];
 
-    export function normalizeImportPath(path: string): string {
-        return normalizePath(path);
+        for (var i = 0; i < parts.length; i++) {
+            var part = parts[i];
+            if (part === ".") {
+                continue;
+            }
+
+            if (normalizedParts.length > 0 && ArrayUtilities.last(normalizedParts) !== ".." && part === "..") {
+                normalizedParts.pop();
+                continue;
+            }
+
+            normalizedParts.push(part);
+        }
+
+        return normalizedParts.join("/");
     }
 }

@@ -1,8 +1,9 @@
 var M;
 (function (M) {
     var ClassA = (function () {
-        function ClassA() { }
+        function ClassA() {
+        }
         return ClassA;
-    })();    
+    })();
 })(M || (M = {}));
-var t = ;
+var t = new M.ClassA[]();

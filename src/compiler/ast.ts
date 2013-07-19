@@ -1,4 +1,4 @@
-﻿//﻿
+//
 // Copyright (c) Microsoft Corporation.  All rights reserved.
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,14 +16,53 @@
 ///<reference path='typescript.ts' />
 
 module TypeScript {
-    export class ASTSpan {
-        public minChar: number = -1;  // -1 = "undefined" or "compiler generated"
-        public limChar: number = -1;  // -1 = "undefined" or "compiler generated"   
+    export interface IASTSpan {
+        minChar: number;
+        limChar: number;
+        trailingTriviaWidth: number;
     }
 
-    export class AST extends ASTSpan {
-        public type: Type = null;
-        public flags = ASTFlags.Writeable;
+    export class ASTSpan implements IASTSpan {
+        public minChar: number = -1;  // -1 = "undefined" or "compiler generated"
+        public limChar: number = -1;  // -1 = "undefined" or "compiler generated"
+        public trailingTriviaWidth = 0;
+    }
+
+    export var astID = 0;
+
+    export function structuralEqualsNotIncludingPosition(ast1: AST, ast2: AST): boolean {
+        return structuralEquals(ast1, ast2, false);
+    }
+
+    export function structuralEqualsIncludingPosition(ast1: AST, ast2: AST): boolean {
+        return structuralEquals(ast1, ast2, true);
+    }
+
+    function structuralEquals(ast1: AST, ast2: AST, includingPosition: boolean): boolean {
+        if (ast1 === ast2) {
+            return true;
+        }
+
+        return ast1 !== null && ast2 !== null &&
+               ast1.nodeType === ast2.nodeType &&
+               ast1.structuralEquals(ast2, includingPosition);
+    }
+
+    function astArrayStructuralEquals(array1: AST[], array2: AST[], includingPosition): boolean {
+        return ArrayUtilities.sequenceEquals(array1, array2,
+            includingPosition ? structuralEqualsIncludingPosition : structuralEqualsNotIncludingPosition);
+    }
+
+    export class AST implements IASTSpan {
+        public minChar: number = -1;  // -1 = "undefined" or "compiler generated"
+        public limChar: number = -1;  // -1 = "undefined" or "compiler generated"
+        public trailingTriviaWidth = 0;
+
+        private _flags = ASTFlags.None;
+
+        public typeCheckPhase = -1;
+
+        private astID = astID++;
 
         // REVIEW: for diagnostic purposes
         public passCreated: number = CompilerDiagnostics.analysisPass;
@@ -32,166 +71,49 @@ module TypeScript {
         public postComments: Comment[] = null;
         private docComments: Comment[] = null;
 
-        public isParenthesized = false;
+        constructor(public nodeType: NodeType) {
+        }
 
-        constructor (public nodeType: NodeType) {
-            super();
+        public shouldEmit(): boolean {
+            return true;
         }
 
         public isExpression() { return false; }
-
         public isStatementOrExpression() { return false; }
 
-        public isCompoundStatement() { return false; }
+        public getFlags(): ASTFlags {
+            return this._flags;
+        }
 
-        public isLeaf() { return this.isStatementOrExpression() && (!this.isCompoundStatement()); }
-        
+        // Must only be called from SyntaxTreeVisitor
+        public setFlags(flags: ASTFlags): void {
+            this._flags = flags;
+        }
+
+        public getLength() { return this.limChar - this.minChar; }
+
+        public getID() { return this.astID; }
+
         public isDeclaration() { return false; }
 
-        public typeCheck(typeFlow: TypeFlow) {
-            switch (this.nodeType) {
-                case NodeType.Error:
-                case NodeType.EmptyExpr:
-                    this.type = typeFlow.anyType;
-                    break;
-                case NodeType.This:
-                    return typeFlow.typeCheckThis(this);
-                case NodeType.Null:
-                    this.type = typeFlow.nullType;
-                    break;
-                case NodeType.False:
-                case NodeType.True:
-                    this.type = typeFlow.booleanType;
-                    break;
-                case NodeType.Super:
-                    return typeFlow.typeCheckSuper(this);
-                case NodeType.EndCode:
-                case NodeType.Empty:
-                case NodeType.Void:
-                    this.type = typeFlow.voidType;
-                    break;
-                default:
-                    throw new Error("please implement in derived class");
-            }
-            return this;
+        public isStatement() {
+            return false;
         }
 
-        public emit(emitter: Emitter, tokenId: TokenID, startLine: bool) {
-            emitter.emitParensAndCommentsInPlace(this, true);
-            switch (this.nodeType) {
-                case NodeType.This:
-                    emitter.recordSourceMappingStart(this);
-                    if (emitter.thisFnc && (hasFlag(emitter.thisFnc.fncFlags, FncFlags.IsFatArrowFunction))) {
-                        emitter.writeToOutput("_this");
-                    }
-                    else {
-                        emitter.writeToOutput("this");
-                    }
-                    emitter.recordSourceMappingEnd(this);
-                    break;
-                case NodeType.Null:
-                    emitter.recordSourceMappingStart(this);
-                    emitter.writeToOutput("null");
-                    emitter.recordSourceMappingEnd(this);
-                    break;
-                case NodeType.False:
-                    emitter.recordSourceMappingStart(this);
-                    emitter.writeToOutput("false");
-                    emitter.recordSourceMappingEnd(this);
-                    break;
-                case NodeType.True:
-                    emitter.recordSourceMappingStart(this);
-                    emitter.writeToOutput("true");
-                    emitter.recordSourceMappingEnd(this);
-                    break;
-                case NodeType.Super:
-                    emitter.recordSourceMappingStart(this);
-                    emitter.emitSuperReference();
-                    emitter.recordSourceMappingEnd(this);
-                    break;
-                case NodeType.EndCode:
-                case NodeType.Error:
-                case NodeType.EmptyExpr:
-                    break;
-                case NodeType.Empty:
-                    emitter.recordSourceMappingStart(this);
-                    emitter.recordSourceMappingEnd(this);
-                    break;
-                case NodeType.Void:
-                    emitter.recordSourceMappingStart(this);
-                    emitter.writeToOutput("void ");
-                    emitter.recordSourceMappingEnd(this);
-                    break;
-                default:
-                    throw new Error("please implement in derived class");
-            }
-            emitter.emitParensAndCommentsInPlace(this, false);
+        public emit(emitter: Emitter) {
+            emitter.emitComments(this, true);
+            emitter.recordSourceMappingStart(this);
+            this.emitWorker(emitter);
+            emitter.recordSourceMappingEnd(this);
+            emitter.emitComments(this, false);
         }
 
-        public print(context: PrintContext) {
-            context.startLine();
-            var lineCol = { line: -1, col: -1 };
-            var limLineCol = { line: -1, col: -1 };
-            if (context.parser !== null) {
-                context.parser.getSourceLineCol(lineCol, this.minChar);
-                context.parser.getSourceLineCol(limLineCol, this.limChar);
-                context.write("(" + lineCol.line + "," + lineCol.col + ")--" +
-                              "(" + limLineCol.line + "," + limLineCol.col + "): ");
-            }
-            var lab = this.printLabel();
-            if (hasFlag(this.flags, ASTFlags.Error)) {
-                lab += " (Error)";
-            }
-            context.writeLine(lab);
+        public emitWorker(emitter: Emitter) {
+            throw new Error("please implement in derived class");
         }
 
-        public printLabel() {
-            if (nodeTypeTable[this.nodeType] !== undefined) {
-                return nodeTypeTable[this.nodeType];
-            }
-            else {
-                return (<any>NodeType)._map[this.nodeType];
-            }
-        }
-
-        public addToControlFlow(context: ControlFlowContext): void {
-            // by default, AST adds itself to current basic block and does not check its children
-            context.walker.options.goChildren = false;
-            context.addContent(this);
-        }
-
-        public netFreeUses(container: Symbol, freeUses: StringHashTable) {
-        }
-
-        public treeViewLabel() {
-            return (<any>NodeType)._map[this.nodeType];
-        }
-
-        public static getResolvedIdentifierName(name: string): string {
-            if (!name) return "";
-
-            var resolved = "";
-            var start = 0;
-            var i = 0;
-            while(i <= name.length - 6) {
-                // Look for escape sequence \uxxxx
-                if (name.charAt(i) == '\\' && name.charAt(i+1) == 'u') {
-                    var charCode = parseInt(name.substr(i + 2, 4), 16);
-                    resolved += name.substr(start, i - start);
-                    resolved += String.fromCharCode(charCode);
-                    i += 6;
-                    start = i;
-                    continue;
-                } 
-                i++;
-            }
-            // Append remaining string
-            resolved += name.substring(start);
-            return resolved;
-        }
-
-        public getDocComments() : Comment[] {
-            if (!this.isDeclaration() || !this.preComments || this.preComments.length == 0) {
+        public getDocComments(): Comment[] {
+            if (!this.isDeclaration() || !this.preComments || this.preComments.length === 0) {
                 return [];
             }
 
@@ -201,9 +123,9 @@ module TypeScript {
                 for (var i = preCommentsLength - 1; i >= 0; i--) {
                     if (this.preComments[i].isDocComment()) {
                         var prevDocComment = docComments.length > 0 ? docComments[docComments.length - 1] : null;
-                        if (prevDocComment == null || // If the help comments were not yet set then this is the comment
-                             (this.preComments[i].limLine == prevDocComment.minLine ||
-                              this.preComments[i].limLine + 1 == prevDocComment.minLine)) { // On same line or next line
+                        if (prevDocComment === null || // If the help comments were not yet set then this is the comment
+                             (this.preComments[i].limLine === prevDocComment.minLine ||
+                              this.preComments[i].limLine + 1 === prevDocComment.minLine)) { // On same line or next line
                             docComments.push(this.preComments[i]);
                             continue;
                         }
@@ -216,37 +138,25 @@ module TypeScript {
 
             return this.docComments;
         }
-    }
 
-    export class IncompleteAST extends AST {
-        constructor (min: number, lim: number) {
-            super(NodeType.Error);
+        public structuralEquals(ast: AST, includingPosition: boolean): boolean {
+            if (includingPosition) {
+                if (this.minChar !== ast.minChar || this.limChar !== ast.limChar) {
+                    return false;
+                }
+            }
 
-            this.minChar = min;
-            this.limChar = lim;
+            return this._flags === ast._flags &&
+                   astArrayStructuralEquals(this.preComments, ast.preComments, includingPosition) &&
+                   astArrayStructuralEquals(this.postComments, ast.postComments, includingPosition)
         }
     }
 
     export class ASTList extends AST {
-        public enclosingScope: SymbolScope = null;
-        public members: AST[] = new AST[];
+        public members: AST[] = [];
 
-        constructor () {
+        constructor() {
             super(NodeType.List);
-        }
-
-        public addToControlFlow(context: ControlFlowContext) {
-            var len = this.members.length;
-            for (var i = 0; i < len; i++) {
-                if (context.noContinuation) {
-                    context.addUnreachable(this.members[i]);
-                    break;
-                }
-                else {
-                    this.members[i] = context.walk(this.members[i], this);
-                }
-            }
-            context.walker.options.goChildren = false;
         }
 
         public append(ast: AST) {
@@ -254,41 +164,25 @@ module TypeScript {
             return this;
         }
 
-        public appendAll(ast: AST) {
-            if (ast.nodeType == NodeType.List) {
-                var list = <ASTList>ast;
-                for (var i = 0, len = list.members.length; i < len; i++) {
-                    this.append(list.members[i]);
-                }
-            }
-            else {
-                this.append(ast);
-            }
-            return this;
-        }
-
-        public emit(emitter: Emitter, tokenId: TokenID, startLine: bool) {
+        public emit(emitter: Emitter) {
             emitter.recordSourceMappingStart(this);
-            emitter.emitJavascriptList(this, null, TokenID.Semicolon, startLine, false, false);
+            emitter.emitModuleElements(this);
             emitter.recordSourceMappingEnd(this);
         }
 
-        public typeCheck(typeFlow: TypeFlow) {
-            var len = this.members.length;
-            typeFlow.nestingLevel++;
-            for (var i = 0; i < len; i++) {
-                if (this.members[i]) {
-                    this.members[i] = this.members[i].typeCheck(typeFlow);
-                }
-            }
-            typeFlow.nestingLevel--;
-            return this;
+        public structuralEquals(ast: ASTList, includingPosition: boolean): boolean {
+            return super.structuralEquals(ast, includingPosition) &&
+                   astArrayStructuralEquals(this.members, ast.members, includingPosition);
         }
     }
 
-    export class Identifier extends AST {
-        public sym: Symbol = null;
-        public cloId = -1;
+    export class Expression extends AST {
+        constructor(nodeType: NodeType) {
+            super(nodeType);
+        }
+    }
+
+    export class Identifier extends Expression {
         public text: string;
 
         // 'actualText' is the text that the user has entered for the identifier. the text might 
@@ -303,52 +197,32 @@ module TypeScript {
         // Note: 
         //    To change text, and to avoid running into a situation where 'actualText' does not 
         //    match 'text', always use setText.
-        constructor (public actualText: string, public hasEscapeSequence?: bool) {
+        constructor(public actualText: string) {
             super(NodeType.Name);
-            this.setText(actualText, hasEscapeSequence);
+            this.setText(actualText);
         }
 
-        public setText(actualText: string, hasEscapeSequence?: bool) {
+        public setText(actualText: string) {
             this.actualText = actualText;
-            if (hasEscapeSequence) {
-                this.text = AST.getResolvedIdentifierName(actualText);
-            }
-            else {
-                this.text = actualText;
-            }
+            this.text = actualText;
         }
 
         public isMissing() { return false; }
-        public isLeaf() { return true; }
 
-        public treeViewLabel() {
-            return "id: " + this.actualText;
+        public emit(emitter: Emitter) {
+            emitter.emitName(this, true);
         }
 
-        public printLabel() {
-            if (this.actualText) {
-                return "id: " + this.actualText;
-            }
-            else {
-                return "name node";
-            }
-        }
-
-        public typeCheck(typeFlow: TypeFlow) {
-            return typeFlow.typeCheckName(this);
-        }
-
-        public emit(emitter: Emitter, tokenId: TokenID, startLine: bool) {
-            emitter.emitJavascriptName(this, true);
-        }
-
-        public static fromToken(token: Token): Identifier {
-            return new Identifier(token.getText(), (<IdentifierToken>token).hasEscapeSequence);
+        public structuralEquals(ast: Identifier, includingPosition: boolean): boolean {
+            return super.structuralEquals(ast, includingPosition) &&
+                   this.text === ast.text &&
+                   this.actualText === ast.actualText &&
+                   this.isMissing() === ast.isMissing();
         }
     }
 
     export class MissingIdentifier extends Identifier {
-        constructor () {
+        constructor() {
             super("__missing");
         }
 
@@ -356,525 +230,399 @@ module TypeScript {
             return true;
         }
 
-        public emit(emitter: Emitter, tokenId: TokenID, startLine: bool) {
+        public emit(emitter: Emitter) {
             // Emit nothing for a missing ID
         }
     }
 
-    export class Label extends AST {
-        constructor (public id: Identifier) {
-            super(NodeType.Label);
-        }
-
-        public printLabel() { return this.id.actualText + ":"; }
-
-        public typeCheck(typeFlow: TypeFlow) {
-            this.type = typeFlow.voidType;
-            return this;
-        }
-
-        public emit(emitter: Emitter, tokenId: TokenID, startLine: bool) {
-            emitter.emitParensAndCommentsInPlace(this, true);
-            emitter.recordSourceMappingStart(this);
-            emitter.recordSourceMappingStart(this.id);
-            emitter.writeToOutput(this.id.actualText);
-            emitter.recordSourceMappingEnd(this.id);
-            emitter.writeLineToOutput(":");
-            emitter.recordSourceMappingEnd(this);
-            emitter.emitParensAndCommentsInPlace(this, false);
-        }
-    }
-
-    export class Expression extends AST {
-        constructor (nodeType: NodeType) {
+    export class LiteralExpression extends Expression {
+        constructor(nodeType: NodeType) {
             super(nodeType);
         }
 
-        public isExpression() { return true; }
+        public emitWorker(emitter: Emitter) {
+            switch (this.nodeType) {
+                case NodeType.NullLiteral:
+                    emitter.writeToOutput("null");
+                    break;
+                case NodeType.FalseLiteral:
+                    emitter.writeToOutput("false");
+                    break;
+                case NodeType.TrueLiteral:
+                    emitter.writeToOutput("true");
+                    break;
+                default:
+                    throw new Error("please implement in derived class");
+            }
+        }
 
-        public isStatementOrExpression() { return true; }
+        public structuralEquals(ast: ParenthesizedExpression, includingPosition: boolean): boolean {
+            return super.structuralEquals(ast, includingPosition);
+        }
+    }
+
+    export class ThisExpression extends Expression {
+        constructor() {
+            super(NodeType.ThisExpression);
+        }
+
+        public emitWorker(emitter: Emitter) {
+            if (emitter.thisFunctionDeclaration && (hasFlag(emitter.thisFunctionDeclaration.getFunctionFlags(), FunctionFlags.IsFatArrowFunction))) {
+                emitter.writeToOutput("_this");
+            }
+            else {
+                emitter.writeToOutput("this");
+            }
+        }
+
+        public structuralEquals(ast: ParenthesizedExpression, includingPosition: boolean): boolean {
+            return super.structuralEquals(ast, includingPosition);
+        }
+    }
+
+    export class SuperExpression extends Expression {
+        constructor() {
+            super(NodeType.SuperExpression);
+        }
+
+        public emitWorker(emitter: Emitter) {
+            emitter.emitSuperReference();
+        }
+
+        public structuralEquals(ast: ParenthesizedExpression, includingPosition: boolean): boolean {
+            return super.structuralEquals(ast, includingPosition);
+        }
+    }
+
+    export class ParenthesizedExpression extends Expression {
+        constructor(public expression: AST) {
+            super(NodeType.ParenthesizedExpression);
+        }
+
+        public emitWorker(emitter: Emitter) {
+            emitter.writeToOutput("(");
+            this.expression.emit(emitter);
+            emitter.writeToOutput(")");
+        }
+
+        public structuralEquals(ast: ParenthesizedExpression, includingPosition: boolean): boolean {
+            return super.structuralEquals(ast, includingPosition) &&
+                   structuralEquals(this.expression, ast.expression, includingPosition);
+        }
     }
 
     export class UnaryExpression extends Expression {
-        public targetType: Type = null; // Target type for an object literal (null if no target type)
-        public castTerm: AST = null;
+        public castTerm: TypeReference = null;
 
-        constructor (nodeType: NodeType, public operand: AST) {
+        constructor(nodeType: NodeType, public operand: AST) {
             super(nodeType);
         }
 
-        public addToControlFlow(context: ControlFlowContext): void {
-            super.addToControlFlow(context);
-            // TODO: add successor as catch block/finally block if present
-            if (this.nodeType == NodeType.Throw) {
-                context.returnStmt();
-            }
-        }
-
-        public typeCheck(typeFlow: TypeFlow) {
+        public emitWorker(emitter: Emitter) {
             switch (this.nodeType) {
-                case NodeType.Not:
-                    return typeFlow.typeCheckBitNot(this);
-
-                case NodeType.LogNot:
-                    return typeFlow.typeCheckLogNot(this);
-
-                case NodeType.Pos:
-                case NodeType.Neg:
-                    return typeFlow.typeCheckUnaryNumberOperator(this);
-
-                case NodeType.IncPost:
-                case NodeType.IncPre:
-                case NodeType.DecPost:
-                case NodeType.DecPre:
-                    return typeFlow.typeCheckIncOrDec(this);
-
-                case NodeType.ArrayLit:
-                    typeFlow.typeCheckArrayLit(this);
-                    return this;
-
-                case NodeType.ObjectLit:
-                    typeFlow.typeCheckObjectLit(this);
-                    return this;
-
-                case NodeType.Throw:
-                    this.operand = typeFlow.typeCheck(this.operand);
-                    this.type = typeFlow.voidType;
-                    return this;
-
-                case NodeType.Typeof:
-                    this.operand = typeFlow.typeCheck(this.operand);
-                    this.type = typeFlow.stringType;
-                    return this;
-
-                case NodeType.Delete:
-                    this.operand = typeFlow.typeCheck(this.operand);
-                    this.type = typeFlow.booleanType;
-                    break;
-
-                case NodeType.TypeAssertion:
-                    this.castTerm = typeFlow.typeCheck(this.castTerm);
-                    var applyTargetType = !this.operand.isParenthesized;
-
-                    var targetType = applyTargetType ? this.castTerm.type : null;
-
-                    typeFlow.checker.typeCheckWithContextualType(targetType, typeFlow.checker.inProvisionalTypecheckMode(), true, this.operand);
-                    typeFlow.castWithCoercion(this.operand, this.castTerm.type, false, true);
-                    this.type = this.castTerm.type;
-                    return this;
-
-                case NodeType.Void:
-                    // REVIEW - Although this is good to do for completeness's sake,
-                    // this shouldn't be strictly necessary from the void operator's
-                    // point of view
-                    this.operand = typeFlow.typeCheck(this.operand);
-                    this.type = typeFlow.checker.undefinedType;
-                    break;
-
-                default:
-                    throw new Error("please implement in derived class");
-            }
-            return this;
-        }
-
-        public emit(emitter: Emitter, tokenId: TokenID, startLine: bool) {
-            emitter.emitParensAndCommentsInPlace(this, true);
-            emitter.recordSourceMappingStart(this);
-            switch (this.nodeType) {
-                case NodeType.IncPost:
-                    emitter.emitJavascript(this.operand, TokenID.PlusPlus, false);
+                case NodeType.PostIncrementExpression:
+                    this.operand.emit(emitter);
                     emitter.writeToOutput("++");
                     break;
-                case NodeType.LogNot:
+                case NodeType.LogicalNotExpression:
                     emitter.writeToOutput("!");
-                    emitter.emitJavascript(this.operand, TokenID.Exclamation, false);
+                    this.operand.emit(emitter);
                     break;
-                case NodeType.DecPost:
-                    emitter.emitJavascript(this.operand, TokenID.MinusMinus, false);
+                case NodeType.PostDecrementExpression:
+                    this.operand.emit(emitter);
                     emitter.writeToOutput("--");
                     break;
-                case NodeType.ObjectLit:
-                    emitter.emitObjectLiteral(<ASTList>this.operand);
+                case NodeType.ObjectLiteralExpression:
+                    emitter.emitObjectLiteral(this);
                     break;
-                case NodeType.ArrayLit:
-                    emitter.emitArrayLiteral(<ASTList>this.operand);
+                case NodeType.ArrayLiteralExpression:
+                    emitter.emitArrayLiteral(this);
                     break;
-                case NodeType.Not:
+                case NodeType.BitwiseNotExpression:
                     emitter.writeToOutput("~");
-                    emitter.emitJavascript(this.operand, TokenID.Tilde, false);
+                    this.operand.emit(emitter);
                     break;
-                case NodeType.Neg:
+                case NodeType.NegateExpression:
                     emitter.writeToOutput("-");
-                    if (this.operand.nodeType == NodeType.Neg) {
-                        this.operand.isParenthesized = true;
+                    if (this.operand.nodeType === NodeType.NegateExpression || this.operand.nodeType === NodeType.PreDecrementExpression) {
+                        emitter.writeToOutput(" ");
                     }
-                    emitter.emitJavascript(this.operand, TokenID.Minus, false);
+                    this.operand.emit(emitter);
                     break;
-                case NodeType.Pos:
+                case NodeType.PlusExpression:
                     emitter.writeToOutput("+");
-                    if (this.operand.nodeType == NodeType.Pos) {
-                        this.operand.isParenthesized = true;
+                    if (this.operand.nodeType === NodeType.PlusExpression || this.operand.nodeType === NodeType.PreIncrementExpression) {
+                        emitter.writeToOutput(" ");
                     }
-                    emitter.emitJavascript(this.operand, TokenID.Plus, false);
+                    this.operand.emit(emitter);
                     break;
-                case NodeType.IncPre:
+                case NodeType.PreIncrementExpression:
                     emitter.writeToOutput("++");
-                    emitter.emitJavascript(this.operand, TokenID.PlusPlus, false);
+                    this.operand.emit(emitter);
                     break;
-                case NodeType.DecPre:
+                case NodeType.PreDecrementExpression:
                     emitter.writeToOutput("--");
-                    emitter.emitJavascript(this.operand, TokenID.MinusMinus, false);
+                    this.operand.emit(emitter);
                     break;
-                case NodeType.Throw:
-                    emitter.writeToOutput("throw ");
-                    emitter.emitJavascript(this.operand, TokenID.Tilde, false);
-                    emitter.writeToOutput(";");
-                    break;
-                case NodeType.Typeof:
+                case NodeType.TypeOfExpression:
                     emitter.writeToOutput("typeof ");
-                    emitter.emitJavascript(this.operand, TokenID.Tilde, false);
+                    this.operand.emit(emitter);
                     break;
-                case NodeType.Delete:
+                case NodeType.DeleteExpression:
                     emitter.writeToOutput("delete ");
-                    emitter.emitJavascript(this.operand, TokenID.Tilde, false);
+                    this.operand.emit(emitter);
                     break;
-                case NodeType.Void:
+                case NodeType.VoidExpression:
                     emitter.writeToOutput("void ");
-                    emitter.emitJavascript(this.operand, TokenID.Tilde, false);
+                    this.operand.emit(emitter);
                     break;
-                case NodeType.TypeAssertion:
-                    emitter.emitJavascript(this.operand, TokenID.Tilde, false);
+                case NodeType.CastExpression:
+                    this.operand.emit(emitter);
                     break;
                 default:
                     throw new Error("please implement in derived class");
             }
-            emitter.recordSourceMappingEnd(this);
-            emitter.emitParensAndCommentsInPlace(this, false);
+        }
+
+        public structuralEquals(ast: UnaryExpression, includingPosition: boolean): boolean {
+            return super.structuralEquals(ast, includingPosition) &&
+                   structuralEquals(this.castTerm, ast.castTerm, includingPosition) &&
+                   structuralEquals(this.operand, ast.operand, includingPosition);
         }
     }
 
     export class CallExpression extends Expression {
-        constructor (nodeType: NodeType,
-                     public target: AST,
-                     public arguments: ASTList) {
+        constructor(nodeType: NodeType,
+                    public target: AST,
+                    public typeArguments: ASTList,
+                    public arguments: ASTList) {
             super(nodeType);
-            this.minChar = this.target.minChar;
         }
 
-        public signature: Signature = null;
-
-        public typeCheck(typeFlow: TypeFlow) {
-            if (this.nodeType == NodeType.New) {
-                return typeFlow.typeCheckNew(this);
-            }
-            else {
-                return typeFlow.typeCheckCall(this);
-            }
-        }
-
-        public emit(emitter: Emitter, tokenId: TokenID, startLine: bool) {
-            emitter.emitParensAndCommentsInPlace(this, true);
-            emitter.recordSourceMappingStart(this);
-
-            if (this.nodeType == NodeType.New) {
+        public emitWorker(emitter: Emitter) {
+            if (this.nodeType === NodeType.ObjectCreationExpression) {
                 emitter.emitNew(this.target, this.arguments);
             }
             else {
                 emitter.emitCall(this, this.target, this.arguments);
             }
+        }
 
-            emitter.recordSourceMappingEnd(this);
-            emitter.emitParensAndCommentsInPlace(this, false);
+        public structuralEquals(ast: CallExpression, includingPosition: boolean): boolean {
+            return super.structuralEquals(ast, includingPosition) &&
+                   structuralEquals(this.target, ast.target, includingPosition) &&
+                   structuralEquals(this.typeArguments, ast.typeArguments, includingPosition) &&
+                   structuralEquals(this.arguments, ast.arguments, includingPosition);
         }
     }
 
     export class BinaryExpression extends Expression {
-        constructor (nodeType: NodeType, public operand1: AST, public operand2: AST) {
+        constructor(nodeType: NodeType,
+                    public operand1: AST,
+                    public operand2: AST) {
             super(nodeType);
         }
 
-        public typeCheck(typeFlow: TypeFlow) {
-            switch (this.nodeType) {
-                case NodeType.Dot:
-                    return typeFlow.typeCheckDotOperator(this);
-                case NodeType.Asg:
-                    return typeFlow.typeCheckAsgOperator(this);
-                case NodeType.Add:
-                case NodeType.Sub:
-                case NodeType.Mul:
-                case NodeType.Div:
-                case NodeType.Mod:
-                case NodeType.Or:
-                case NodeType.And:
-                    return typeFlow.typeCheckArithmeticOperator(this, false);
-                case NodeType.Xor:
-                    return typeFlow.typeCheckBitwiseOperator(this, false);
-                case NodeType.Ne:
-                case NodeType.Eq:
-                    var text: string;
-                    if (typeFlow.checker.styleSettings.eqeqeq) {
-                        text = nodeTypeTable[this.nodeType];
-                        typeFlow.checker.errorReporter.styleError(this, "use of " + text);
-                    }
-                    else if (typeFlow.checker.styleSettings.eqnull) {
-                        text = nodeTypeTable[this.nodeType];
-                        if ((this.operand2 !== null) && (this.operand2.nodeType == NodeType.Null)) {
-                            typeFlow.checker.errorReporter.styleError(this, "use of " + text + " to compare with null");
-                        }
-                    }
-                case NodeType.Eqv:
-                case NodeType.NEqv:
-                case NodeType.Lt:
-                case NodeType.Le:
-                case NodeType.Ge:
-                case NodeType.Gt:
-                    return typeFlow.typeCheckBooleanOperator(this);
-                case NodeType.Index:
-                    return typeFlow.typeCheckIndex(this);
-                case NodeType.Member:
-                    this.type = typeFlow.voidType;
-                    return this;
-                case NodeType.LogOr:
-                    return typeFlow.typeCheckLogOr(this);
-                case NodeType.LogAnd:
-                    return typeFlow.typeCheckLogAnd(this);
-                case NodeType.AsgAdd:
-                case NodeType.AsgSub:
-                case NodeType.AsgMul:
-                case NodeType.AsgDiv:
-                case NodeType.AsgMod:
-                case NodeType.AsgOr:
-                case NodeType.AsgAnd:
-                    return typeFlow.typeCheckArithmeticOperator(this, true);
-                case NodeType.AsgXor:
-                    return typeFlow.typeCheckBitwiseOperator(this, true);
-                case NodeType.Lsh:
-                case NodeType.Rsh:
-                case NodeType.Rs2:
-                    return typeFlow.typeCheckShift(this, false);
-                case NodeType.AsgLsh:
-                case NodeType.AsgRsh:
-                case NodeType.AsgRs2:
-                    return typeFlow.typeCheckShift(this, true);
-                case NodeType.Comma:
-                    return typeFlow.typeCheckCommaOperator(this);
-                case NodeType.InstOf:
-                    return typeFlow.typeCheckInstOf(this);
-                case NodeType.In:
-                    return typeFlow.typeCheckInOperator(this);
-                case NodeType.From:
-                    typeFlow.checker.errorReporter.simpleError(this, "Illegal use of 'from' keyword in binary expression");
-                    break;
-                default:
-                    throw new Error("please implement in derived class");
+        public static getTextForBinaryToken(nodeType: NodeType): string {
+            switch (nodeType) {
+                case NodeType.CommaExpression: return ",";
+                case NodeType.AssignmentExpression: return "=";
+                case NodeType.AddAssignmentExpression: return "+=";
+                case NodeType.SubtractAssignmentExpression: return "-=";
+                case NodeType.MultiplyAssignmentExpression: return "*=";
+                case NodeType.DivideAssignmentExpression: return "/=";
+                case NodeType.ModuloAssignmentExpression: return "%=";
+                case NodeType.AndAssignmentExpression: return "&=";
+                case NodeType.ExclusiveOrAssignmentExpression: return "^=";
+                case NodeType.OrAssignmentExpression: return "|=";
+                case NodeType.LeftShiftAssignmentExpression: return "<<=";
+                case NodeType.SignedRightShiftAssignmentExpression: return ">>=";
+                case NodeType.UnsignedRightShiftAssignmentExpression: return ">>>=";
+                case NodeType.LogicalOrExpression: return "||";
+                case NodeType.LogicalAndExpression: return "&&";
+                case NodeType.BitwiseOrExpression: return "|";
+                case NodeType.BitwiseExclusiveOrExpression: return "^";
+                case NodeType.BitwiseAndExpression: return "&";
+                case NodeType.EqualsWithTypeConversionExpression: return "==";
+                case NodeType.NotEqualsWithTypeConversionExpression: return "!=";
+                case NodeType.EqualsExpression: return "===";
+                case NodeType.NotEqualsExpression: return "!==";
+                case NodeType.LessThanExpression: return "<";
+                case NodeType.GreaterThanExpression: return ">";
+                case NodeType.LessThanOrEqualExpression: return "<="
+                case NodeType.GreaterThanOrEqualExpression: return ">="
+                case NodeType.InstanceOfExpression: return "instanceof";
+                case NodeType.InExpression: return "in";
+                case NodeType.LeftShiftExpression: return "<<";
+                case NodeType.SignedRightShiftExpression: return ">>"
+                case NodeType.UnsignedRightShiftExpression: return ">>>"
+                case NodeType.MultiplyExpression: return "*"
+                case NodeType.DivideExpression: return "/"
+                case NodeType.ModuloExpression: return "%"
+                case NodeType.AddExpression: return "+"
+                case NodeType.SubtractExpression: return "-";
             }
-            return this;
+
+            throw Errors.invalidOperation();
         }
 
-        public emit(emitter: Emitter, tokenId: TokenID, startLine: bool) {
-            var binTokenId = nodeTypeToTokTable[this.nodeType];
+        public emitWorker(emitter: Emitter) {
+            switch (this.nodeType) {
+                case NodeType.MemberAccessExpression:
+                    if (!emitter.tryEmitConstant(this)) {
+                        this.operand1.emit(emitter);
+                        emitter.writeToOutput(".");
+                        emitter.emitName(<Identifier>this.operand2, false);
+                    }
+                    break;
+                case NodeType.ElementAccessExpression:
+                    emitter.emitIndex(this.operand1, this.operand2);
+                    break;
 
-            emitter.emitParensAndCommentsInPlace(this, true);
-            emitter.recordSourceMappingStart(this);
-            if (binTokenId != undefined) {
-
-                emitter.emitJavascript(this.operand1, binTokenId, false);
-
-                if (tokenTable[binTokenId].text == "instanceof") {
-                    emitter.writeToOutput(" instanceof ");
-                }
-                else if (tokenTable[binTokenId].text == "in") {
-                    emitter.writeToOutput(" in ");
-                }
-                else {
-                    emitter.writeToOutputTrimmable(" " + tokenTable[binTokenId].text + " ");
-                }
-
-                emitter.emitJavascript(this.operand2, binTokenId, false);
-            }
-            else {
-                switch (this.nodeType) {
-                    case NodeType.Dot:
-                        if (!emitter.tryEmitConstant(this)) {
-                            emitter.emitJavascript(this.operand1, TokenID.Dot, false);
-                            emitter.writeToOutput(".");
-                            emitter.emitJavascriptName(<Identifier>this.operand2, false);
-                        }
-                        break;
-                    case NodeType.Index:
-                        emitter.emitIndex(this.operand1, this.operand2);
-                        break;
-
-                    case NodeType.Member:
-                        if (this.operand2.nodeType == NodeType.FuncDecl && (<FuncDecl>this.operand2).isAccessor()) {
-                            var funcDecl = <FuncDecl>this.operand2;
-                            if (hasFlag(funcDecl.fncFlags, FncFlags.GetAccessor)) {
-                                emitter.writeToOutput("get ");
-                            }
-                            else {
-                                emitter.writeToOutput("set ");
-                            }
-                            emitter.emitJavascript(this.operand1, TokenID.Colon, false);
+                case NodeType.Member:
+                    if (this.operand2.nodeType === NodeType.FunctionDeclaration && (<FunctionDeclaration>this.operand2).isAccessor()) {
+                        var funcDecl = <FunctionDeclaration>this.operand2;
+                        if (hasFlag(funcDecl.getFunctionFlags(), FunctionFlags.GetAccessor)) {
+                            emitter.writeToOutput("get ");
                         }
                         else {
-                            emitter.emitJavascript(this.operand1, TokenID.Colon, false);
-                            emitter.writeToOutputTrimmable(": ");
+                            emitter.writeToOutput("set ");
                         }
-                        emitter.emitJavascript(this.operand2, TokenID.Comma, false);
-                        break;
-                    case NodeType.Comma:
-                        emitter.emitJavascript(this.operand1, TokenID.Comma, false);
-                        if (emitter.emitState.inObjectLiteral) {
-                            emitter.writeLineToOutput(", ");
+                        this.operand1.emit(emitter);
+                    }
+                    else {
+                        this.operand1.emit(emitter);
+                        emitter.writeToOutputTrimmable(": ");
+                    }
+                    this.operand2.emit(emitter);
+                    break;
+                case NodeType.CommaExpression:
+                    this.operand1.emit(emitter);
+                    emitter.writeToOutput(", ");
+                    this.operand2.emit(emitter);
+                    break;
+                default:
+                    {
+                        this.operand1.emit(emitter);
+                        var binOp = BinaryExpression.getTextForBinaryToken(this.nodeType);
+                        if (binOp === "instanceof") {
+                            emitter.writeToOutput(" instanceof ");
+                        }
+                        else if (binOp === "in") {
+                            emitter.writeToOutput(" in ");
                         }
                         else {
-                            emitter.writeToOutput(",");
+                            emitter.writeToOutputTrimmable(" " + binOp + " ");
                         }
-                        emitter.emitJavascript(this.operand2, TokenID.Comma, false);
-                        break;
-                    case NodeType.Is:
-                        throw new Error("should be de-sugared during type check");
-                    default:
-                        throw new Error("please implement in derived class");
-                }
+                        this.operand2.emit(emitter);
+                    }
             }
-            emitter.recordSourceMappingEnd(this);
-            emitter.emitParensAndCommentsInPlace(this, false);
+        }
+
+        public structuralEquals(ast: BinaryExpression, includingPosition: boolean): boolean {
+            return super.structuralEquals(ast, includingPosition) &&
+                   structuralEquals(this.operand1, ast.operand1, includingPosition) &&
+                   structuralEquals(this.operand2, ast.operand2, includingPosition);
         }
     }
 
     export class ConditionalExpression extends Expression {
-        constructor (public operand1: AST,
-                     public operand2: AST,
-                     public operand3: AST) {
+        constructor(public operand1: AST,
+                    public operand2: AST,
+                    public operand3: AST) {
             super(NodeType.ConditionalExpression);
         }
 
-        public typeCheck(typeFlow: TypeFlow) {
-            return typeFlow.typeCheckQMark(this);
+        public emitWorker(emitter: Emitter) {
+            this.operand1.emit(emitter);
+            emitter.writeToOutput(" ? ");
+            this.operand2.emit(emitter);
+            emitter.writeToOutput(" : ");
+            this.operand3.emit(emitter);
         }
 
-        public emit(emitter: Emitter, tokenId: TokenID, startLine: bool) {
-            emitter.emitParensAndCommentsInPlace(this, true);
-            emitter.recordSourceMappingStart(this);
-            emitter.emitJavascript(this.operand1, TokenID.Question, false);
-            emitter.writeToOutput(" ? ");
-            emitter.emitJavascript(this.operand2, TokenID.Question, false);
-            emitter.writeToOutput(" : ");
-            emitter.emitJavascript(this.operand3, TokenID.Question, false);
-            emitter.recordSourceMappingEnd(this);
-            emitter.emitParensAndCommentsInPlace(this, false);
+        public structuralEquals(ast: ConditionalExpression, includingPosition: boolean): boolean {
+            return super.structuralEquals(ast, includingPosition) &&
+                   structuralEquals(this.operand1, ast.operand1, includingPosition) &&
+                   structuralEquals(this.operand2, ast.operand2, includingPosition) &&
+                   structuralEquals(this.operand3, ast.operand3, includingPosition);
         }
     }
 
     export class NumberLiteral extends Expression {
-        constructor (public value: number, public text: string) {
-            super(NodeType.NumberLit);
+        constructor(public value: number, public text: string) {
+            super(NodeType.NumericLiteral);
         }
 
-        public typeCheck(typeFlow: TypeFlow) {
-            this.type = typeFlow.doubleType;
-            return this;
-        }
-
-        public treeViewLabel() {
-            return "num: " + this.printLabel();
-        }
-
-        public emit(emitter: Emitter, tokenId: TokenID, startLine: bool) {
-            emitter.emitParensAndCommentsInPlace(this, true);
-            emitter.recordSourceMappingStart(this);
+        public emitWorker(emitter: Emitter) {
             emitter.writeToOutput(this.text);
-            emitter.recordSourceMappingEnd(this);
-            emitter.emitParensAndCommentsInPlace(this, false);
         }
 
-        public printLabel(): string {
-            return this.text;
+        public structuralEquals(ast: NumberLiteral, includingPosition: boolean): boolean {
+            return super.structuralEquals(ast, includingPosition) &&
+                   this.value === ast.value &&
+                   this.text === ast.text;
         }
     }
 
     export class RegexLiteral extends Expression {
-        constructor (public text: string) {
-            super(NodeType.Regex);
-        }
-        
-        public typeCheck(typeFlow: TypeFlow) {
-            this.type = typeFlow.regexType;
-            return this;
+        constructor(public text: string) {
+            super(NodeType.RegularExpressionLiteral);
         }
 
-        public emit(emitter: Emitter, tokenId: TokenID, startLine: bool) {
-            emitter.emitParensAndCommentsInPlace(this, true);
-            emitter.recordSourceMappingStart(this);
+        public emitWorker(emitter: Emitter) {
             emitter.writeToOutput(this.text);
-            emitter.recordSourceMappingEnd(this);
-            emitter.emitParensAndCommentsInPlace(this, false);
+        }
+
+        public structuralEquals(ast: RegexLiteral, includingPosition: boolean): boolean {
+            return super.structuralEquals(ast, includingPosition) &&
+                   this.text === ast.text;
         }
     }
 
     export class StringLiteral extends Expression {
-        constructor (public text: string) {
-            super(NodeType.QString);
+        constructor(public actualText: string, public text: string) {
+            super(NodeType.StringLiteral);
         }
 
-        public emit(emitter: Emitter, tokenId: TokenID, startLine: bool) {
-            emitter.emitParensAndCommentsInPlace(this, true);
-            emitter.recordSourceMappingStart(this);
-            emitter.emitStringLiteral(this.text);
-            emitter.recordSourceMappingEnd(this);
-            emitter.emitParensAndCommentsInPlace(this, false);
+        public emitWorker(emitter: Emitter) {
+            emitter.writeToOutput(this.actualText);
         }
 
-        public typeCheck(typeFlow: TypeFlow) {
-            this.type = typeFlow.stringType;
-            return this;
-        }
-
-        public treeViewLabel() {
-            return "st: " + this.text;
-        }
-
-        public printLabel() {
-            return this.text;
+        public structuralEquals(ast: StringLiteral, includingPosition: boolean): boolean {
+            return super.structuralEquals(ast, includingPosition) &&
+                   this.actualText === ast.actualText;
         }
     }
 
-    export class ModuleElement extends AST {
-        constructor (nodeType: NodeType) {
-            super(nodeType);
-        }
-    }
-
-    export class ImportDeclaration extends ModuleElement {
-        public isStatementOrExpression() { return true; }
-        public varFlags = VarFlags.None;
+    export class ImportDeclaration extends AST {
         public isDynamicImport = false;
-        public isDeclaration() { return true; }
+        public isStatementOrExpression() { return true; }
 
-        constructor (public id: Identifier, public alias: AST) {
+        constructor(public id: Identifier, public alias: AST) {
             super(NodeType.ImportDeclaration);
         }
 
-        public emit(emitter: Emitter, tokenId: TokenID, startLine: bool) {
-            var mod = <ModuleType>this.alias.type;
+        public isDeclaration() { return true; }
+
+        public emit(emitter: Emitter) {
             // REVIEW: Only modules may be aliased for now, though there's no real
             // restriction on what the type symbol may be
-            if (!this.isDynamicImport || (this.id.sym && !(<TypeSymbol>this.id.sym).onlyReferencedAsTypeRef)) {
+            if (emitter.importStatementShouldBeEmitted(this)) {
                 var prevModAliasId = emitter.modAliasId;
                 var prevFirstModAlias = emitter.firstModAlias;
 
                 emitter.recordSourceMappingStart(this);
-                emitter.emitParensAndCommentsInPlace(this, true);
+                emitter.emitComments(this, true);
                 emitter.writeToOutput("var " + this.id.actualText + " = ");
                 emitter.modAliasId = this.id.actualText;
                 emitter.firstModAlias = this.firstAliasedModToString();
-                emitter.emitJavascript(this.alias, TokenID.Tilde, false);
-                // the dynamic import case will insert the semi-colon automatically
-                if (!this.isDynamicImport) {
-                    emitter.writeToOutput(";");
-                }
-                emitter.emitParensAndCommentsInPlace(this, false);
+                var aliasAST = this.alias.nodeType === NodeType.TypeRef ? (<TypeReference>this.alias).term : this.alias;
+
+                emitter.emitJavascript(aliasAST, false);
+                emitter.writeToOutput(";");
+
+                emitter.emitComments(this, false);
                 emitter.recordSourceMappingEnd(this);
 
                 emitter.modAliasId = prevModAliasId;
@@ -882,12 +630,8 @@ module TypeScript {
             }
         }
 
-        public typeCheck(typeFlow: TypeFlow) {
-            return typeFlow.typeCheckImportDecl(this);
-        }
-
-        public getAliasName(aliasAST?: AST = this.alias) : string {
-            if (aliasAST.nodeType == NodeType.Name) {
+        public getAliasName(aliasAST: AST = this.alias): string {
+            if (aliasAST.nodeType === NodeType.Name) {
                 return (<Identifier>aliasAST).actualText;
             } else {
                 var dotExpr = <BinaryExpression>aliasAST;
@@ -896,190 +640,151 @@ module TypeScript {
         }
 
         public firstAliasedModToString() {
-            if (this.alias.nodeType == NodeType.Name) {
+            if (this.alias.nodeType === NodeType.Name) {
                 return (<Identifier>this.alias).actualText;
             }
             else {
-                var dotExpr = <BinaryExpression>this.alias;
-                var firstMod = <Identifier>dotExpr.operand1;
+                var dotExpr = <TypeReference>this.alias;
+                var firstMod = <Identifier>(<BinaryExpression>dotExpr.term).operand1;
                 return firstMod.actualText;
             }
+        }
+
+        public structuralEquals(ast: ImportDeclaration, includingPosition: boolean): boolean {
+            return super.structuralEquals(ast, includingPosition) &&
+                   structuralEquals(this.id, ast.id, includingPosition) &&
+                   structuralEquals(this.alias, ast.alias, includingPosition);
+        }
+    }
+
+    export class ExportAssignment extends AST {
+        constructor(public id: Identifier) {
+            super(NodeType.ExportAssignment);
+        }
+
+        public structuralEquals(ast: ExportAssignment, includingPosition: boolean): boolean {
+            return super.structuralEquals(ast, includingPosition) &&
+                   structuralEquals(this.id, ast.id, includingPosition);
+        }
+
+        public emit(emitter: Emitter) {
+            emitter.setExportAssignmentIdentifier(this.id.actualText);
         }
     }
 
     export class BoundDecl extends AST {
         public init: AST = null;
+        public isImplicitlyInitialized = false;
         public typeExpr: AST = null;
-        public varFlags = VarFlags.None;
-        public sym: Symbol = null;
+        private _varFlags = VariableFlags.None;
         public isDeclaration() { return true; }
+        public isStatementOrExpression() { return true; }
 
-        constructor (public id: Identifier, nodeType: NodeType, public nestingLevel: number) {
+        constructor(public id: Identifier, nodeType: NodeType) {
             super(nodeType);
         }
 
-        public isStatementOrExpression() { return true; }
-
-        public isPrivate() { return hasFlag(this.varFlags, VarFlags.Private); }
-        public isPublic() { return hasFlag(this.varFlags, VarFlags.Public); }
-        public isProperty() { return hasFlag(this.varFlags, VarFlags.Property); }
-
-        public typeCheck(typeFlow: TypeFlow) {
-            return typeFlow.typeCheckBoundDecl(this);
+        public getVarFlags(): VariableFlags {
+            return this._varFlags;
         }
 
-        public printLabel() {
-            return this.treeViewLabel();
-        }
-    }
-
-    export class VarDecl extends BoundDecl {
-        constructor (id: Identifier, nest: number) {
-            super(id, NodeType.VarDecl, nest);
+        // Must only be called from SyntaxTreeVisitor
+        public setVarFlags(flags: VariableFlags): void {
+            this._varFlags = flags;
         }
 
-        public isAmbient() { return hasFlag(this.varFlags, VarFlags.Ambient); }
-        public isExported() { return hasFlag(this.varFlags, VarFlags.Exported); }
-        public isStatic() { return hasFlag(this.varFlags, VarFlags.Static); }
+        public isProperty() { return hasFlag(this.getVarFlags(), VariableFlags.Property); }
 
-        public emit(emitter: Emitter, tokenId: TokenID, startLine: bool) {
-            emitter.emitJavascriptVarDecl(this, tokenId);
-        }
-
-        public treeViewLabel() {
-            return "var " + this.id.actualText;
+        public structuralEquals(ast: BoundDecl, includingPosition: boolean): boolean {
+            return super.structuralEquals(ast, includingPosition) &&
+                   this._varFlags === ast._varFlags &&
+                   structuralEquals(this.init, ast.init, includingPosition) &&
+                   structuralEquals(this.typeExpr, ast.typeExpr, includingPosition) &&
+                   structuralEquals(this.id, ast.id, includingPosition);
         }
     }
 
-    export class ArgDecl extends BoundDecl {
-        constructor (id: Identifier) {
-            super(id, NodeType.ArgDecl, 0);
+    export class VariableDeclarator extends BoundDecl {
+        constructor(id: Identifier) {
+            super(id, NodeType.VariableDeclarator);
+        }
+
+        public isExported() { return hasFlag(this.getVarFlags(), VariableFlags.Exported); }
+
+        public isStatic() { return hasFlag(this.getVarFlags(), VariableFlags.Static); }
+
+        public emit(emitter: Emitter) {
+            emitter.emitVariableDeclarator(this);
+        }
+    }
+
+    export class Parameter extends BoundDecl {
+        constructor(id: Identifier) {
+            super(id, NodeType.Parameter);
         }
 
         public isOptional = false;
 
         public isOptionalArg() { return this.isOptional || this.init; }
 
-        public treeViewLabel() {
-            return "arg: " + this.id.actualText;
+        public emitWorker(emitter: Emitter) {
+            emitter.writeToOutput(this.id.actualText);
         }
 
-        public parameterPropertySym: FieldSymbol = null;
-
-        public emit(emitter: Emitter, tokenId: TokenID, startLine: bool) {
-            emitter.emitParensAndCommentsInPlace(this, true);
-            emitter.recordSourceMappingStart(this);
-            emitter.writeToOutput(this.id.actualText);
-            emitter.recordSourceMappingEnd(this);
-            emitter.emitParensAndCommentsInPlace(this, false);
+        public structuralEquals(ast: Parameter, includingPosition: boolean): boolean {
+            return super.structuralEquals(ast, includingPosition) &&
+                   this.isOptional === ast.isOptional;
         }
     }
 
-    var internalId = 0;
-
-    export class FuncDecl extends AST {
+    export class FunctionDeclaration extends AST {
         public hint: string = null;
-        public fncFlags = FncFlags.None;
+        private _functionFlags = FunctionFlags.None;
         public returnTypeAnnotation: AST = null;
-        public symbols: IHashTable;
         public variableArgList = false;
-        public signature: Signature;
-        public envids: Identifier[];
-        public jumpRefs: Identifier[] = null;
-        public internalNameCache: string = null;
-        public tmp1Declared = false;
-        public enclosingFnc: FuncDecl = null;
-        public freeVariables: Symbol[] = [];
-        public unitIndex = -1;
         public classDecl: NamedDeclaration = null;
-        public boundToProperty: VarDecl = null;
-        public isOverload = false;
-        public innerStaticFuncs: FuncDecl[] = [];
-        public isInlineCallLiteral = false;
-        public accessorSymbol: Symbol = null;
-        public leftCurlyCount = 0;
-        public rightCurlyCount = 0;
-        public returnStatementsWithExpressions: ReturnStatement[] = [];
-        public scopeType: Type = null; // Type of the FuncDecl, before target typing
-        public endingToken: ASTSpan = null;
-        public isDeclaration() { return true; }
-        public constructorSpan: ASTSpan = null;
 
-        constructor (public name: Identifier, public bod: ASTList, public isConstructor: bool,
-                     public arguments: ASTList, public vars: ASTList, public scopes: ASTList, public statics: ASTList,
-                     nodeType: number) {
+        public returnStatementsWithExpressions: ReturnStatement[];
+        public isDeclaration() { return true; }
+
+        constructor(public name: Identifier,
+                    public block: Block,
+                    public isConstructor: boolean,
+                    public typeArguments: ASTList,
+                    public arguments: ASTList,
+                    nodeType: number) {
 
             super(nodeType);
         }
 
-        public internalName(): string {
-            if (this.internalNameCache == null) {
-                var extName = this.getNameText();
-                if (extName) {
-                    this.internalNameCache = "_internal_" + extName;
-                }
-                else {
-                    this.internalNameCache = "_internal_" + internalId++;
-                }
-            }
-            return this.internalNameCache;
+        public getFunctionFlags(): FunctionFlags {
+            return this._functionFlags;
         }
 
-        public hasSelfReference() { return hasFlag(this.fncFlags, FncFlags.HasSelfReference); }
-        public setHasSelfReference() { this.fncFlags |= FncFlags.HasSelfReference; }
-
-        public hasSuperReferenceInFatArrowFunction() { return hasFlag(this.fncFlags, FncFlags.HasSuperReferenceInFatArrowFunction); }
-        public setHasSuperReferenceInFatArrowFunction() { this.fncFlags |= FncFlags.HasSuperReferenceInFatArrowFunction; }
-
-        public addCloRef(id: Identifier, sym: Symbol): number {
-            if (this.envids == null) {
-                this.envids = new Identifier[];
-            }
-            this.envids[this.envids.length] = id;
-            var outerFnc = this.enclosingFnc;
-            if (sym) {
-                while (outerFnc && (outerFnc.type.symbol != sym.container)) {
-                    outerFnc.addJumpRef(sym);
-                    outerFnc = outerFnc.enclosingFnc;
-                }
-            }
-            return this.envids.length - 1;
+        // Must only be called from SyntaxTreeVisitor
+        public setFunctionFlags(flags: FunctionFlags): void {
+            this._functionFlags = flags;
         }
 
-        public addJumpRef(sym: Symbol): void {
-            if (this.jumpRefs == null) {
-                this.jumpRefs = new Identifier[];
-            }
-            var id = new Identifier(sym.name);
-            this.jumpRefs[this.jumpRefs.length] = id;
-            id.sym = sym;
-            id.cloId = this.addCloRef(id, null);
+        public structuralEquals(ast: FunctionDeclaration, includingPosition: boolean): boolean {
+            return super.structuralEquals(ast, includingPosition) &&
+                   this._functionFlags === ast._functionFlags &&
+                   this.hint === ast.hint &&
+                   this.variableArgList === ast.variableArgList &&
+                   structuralEquals(this.name, ast.name, includingPosition) &&
+                   structuralEquals(this.block, ast.block, includingPosition) &&
+                   this.isConstructor === ast.isConstructor &&
+                   structuralEquals(this.typeArguments, ast.typeArguments, includingPosition) &&
+                   structuralEquals(this.arguments, ast.arguments, includingPosition);
         }
 
-        public buildControlFlow(): ControlFlowContext {
-            var entry = new BasicBlock();
-            var exit = new BasicBlock();
-
-            var context = new ControlFlowContext(entry, exit);
-
-            var controlFlowPrefix = (ast: AST, parent: AST, walker: IAstWalker) => {
-                ast.addToControlFlow(walker.state);
-                return ast;
-            }
-
-            var walker = getAstWalkerFactory().getWalker(controlFlowPrefix, null, null, context);
-            context.walker = walker;
-            walker.walk(this.bod, this);
-
-            return context;
+        public shouldEmit(): boolean {
+            return !hasFlag(this.getFunctionFlags(), FunctionFlags.Signature) &&
+                   !hasFlag(this.getFunctionFlags(), FunctionFlags.Ambient);
         }
 
-        public typeCheck(typeFlow: TypeFlow) {
-            return typeFlow.typeCheckFunction(this);
-        }
-
-        public emit(emitter: Emitter, tokenId: TokenID, startLine: bool) {
-            emitter.emitJavascriptFunction(this);
+        public emit(emitter: Emitter) {
+            emitter.emitFunction(this);
         }
 
         public getNameText() {
@@ -1092,374 +797,330 @@ module TypeScript {
         }
 
         public isMethod() {
-            return (this.fncFlags & FncFlags.Method) != FncFlags.None;
+            return (this.getFunctionFlags() & FunctionFlags.Method) !== FunctionFlags.None;
         }
 
-        public isCallMember() { return hasFlag(this.fncFlags, FncFlags.CallMember); }
-        public isConstructMember() { return hasFlag(this.fncFlags, FncFlags.ConstructMember); }
-        public isIndexerMember() { return hasFlag(this.fncFlags, FncFlags.IndexerMember); }
+        public isCallMember() { return hasFlag(this.getFunctionFlags(), FunctionFlags.CallMember); }
+        public isConstructMember() { return hasFlag(this.getFunctionFlags(), FunctionFlags.ConstructMember); }
+        public isIndexerMember() { return hasFlag(this.getFunctionFlags(), FunctionFlags.IndexerMember); }
         public isSpecialFn() { return this.isCallMember() || this.isIndexerMember() || this.isConstructMember(); }
-        public isAnonymousFn() { return this.name === null; }
-        public isAccessor() { return hasFlag(this.fncFlags, FncFlags.GetAccessor) || hasFlag(this.fncFlags, FncFlags.SetAccessor); }
-        public isGetAccessor() { return hasFlag(this.fncFlags, FncFlags.GetAccessor); }
-        public isSetAccessor() { return hasFlag(this.fncFlags, FncFlags.SetAccessor); }
-        public isAmbient() { return hasFlag(this.fncFlags, FncFlags.Ambient); }
-        public isExported() { return hasFlag(this.fncFlags, FncFlags.Exported); }
-        public isPrivate() { return hasFlag(this.fncFlags, FncFlags.Private); }
-        public isPublic() { return hasFlag(this.fncFlags, FncFlags.Public); }
-        public isStatic() { return hasFlag(this.fncFlags, FncFlags.Static); }
+        public isAccessor() { return hasFlag(this.getFunctionFlags(), FunctionFlags.GetAccessor) || hasFlag(this.getFunctionFlags(), FunctionFlags.SetAccessor); }
+        public isGetAccessor() { return hasFlag(this.getFunctionFlags(), FunctionFlags.GetAccessor); }
+        public isSetAccessor() { return hasFlag(this.getFunctionFlags(), FunctionFlags.SetAccessor); }
+        public isStatic() { return hasFlag(this.getFunctionFlags(), FunctionFlags.Static); }
 
-        public treeViewLabel() {
-            if (this.name == null) {
-                return "funcExpr";
-            }
-            else {
-                return "func: " + this.name.actualText
-            }
-        }
-
-        public ClearFlags(): void {
-            this.fncFlags = FncFlags.None;
-        }
-
-        public isSignature() { return (this.fncFlags & FncFlags.Signature) != FncFlags.None; }
+        public isSignature() { return (this.getFunctionFlags() & FunctionFlags.Signature) !== FunctionFlags.None; }
     }
 
-    export class LocationInfo {
-        constructor (public filename: string, public lineMap: number[], public unitIndex) { }
-    }
-
-    export var unknownLocationInfo = new LocationInfo("unknown", null, -1);
-
-    export class Script extends FuncDecl {
-        public locationInfo: LocationInfo = null;
+    export class Script extends AST {
+        public moduleElements: ASTList = null;
         public referencedFiles: IFileReference[] = [];
-        public requiresGlobal = false;
         public requiresExtendsBlock = false;
-        public isResident = false;
         public isDeclareFile = false;
-        public hasBeenTypeChecked = false;
         public topLevelMod: ModuleDeclaration = null;
-        public leftCurlyCount = 0;
-        public rightCurlyCount = 0;
-        public vars: ASTList;
         // Remember if the script contains Unicode chars, that is needed when generating code for this script object to decide the output file correct encoding.
         public containsUnicodeChar = false;
         public containsUnicodeCharInComment = false;
-        public cachedEmitRequired: bool;
 
-        private setCachedEmitRequired(value: bool) {
-            this.cachedEmitRequired = value;
-            return this.cachedEmitRequired;
+        constructor() {
+            super(NodeType.Script);
         }
 
-        constructor (vars: ASTList, scopes: ASTList) {
-            super(new Identifier("script"), null, false, null, vars, scopes, null, NodeType.Script);
-            this.vars = vars;
-        }
-
-        public typeCheck(typeFlow: TypeFlow) {
-            return typeFlow.typeCheckScript(this);
-        }
-
-        public treeViewLabel() {
-            return "Script";
-        }
-
-        public emitRequired(emitOptions: EmitOptions) {
-            if (this.cachedEmitRequired != undefined) {
-                return this.cachedEmitRequired;
-            }
-
-            if (!this.isDeclareFile && !this.isResident && this.bod) {
-                if (this.bod.members.length == 0) {
-                    // allow empty files that are not declare files 
-                    return this.setCachedEmitRequired(true);
-                }
-
-                for (var i = 0, len = this.bod.members.length; i < len; i++) {
-                    var stmt = this.bod.members[i];
-                    if (stmt.nodeType == NodeType.ModuleDeclaration) {
-                        if (!hasFlag((<ModuleDeclaration>stmt).modFlags, ModuleFlags.ShouldEmitModuleDecl | ModuleFlags.Ambient)) {
-                            return this.setCachedEmitRequired(true);
-                        }
-                    }
-                    else if (stmt.nodeType == NodeType.ClassDeclaration) {
-                        if (!hasFlag((<ClassDeclaration>stmt).varFlags, VarFlags.Ambient)) {
-                            return this.setCachedEmitRequired(true);
-                        }
-                    }
-                    else if (stmt.nodeType == NodeType.VarDecl) {
-                        if (!hasFlag((<VarDecl>stmt).varFlags, VarFlags.Ambient)) {
-                            return this.setCachedEmitRequired(true);
-                        }
-                    }
-                    else if (stmt.nodeType == NodeType.FuncDecl) {
-                        if (!(<FuncDecl>stmt).isSignature()) {
-                            return this.setCachedEmitRequired(true);
-                        }
-                    }
-                    else if (stmt.nodeType != NodeType.InterfaceDeclaration && stmt.nodeType != NodeType.Empty) {
-                        return this.setCachedEmitRequired(true);
-                    }
-                }
-
-                if ( emitOptions.emitComments &&
-                    ((this.bod.preComments && this.bod.preComments.length > 0) || (this.bod.postComments && this.bod.postComments.length > 0))) {
-                    return this.setCachedEmitRequired(true);
-                }
-            }
-            return this.setCachedEmitRequired(false);
-        }
-
-        public emit(emitter: Emitter, tokenId: TokenID, startLine: bool) {
-            if (this.emitRequired(emitter.emitOptions)) {
-                emitter.emitJavascriptList(this.bod, null, TokenID.Semicolon, true, false, false, true, this.requiresExtendsBlock);
+        public emit(emitter: Emitter) {
+            if (!this.isDeclareFile) {
+                emitter.emitScriptElements(this, this.requiresExtendsBlock);
             }
         }
 
-        public externallyVisibleImportedSymbols: Symbol[] = [];
-
-        public AddExternallyVisibleImportedSymbol(symbol: Symbol, checker: TypeChecker) {
-            if (this.isExternallyVisibleSymbol(symbol)) {
-                return;
-            }
-
-            // Before adding check if the external symbol is also marked for visibility
-            if (!symbol.getType().symbol.isExternallyVisible(checker)) {
-                // Report error
-                var quotes = "";
-                var moduleName = symbol.getType().symbol.prettyName;
-                if (!isQuoted(moduleName)) {
-                    quotes = "'";
-                }
-                checker.errorReporter.simpleError(symbol.declAST, "Externally visible import statement uses non exported module " + quotes + moduleName + quotes);
-            }
-            this.externallyVisibleImportedSymbols.push(symbol);
-        }
-
-        public isExternallyVisibleSymbol(symbol: Symbol) {
-            for (var i = 0 ; i < this.externallyVisibleImportedSymbols.length; i++) {
-                if (this.externallyVisibleImportedSymbols[i] == symbol) {
-                    return true;
-                }
-            }
-            return false;
+        public structuralEquals(ast: Script, includingPosition: boolean): boolean {
+            return super.structuralEquals(ast, includingPosition) &&
+                   structuralEquals(this.moduleElements, ast.moduleElements, includingPosition);
         }
     }
 
-    export class NamedDeclaration extends ModuleElement {
-        public leftCurlyCount = 0;
-        public rightCurlyCount = 0;
+    export class NamedDeclaration extends AST {
         public isDeclaration() { return true; }
 
-        constructor (nodeType: NodeType,
-                     public name: Identifier,
-                     public members: ASTList) {
+        constructor(nodeType: NodeType,
+                    public name: Identifier,
+                    public members: ASTList) {
             super(nodeType);
+        }
+
+        public structuralEquals(ast: NamedDeclaration, includingPosition: boolean): boolean {
+            return super.structuralEquals(ast, includingPosition) &&
+                   structuralEquals(this.name, ast.name, includingPosition) &&
+                   structuralEquals(this.members, ast.members, includingPosition);
         }
     }
 
     export class ModuleDeclaration extends NamedDeclaration {
-        public modFlags = ModuleFlags.ShouldEmitModuleDecl;
-        public mod: ModuleType;
+        private _moduleFlags = ModuleFlags.None;
         public prettyName: string;
         public amdDependencies: string[] = [];
-        public vars: ASTList;
         // Remember if the module contains Unicode chars, that is needed for dynamic module as we will generate a file for each.
         public containsUnicodeChar = false;
         public containsUnicodeCharInComment = false;
 
-        constructor (name: Identifier, members: ASTList, vars: ASTList, public endingToken: ASTSpan) {
+        constructor(name: Identifier, members: ASTList, public endingToken: ASTSpan) {
             super(NodeType.ModuleDeclaration, name, members);
 
-            this.vars = vars;
             this.prettyName = this.name.actualText;
         }
 
-        public isExported() { return hasFlag(this.modFlags, ModuleFlags.Exported); }
-        public isAmbient() { return hasFlag(this.modFlags, ModuleFlags.Ambient); }
-        public isEnum() { return hasFlag(this.modFlags, ModuleFlags.IsEnum); }
-        public isWholeFile() { return hasFlag(this.modFlags, ModuleFlags.IsWholeFile); }
-
-        public recordNonInterface() {
-            this.modFlags &= ~ModuleFlags.ShouldEmitModuleDecl;
+        public getModuleFlags(): ModuleFlags {
+            return this._moduleFlags;
         }
 
-        public typeCheck(typeFlow: TypeFlow) {
-            return typeFlow.typeCheckModule(this);
+        // Must only be called from SyntaxTreeVisitor
+        public setModuleFlags(flags: ModuleFlags): void {
+            this._moduleFlags = flags;
         }
 
-        public emit(emitter: Emitter, tokenId: TokenID, startLine: bool) {
-            if (!hasFlag(this.modFlags, ModuleFlags.ShouldEmitModuleDecl)) {
-                emitter.emitParensAndCommentsInPlace(this, true);
-                emitter.emitJavascriptModule(this);
-                emitter.emitParensAndCommentsInPlace(this, false);
+        public structuralEquals(ast: ModuleDeclaration, includePosition: boolean): boolean {
+            if (super.structuralEquals(ast, includePosition)) {
+                return this._moduleFlags === ast._moduleFlags;
+            }
+
+            return false;
+        }
+
+        public isEnum() { return hasFlag(this.getModuleFlags(), ModuleFlags.IsEnum); }
+        public isWholeFile() { return hasFlag(this.getModuleFlags(), ModuleFlags.IsWholeFile); }
+
+        public shouldEmit(): boolean {
+            if (hasFlag(this.getModuleFlags(), ModuleFlags.Ambient)) {
+                return false;
+            }
+
+            // Always emit a non ambient enum (even empty ones).
+            if (hasFlag(this.getModuleFlags(), ModuleFlags.IsEnum)) {
+                return true;
+            }
+
+            for (var i = 0, n = this.members.members.length; i < n; i++) {
+                var member = this.members.members[i];
+
+                // We should emit *this* module if it contains any non-interface types. 
+                // Caveat: if we have contain a module, then we should be emitted *if we want to
+                // emit that inner module as well.
+                if (member.nodeType === NodeType.ModuleDeclaration) {
+                    if ((<ModuleDeclaration>member).shouldEmit()) {
+                        return true;
+                    }
+                }
+                else if (member.nodeType !== NodeType.InterfaceDeclaration) {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        public emit(emitter: Emitter) {
+            if (this.shouldEmit()) {
+                emitter.emitComments(this, true);
+                emitter.emitModule(this);
+                emitter.emitComments(this, false);
             }
         }
     }
 
     export class TypeDeclaration extends NamedDeclaration {
-        public varFlags = VarFlags.None;
+        private _varFlags = VariableFlags.None;
 
-        constructor (nodeType: NodeType,
-                     name: Identifier,
-                     public extendsList: ASTList,
-                     public implementsList: ASTList,
-                     members: ASTList) {
+        constructor(nodeType: NodeType,
+                    name: Identifier,
+                    public typeParameters: ASTList,
+                    public extendsList: ASTList,
+                    public implementsList: ASTList,
+                    members: ASTList) {
             super(nodeType, name, members);
         }
 
-        public isExported() { 
-            return hasFlag(this.varFlags, VarFlags.Exported);
+        public getVarFlags(): VariableFlags {
+            return this._varFlags;
         }
 
-        public isAmbient() {
-            return hasFlag(this.varFlags, VarFlags.Ambient);
+        // Must only be called from SyntaxTreeVisitor
+        public setVarFlags(flags: VariableFlags): void {
+            this._varFlags = flags;
+        }
+
+        public structuralEquals(ast: TypeDeclaration, includingPosition: boolean): boolean {
+            return super.structuralEquals(ast, includingPosition) &&
+                   this._varFlags === ast._varFlags &&
+                   structuralEquals(this.typeParameters, ast.typeParameters, includingPosition) &&
+                   structuralEquals(this.extendsList, ast.extendsList, includingPosition) &&
+                   structuralEquals(this.implementsList, ast.implementsList, includingPosition);
         }
     }
 
     export class ClassDeclaration extends TypeDeclaration {
-        public knownMemberNames: any = {};
-        public constructorDecl: FuncDecl = null;
-        public constructorNestingLevel = 0;
+        public constructorDecl: FunctionDeclaration = null;
         public endingToken: ASTSpan = null;
 
-        constructor (name: Identifier,
-                     members: ASTList,
-                     extendsList: ASTList,
-                     implementsList: ASTList) {
-            super(NodeType.ClassDeclaration, name, extendsList, implementsList, members);
+        constructor(name: Identifier,
+                    typeParameters: ASTList,
+                    members: ASTList,
+                    extendsList: ASTList,
+                    implementsList: ASTList) {
+            super(NodeType.ClassDeclaration, name, typeParameters, extendsList, implementsList, members);
         }
 
-        public typeCheck(typeFlow: TypeFlow) {
-            return typeFlow.typeCheckClass(this);
+        public shouldEmit(): boolean {
+            return !hasFlag(this.getVarFlags(), VariableFlags.Ambient);
         }
 
-        public emit(emitter: Emitter, tokenId: TokenID, startLine: bool) {
-            emitter.emitJavascriptClass(this);
+        public emit(emitter: Emitter): void {
+            emitter.emitClass(this);
         }
     }
 
     export class InterfaceDeclaration extends TypeDeclaration {
-        constructor (name: Identifier,
-                     members: ASTList,
-                     extendsList: ASTList,
-                     implementsList: ASTList) {
-            super(NodeType.InterfaceDeclaration, name, extendsList, implementsList, members);
+        constructor(name: Identifier,
+            typeParameters: ASTList,
+            members: ASTList,
+            extendsList: ASTList,
+            implementsList: ASTList) {
+            super(NodeType.InterfaceDeclaration, name, typeParameters, extendsList, implementsList, members);
         }
 
-        public typeCheck(typeFlow: TypeFlow) {
-            return typeFlow.typeCheckInterface(this);
-        }
-
-        public emit(emitter: Emitter, tokenId: TokenID, startLine: bool) {
+        public shouldEmit(): boolean {
+            return false;
         }
     }
 
-    export class Statement extends ModuleElement {
-        constructor (nodeType: NodeType) {
+    export class Statement extends AST {
+        constructor(nodeType: NodeType) {
             super(nodeType);
-            this.flags |= ASTFlags.IsStatement;
         }
 
-        public isLoop() { return false; }
+        public isStatement() {
+            return true;
+        }
 
         public isStatementOrExpression() { return true; }
+    }
 
-        public isCompoundStatement() { return this.isLoop(); }
+    export class ThrowStatement extends Statement {
+        constructor(public expression: Expression) {
+            super(NodeType.ThrowStatement);
+        }
 
-        public typeCheck(typeFlow: TypeFlow) {
-            this.type = typeFlow.voidType;
-            return this;
+        public emitWorker(emitter: Emitter) {
+            emitter.writeToOutput("throw ");
+            this.expression.emit(emitter);
+            emitter.writeToOutput(";");
+        }
+
+        public structuralEquals(ast: ThrowStatement, includingPosition: boolean): boolean {
+            return super.structuralEquals(ast, includingPosition) &&
+            structuralEquals(this.expression, ast.expression, includingPosition);
+        }
+    }
+
+    export class ExpressionStatement extends Statement {
+        constructor(public expression: AST) {
+            super(NodeType.ExpressionStatement);
+        }
+
+        public emitWorker(emitter: Emitter) {
+            this.expression.emit(emitter);
+            emitter.writeToOutput(";");
+        }
+
+        public structuralEquals(ast: ExpressionStatement, includingPosition: boolean): boolean {
+            return super.structuralEquals(ast, includingPosition) &&
+                   structuralEquals(this.expression, ast.expression, includingPosition);
         }
     }
 
     export class LabeledStatement extends Statement {
-        constructor (public labels: ASTList, public stmt: AST) {
+        constructor(public identifier: Identifier, public statement: AST) {
             super(NodeType.LabeledStatement);
         }
 
-        public emit(emitter: Emitter, tokenId: TokenID, startLine: bool) {
-            emitter.emitParensAndCommentsInPlace(this, true);
-            emitter.recordSourceMappingStart(this);
-            if (this.labels) {
-                var labelsLen = this.labels.members.length;
-                for (var i = 0; i < labelsLen; i++) {
-                    this.labels.members[i].emit(emitter, tokenId, startLine);
-                }
+        public emitWorker(emitter: Emitter) {
+            emitter.recordSourceMappingStart(this.identifier);
+            emitter.writeToOutput(this.identifier.actualText);
+            emitter.recordSourceMappingEnd(this.identifier);
+            emitter.writeLineToOutput(":");
+            emitter.emitJavascript(this.statement, true);
+        }
+
+        public structuralEquals(ast: LabeledStatement, includingPosition: boolean): boolean {
+            return super.structuralEquals(ast, includingPosition) &&
+                   structuralEquals(this.identifier, ast.identifier, includingPosition) &&
+                   structuralEquals(this.statement, ast.statement, includingPosition);
+        }
+    }
+
+    export class VariableDeclaration extends AST {
+        constructor(public declarators: ASTList) {
+            super(NodeType.VariableDeclaration);
+        }
+
+        public emit(emitter: Emitter) {
+            emitter.emitVariableDeclaration(this);
+        }
+
+        public structuralEquals(ast: VariableDeclaration, includingPosition: boolean): boolean {
+            return super.structuralEquals(ast, includingPosition) &&
+                   structuralEquals(this.declarators, ast.declarators, includingPosition);
+        }
+    }
+
+    export class VariableStatement extends Statement {
+        constructor(public declaration: VariableDeclaration) {
+            super(NodeType.VariableStatement);
+        }
+
+        public shouldEmit(): boolean {
+            if (hasFlag(this.getFlags(), ASTFlags.EnumMapElement)) {
+                return false;
             }
-            this.stmt.emit(emitter, tokenId, true);
-            emitter.recordSourceMappingEnd(this);
-            emitter.emitParensAndCommentsInPlace(this, false);
+
+            var varDecl = <VariableDeclarator>this.declaration.declarators.members[0];
+            return !hasFlag(varDecl.getVarFlags(), VariableFlags.Ambient) || varDecl.init !== null;
         }
 
-        public typeCheck(typeFlow: TypeFlow) {
-            typeFlow.typeCheck(this.labels);
-            this.stmt = this.stmt.typeCheck(typeFlow);
-            return this;
+        public emitWorker(emitter: Emitter) {
+            if (hasFlag(this.getFlags(), ASTFlags.EnumElement)) {
+                emitter.emitEnumElement(<VariableDeclarator>this.declaration.declarators.members[0]);
+            }
+            else {
+                this.declaration.emit(emitter);
+                emitter.writeToOutput(";");
+            }
         }
 
-        public addToControlFlow(context: ControlFlowContext): void {
-            var beforeBB = context.current;
-            var bb = new BasicBlock();
-            context.current = bb;
-            beforeBB.addSuccessor(bb);
+        public structuralEquals(ast: VariableStatement, includingPosition: boolean): boolean {
+            return super.structuralEquals(ast, includingPosition) &&
+                   structuralEquals(this.declaration, ast.declaration, includingPosition);
         }
     }
 
     export class Block extends Statement {
-        constructor (public statements: ASTList,
-                     public isStatementBlock: bool) {
+        public closeBraceSpan: IASTSpan = null;
+        constructor(public statements: ASTList) {
             super(NodeType.Block);
         }
 
-        public emit(emitter: Emitter, tokenId: TokenID, startLine: bool) {
-            emitter.emitParensAndCommentsInPlace(this, true);
-            emitter.recordSourceMappingStart(this);
-            if (this.isStatementBlock) {
-                emitter.writeLineToOutput(" {");
-                emitter.indenter.increaseIndent();
-            } else {
-                emitter.setInVarBlock(this.statements.members.length);
-            }
-            var temp = emitter.setInObjectLiteral(false);
+        public emitWorker(emitter: Emitter) {
+            emitter.writeLineToOutput(" {");
+            emitter.indenter.increaseIndent();
             if (this.statements) {
-                emitter.emitJavascriptList(this.statements, null, TokenID.Semicolon, true, false, false);
+                emitter.emitModuleElements(this.statements);
             }
-            if (this.isStatementBlock) {
-                emitter.indenter.decreaseIndent();
-                emitter.emitIndent();
-                emitter.writeToOutput("}");
-            }
-            emitter.setInObjectLiteral(temp);
-            emitter.recordSourceMappingEnd(this);
-            emitter.emitParensAndCommentsInPlace(this, false);
+            emitter.indenter.decreaseIndent();
+            emitter.emitIndent();
+            emitter.writeToOutput("}");
         }
 
-        public addToControlFlow(context: ControlFlowContext) {
-            var afterIfNeeded = new BasicBlock();
-            context.pushStatement(this, context.current, afterIfNeeded);
-            if (this.statements) {
-                context.walk(this.statements, this);
-            }
-            context.walker.options.goChildren = false;
-            context.popStatement();
-            if (afterIfNeeded.predecessors.length > 0) {
-                context.current.addSuccessor(afterIfNeeded);
-                context.current = afterIfNeeded;
-            }
-        }
-
-        public typeCheck(typeFlow: TypeFlow) {
-            if (!typeFlow.checker.styleSettings.emptyBlocks) {
-                if ((this.statements === null) || (this.statements.members.length == 0)) {
-                    typeFlow.checker.errorReporter.styleError(this, "empty block");
-                }
-            }
-
-            typeFlow.typeCheck(this.statements);
-            return this;
+        public structuralEquals(ast: Block, includingPosition: boolean): boolean {
+            return super.structuralEquals(ast, includingPosition) &&
+                   structuralEquals(this.statements, ast.statements, includingPosition);
         }
     }
 
@@ -1468,40 +1129,12 @@ module TypeScript {
         public hasExplicitTarget() { return (this.target); }
         public resolvedTarget: Statement = null;
 
-        constructor (nodeType: NodeType) {
+        constructor(nodeType: NodeType) {
             super(nodeType);
         }
 
-        public setResolvedTarget(parser: Parser, stmt: Statement): bool {
-            if (stmt.isLoop()) {
-                this.resolvedTarget = stmt;
-                return true;
-            }
-            if (this.nodeType === NodeType.Continue) {
-                parser.reportParseError("continue statement applies only to loops");
-                return false;
-            }
-            else {
-                if ((stmt.nodeType == NodeType.Switch) || this.hasExplicitTarget()) {
-                    this.resolvedTarget = stmt;
-                    return true;
-                }
-                else {
-                    parser.reportParseError("break statement with no label can apply only to a loop or switch statement");
-                    return false;
-                }
-            }
-        }
-
-        public addToControlFlow(context: ControlFlowContext): void {
-            super.addToControlFlow(context);
-            context.unconditionalBranch(this.resolvedTarget, (this.nodeType == NodeType.Continue));
-        }
-
-        public emit(emitter: Emitter, tokenId: TokenID, startLine: bool) {
-            emitter.emitParensAndCommentsInPlace(this, true);
-            emitter.recordSourceMappingStart(this);
-            if (this.nodeType == NodeType.Break) {
+        public emitWorker(emitter: Emitter) {
+            if (this.nodeType === NodeType.BreakStatement) {
                 emitter.writeToOutput("break");
             }
             else {
@@ -1510,593 +1143,257 @@ module TypeScript {
             if (this.hasExplicitTarget()) {
                 emitter.writeToOutput(" " + this.target);
             }
-            emitter.recordSourceMappingEnd(this);
             emitter.writeToOutput(";");
-            emitter.emitParensAndCommentsInPlace(this, false);
+        }
+
+        public structuralEquals(ast: Jump, includingPosition: boolean): boolean {
+            return super.structuralEquals(ast, includingPosition) &&
+                   this.target === ast.target;
         }
     }
 
     export class WhileStatement extends Statement {
-        public body: AST = null;
-
-        constructor (public cond: AST) {
-            super(NodeType.While);
+        constructor(public cond: AST, public body: AST) {
+            super(NodeType.WhileStatement);
         }
 
-        public isLoop() { return true; }
-
-        public emit(emitter: Emitter, tokenId: TokenID, startLine: bool) {
-            emitter.emitParensAndCommentsInPlace(this, true);
-            emitter.recordSourceMappingStart(this);
-            var temp = emitter.setInObjectLiteral(false);
-            emitter.writeToOutput("while(");
-            emitter.emitJavascript(this.cond, TokenID.While, false);
+        public emitWorker(emitter: Emitter) {
+            emitter.writeToOutput("while (");
+            this.cond.emit(emitter);
             emitter.writeToOutput(")");
-            emitter.emitJavascriptStatements(this.body, false);
-            emitter.setInObjectLiteral(temp);
-            emitter.recordSourceMappingEnd(this);
-            emitter.emitParensAndCommentsInPlace(this, false);
+            emitter.emitBlockOrStatement(this.body);
         }
 
-        public typeCheck(typeFlow: TypeFlow) {
-            return typeFlow.typeCheckWhile(this);
-        }
-
-        public addToControlFlow(context: ControlFlowContext): void {
-            var loopHeader = context.current;
-            var loopStart = new BasicBlock();
-            var afterLoop = new BasicBlock();
-
-            loopHeader.addSuccessor(loopStart);
-            context.current = loopStart;
-            context.addContent(this.cond);
-            var condBlock = context.current;
-            var targetInfo: ITargetInfo = null;
-            if (this.body) {
-                context.current = new BasicBlock();
-                condBlock.addSuccessor(context.current);
-                context.pushStatement(this, loopStart, afterLoop);
-                context.walk(this.body, this);
-                targetInfo = context.popStatement();
-            }
-            if (!(context.noContinuation)) {
-                var loopEnd = context.current;
-                loopEnd.addSuccessor(loopStart);
-            }
-            context.current = afterLoop;
-            condBlock.addSuccessor(afterLoop);
-            // TODO: check for while (true) and then only continue if afterLoop has predecessors
-            context.noContinuation = false;
-            context.walker.options.goChildren = false;
+        public structuralEquals(ast: WhileStatement, includingPosition: boolean): boolean {
+            return super.structuralEquals(ast, includingPosition) &&
+                   structuralEquals(this.cond, ast.cond, includingPosition) &&
+                   structuralEquals(this.body, ast.body, includingPosition);
         }
     }
 
-    export class DoWhileStatement extends Statement {
-        public body: AST = null;
-        public whileAST: AST = null;
-        public cond: AST = null;
-        public isLoop() { return true; }
+    export class DoStatement extends Statement {
+        public whileSpan: ASTSpan = null;
 
-        constructor () {
-            super(NodeType.DoWhile);
+        constructor(public body: AST, public cond: AST) {
+            super(NodeType.DoStatement);
         }
 
-        public emit(emitter: Emitter, tokenId: TokenID, startLine: bool) {
-            emitter.emitParensAndCommentsInPlace(this, true);
-            emitter.recordSourceMappingStart(this);
-            var temp = emitter.setInObjectLiteral(false);
+        public emitWorker(emitter: Emitter) {
             emitter.writeToOutput("do");
-            emitter.emitJavascriptStatements(this.body, true);
-            emitter.recordSourceMappingStart(this.whileAST);
-            emitter.writeToOutput("while");
-            emitter.recordSourceMappingEnd(this.whileAST);
+            emitter.emitBlockOrStatement(this.body);
+            emitter.recordSourceMappingStart(this.whileSpan);
+            emitter.writeToOutput(" while");
+            emitter.recordSourceMappingEnd(this.whileSpan);
             emitter.writeToOutput('(');
-            emitter.emitJavascript(this.cond, TokenID.CloseParen, false);
+            this.cond.emit(emitter);
             emitter.writeToOutput(")");
-            emitter.setInObjectLiteral(temp);
-            emitter.recordSourceMappingEnd(this);
             emitter.writeToOutput(";");
-            emitter.emitParensAndCommentsInPlace(this, false);
         }
 
-        public typeCheck(typeFlow: TypeFlow) {
-            return typeFlow.typeCheckDoWhile(this);
-        }
-
-        public addToControlFlow(context: ControlFlowContext): void {
-            var loopHeader = context.current;
-            var loopStart = new BasicBlock();
-            var afterLoop = new BasicBlock();
-            loopHeader.addSuccessor(loopStart);
-            context.current = loopStart;
-            var targetInfo: ITargetInfo = null;
-            if (this.body) {
-                context.pushStatement(this, loopStart, afterLoop);
-                context.walk(this.body, this);
-                targetInfo = context.popStatement();
-            }
-            if (!(context.noContinuation)) {
-                var loopEnd = context.current;
-                loopEnd.addSuccessor(loopStart);
-                context.addContent(this.cond);
-                // TODO: check for while (true) 
-                context.current = afterLoop;
-                loopEnd.addSuccessor(afterLoop);
-            }
-            else {
-                context.addUnreachable(this.cond);
-            }
-            context.walker.options.goChildren = false;
+        public structuralEquals(ast: DoStatement, includingPosition: boolean): boolean {
+            return super.structuralEquals(ast, includingPosition) &&
+                   structuralEquals(this.body, ast.body, includingPosition) &&
+                   structuralEquals(this.cond, ast.cond, includingPosition);
         }
     }
 
     export class IfStatement extends Statement {
-        public thenBod: AST;
-        public elseBod: AST = null;
         public statement: ASTSpan = new ASTSpan();
 
-        constructor (public cond: AST) {
-            super(NodeType.If);
+        constructor(public cond: AST,
+                    public thenBod: AST,
+                    public elseBod: AST) {
+            super(NodeType.IfStatement);
         }
 
-        public isCompoundStatement() { return true; }
-
-        public emit(emitter: Emitter, tokenId: TokenID, startLine: bool) {
-            emitter.emitParensAndCommentsInPlace(this, true);
-            emitter.recordSourceMappingStart(this);
-            var temp = emitter.setInObjectLiteral(false);
+        public emitWorker(emitter: Emitter) {
             emitter.recordSourceMappingStart(this.statement);
-            emitter.writeToOutput("if(");
-            emitter.emitJavascript(this.cond, TokenID.If, false);
+            emitter.writeToOutput("if (");
+            this.cond.emit(emitter);
             emitter.writeToOutput(")");
             emitter.recordSourceMappingEnd(this.statement);
-            emitter.emitJavascriptStatements(this.thenBod, true);
+
+            emitter.emitBlockOrStatement(this.thenBod);
+
             if (this.elseBod) {
-                if (this.elseBod.nodeType === NodeType.If) {
+                if (this.elseBod.nodeType === NodeType.IfStatement) {
                     emitter.writeToOutput(" else ");
-                    this.elseBod.emit(emitter, tokenId, /*startLine:*/ false);
+                    this.elseBod.emit(emitter);
                 }
                 else {
                     emitter.writeToOutput(" else");
-                    emitter.emitJavascriptStatements(this.elseBod, true);
+                    emitter.emitBlockOrStatement(this.elseBod);
                 }
             }
-            emitter.setInObjectLiteral(temp);
-            emitter.recordSourceMappingEnd(this);
-            emitter.emitParensAndCommentsInPlace(this, false);
         }
 
-        public typeCheck(typeFlow: TypeFlow) {
-            return typeFlow.typeCheckIf(this);
-        }
-
-        public addToControlFlow(context: ControlFlowContext): void {
-            this.cond.addToControlFlow(context);
-            var afterIf = new BasicBlock();
-            var beforeIf = context.current;
-            context.pushStatement(this, beforeIf, afterIf);
-            var hasContinuation = false;
-            context.current = new BasicBlock();
-            beforeIf.addSuccessor(context.current);
-            context.walk(this.thenBod, this);
-            if (!context.noContinuation) {
-                hasContinuation = true;
-                context.current.addSuccessor(afterIf);
-            }
-            if (this.elseBod) {
-                // current block will be thenBod
-                context.current = new BasicBlock();
-                context.noContinuation = false;
-                beforeIf.addSuccessor(context.current);
-                context.walk(this.elseBod, this);
-                if (!context.noContinuation) {
-                    hasContinuation = true;
-                    context.current.addSuccessor(afterIf);
-                }
-                else {
-                    // thenBod created continuation for if statement
-                    if (hasContinuation) {
-                        context.noContinuation = false;
-                    }
-                }
-            }
-            else {
-                beforeIf.addSuccessor(afterIf);
-                context.noContinuation = false;
-                hasContinuation = true;
-            }
-            var targetInfo = context.popStatement();
-            if (afterIf.predecessors.length > 0) {
-                context.noContinuation = false;
-                hasContinuation = true;
-            }
-            if (hasContinuation) {
-                context.current = afterIf;
-            }
-            context.walker.options.goChildren = false;
+        public structuralEquals(ast: IfStatement, includingPosition: boolean): boolean {
+            return super.structuralEquals(ast, includingPosition) &&
+                   structuralEquals(this.cond, ast.cond, includingPosition) &&
+                   structuralEquals(this.thenBod, ast.thenBod, includingPosition) &&
+                   structuralEquals(this.elseBod, ast.elseBod, includingPosition);
         }
     }
 
     export class ReturnStatement extends Statement {
-        public returnExpression: AST = null;
-
-        constructor () {
-            super(NodeType.Return);
+        constructor(public returnExpression: AST) {
+            super(NodeType.ReturnStatement);
         }
 
-        public emit(emitter: Emitter, tokenId: TokenID, startLine: bool) {
-            emitter.emitParensAndCommentsInPlace(this, true);
-            emitter.recordSourceMappingStart(this);
-            var temp = emitter.setInObjectLiteral(false);
+        public emitWorker(emitter: Emitter) {
             if (this.returnExpression) {
                 emitter.writeToOutput("return ");
-                emitter.emitJavascript(this.returnExpression, TokenID.Semicolon, false);
-
-                if (this.returnExpression.nodeType === NodeType.FuncDecl) {
-                    emitter.writeToOutput(";");
-                }
+                this.returnExpression.emit(emitter);
+                emitter.writeToOutput(";");
             }
             else {
                 emitter.writeToOutput("return;");
             }
-            emitter.setInObjectLiteral(temp);
-            emitter.recordSourceMappingEnd(this);
-            emitter.emitParensAndCommentsInPlace(this, false);
         }
 
-        public addToControlFlow(context: ControlFlowContext): void {
-            super.addToControlFlow(context);
-            context.returnStmt();
-        }
-
-        public typeCheck(typeFlow: TypeFlow) {
-            return typeFlow.typeCheckReturn(this);
-        }
-    }
-
-    export class EndCode extends AST {
-        constructor () {
-            super(NodeType.EndCode);
+        public structuralEquals(ast: ReturnStatement, includingPosition: boolean): boolean {
+            return super.structuralEquals(ast, includingPosition) &&
+                   structuralEquals(this.returnExpression, ast.returnExpression, includingPosition);
         }
     }
 
     export class ForInStatement extends Statement {
-        constructor (public lval: AST, public obj: AST) {
-            super(NodeType.ForIn);
-            if (this.lval && (this.lval.nodeType == NodeType.VarDecl)) {
-                (<BoundDecl>this.lval).varFlags |= VarFlags.AutoInit;
-            }
+        constructor(public lval: AST, public obj: AST, public body: AST) {
+            super(NodeType.ForInStatement);
         }
+
         public statement: ASTSpan = new ASTSpan();
-        public body: AST;
 
-        public isLoop() { return true; }
-
-        public isFiltered() {
-            if (this.body) {
-                var singleItem: AST = null;
-                if (this.body.nodeType == NodeType.List) {
-                    var stmts = <ASTList>this.body;
-                    if (stmts.members.length == 1) {
-                        singleItem = stmts.members[0];
-                    }
-                }
-                else {
-                    singleItem = this.body;
-                }
-                // match template for filtering 'own' properties from obj
-                if (singleItem !== null) {
-                    if (singleItem.nodeType == NodeType.Block) {
-                        var block = <Block>singleItem;
-                        if ((block.statements !== null) && (block.statements.members.length == 1)) {
-                            singleItem = block.statements.members[0];
-                        }
-                    }
-                    if (singleItem.nodeType == NodeType.If) {
-                        var cond = (<IfStatement>singleItem).cond;
-                        if (cond.nodeType == NodeType.Call) {
-                            var target = (<CallExpression>cond).target;
-                            if (target.nodeType == NodeType.Dot) {
-                                var binex = <BinaryExpression>target;
-                                if ((binex.operand1.nodeType == NodeType.Name) &&
-                                    (this.obj.nodeType == NodeType.Name) &&
-                                    ((<Identifier>binex.operand1).actualText == (<Identifier>this.obj).actualText)) {
-                                    var prop = <Identifier>binex.operand2;
-                                    if (prop.actualText == "hasOwnProperty") {
-                                        var args = (<CallExpression>cond).arguments;
-                                        if ((args !== null) && (args.members.length == 1)) {
-                                            var arg = args.members[0];
-                                            if ((arg.nodeType == NodeType.Name) &&
-                                                 (this.lval.nodeType == NodeType.Name)) {
-                                                if (((<Identifier>this.lval).actualText) == (<Identifier>arg).actualText) {
-                                                    return true;
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            return false;
-        }
-
-        public emit(emitter: Emitter, tokenId: TokenID, startLine: bool) {
-            emitter.emitParensAndCommentsInPlace(this, true);
-            emitter.recordSourceMappingStart(this);
-            var temp = emitter.setInObjectLiteral(false);
+        public emitWorker(emitter: Emitter) {
             emitter.recordSourceMappingStart(this.statement);
-            emitter.writeToOutput("for(");
-            emitter.emitJavascript(this.lval, TokenID.For, false);
+            emitter.writeToOutput("for (");
+            this.lval.emit(emitter);
             emitter.writeToOutput(" in ");
-            emitter.emitJavascript(this.obj, TokenID.For, false);
+            this.obj.emit(emitter);
             emitter.writeToOutput(")");
             emitter.recordSourceMappingEnd(this.statement);
-            emitter.emitJavascriptStatements(this.body, true);
-            emitter.setInObjectLiteral(temp);
-            emitter.recordSourceMappingEnd(this);
-            emitter.emitParensAndCommentsInPlace(this, false);
+            emitter.emitBlockOrStatement(this.body);
         }
 
-        public typeCheck(typeFlow: TypeFlow) {
-            if (typeFlow.checker.styleSettings.forin) {
-                if (!this.isFiltered()) {
-                    typeFlow.checker.errorReporter.styleError(this, "no hasOwnProperty filter");
-                }
-            }
-            return typeFlow.typeCheckForIn(this);
-        }
-
-        public addToControlFlow(context: ControlFlowContext): void {
-            if (this.lval) {
-                context.addContent(this.lval);
-            }
-            if (this.obj) {
-                context.addContent(this.obj);
-            }
-
-            var loopHeader = context.current;
-            var loopStart = new BasicBlock();
-            var afterLoop = new BasicBlock();
-
-            loopHeader.addSuccessor(loopStart);
-            context.current = loopStart;
-            if (this.body) {
-                context.pushStatement(this, loopStart, afterLoop);
-                context.walk(this.body, this);
-                context.popStatement();
-            }
-            if (!(context.noContinuation)) {
-                var loopEnd = context.current;
-                loopEnd.addSuccessor(loopStart);
-            }
-            context.current = afterLoop;
-            context.noContinuation = false;
-            loopHeader.addSuccessor(afterLoop);
-            context.walker.options.goChildren = false;
+        public structuralEquals(ast: ForInStatement, includingPosition: boolean): boolean {
+            return super.structuralEquals(ast, includingPosition) &&
+                   structuralEquals(this.lval, ast.lval, includingPosition) &&
+                   structuralEquals(this.obj, ast.obj, includingPosition) &&
+                   structuralEquals(this.body, ast.body, includingPosition);
         }
     }
 
     export class ForStatement extends Statement {
-        public cond: AST;
-        public body: AST;
-        public incr: AST;
-
-        constructor (public init: AST) {
-            super(NodeType.For);
+        constructor(public init: AST,
+                    public cond: AST,
+                    public incr: AST,
+                    public body: AST) {
+            super(NodeType.ForStatement);
         }
 
-        public isLoop() { return true; }
-
-        public emit(emitter: Emitter, tokenId: TokenID, startLine: bool) {
-            emitter.emitParensAndCommentsInPlace(this, true);
-            emitter.recordSourceMappingStart(this);
-            var temp = emitter.setInObjectLiteral(false);
-            emitter.writeToOutput("for(");
+        public emitWorker(emitter: Emitter) {
+            emitter.writeToOutput("for (");
             if (this.init) {
-                if (this.init.nodeType != NodeType.List) {
-                    emitter.emitJavascript(this.init, TokenID.For, false);
+                if (this.init.nodeType !== NodeType.List) {
+                    this.init.emit(emitter);
                 }
                 else {
-                    emitter.setInVarBlock((<ASTList>this.init).members.length); 
-                    emitter.emitJavascriptList(this.init, null, TokenID.For, false, false, false);
+                    emitter.setInVarBlock((<ASTList>this.init).members.length);
+                    emitter.emitCommaSeparatedList(<ASTList>this.init);
                 }
             }
+
             emitter.writeToOutput("; ");
-            emitter.emitJavascript(this.cond, TokenID.For, false);
+            emitter.emitJavascript(this.cond, false);
             emitter.writeToOutput("; ");
-            emitter.emitJavascript(this.incr, TokenID.For, false);
+            emitter.emitJavascript(this.incr, false);
             emitter.writeToOutput(")");
-            emitter.emitJavascriptStatements(this.body, true);
-            emitter.setInObjectLiteral(temp);
-            emitter.recordSourceMappingEnd(this);
-            emitter.emitParensAndCommentsInPlace(this, false);
+            emitter.emitBlockOrStatement(this.body);
         }
 
-        public typeCheck(typeFlow: TypeFlow) {
-            return typeFlow.typeCheckFor(this);
-        }
-
-        public addToControlFlow(context: ControlFlowContext): void {
-            if (this.init) {
-                context.addContent(this.init);
-            }
-            var loopHeader = context.current;
-            var loopStart = new BasicBlock();
-            var afterLoop = new BasicBlock();
-
-            loopHeader.addSuccessor(loopStart);
-            context.current = loopStart;
-            var condBlock: BasicBlock = null;
-            var continueTarget = loopStart;
-            var incrBB: BasicBlock = null;
-            if (this.incr) {
-                incrBB = new BasicBlock();
-                continueTarget = incrBB;
-            }
-            if (this.cond) {
-                condBlock = context.current;
-                context.addContent(this.cond);
-                context.current = new BasicBlock();
-                condBlock.addSuccessor(context.current);
-            }
-            var targetInfo: ITargetInfo = null;
-            if (this.body) {
-                context.pushStatement(this, continueTarget, afterLoop);
-                context.walk(this.body, this);
-                targetInfo = context.popStatement();
-            }
-            if (this.incr) {
-                if (context.noContinuation) {
-                    if (incrBB.predecessors.length == 0) {
-                        context.addUnreachable(this.incr);
-                    }
-                }
-                else {
-                    context.current.addSuccessor(incrBB);
-                    context.current = incrBB;
-                    context.addContent(this.incr);
-                }
-            }
-            var loopEnd = context.current;
-            if (!(context.noContinuation)) {
-                loopEnd.addSuccessor(loopStart);
-
-            }
-            if (condBlock) {
-                condBlock.addSuccessor(afterLoop);
-                context.noContinuation = false;
-            }
-            if (afterLoop.predecessors.length > 0) {
-                context.noContinuation = false;
-                context.current = afterLoop;
-            }
-            context.walker.options.goChildren = false;
+        public structuralEquals(ast: ForStatement, includingPosition: boolean): boolean {
+            return super.structuralEquals(ast, includingPosition) &&
+                   structuralEquals(this.init, ast.init, includingPosition) &&
+                   structuralEquals(this.cond, ast.cond, includingPosition) &&
+                   structuralEquals(this.incr, ast.incr, includingPosition) &&
+                   structuralEquals(this.body, ast.body, includingPosition);
         }
     }
 
     export class WithStatement extends Statement {
-        public body: AST;
-
-        public isCompoundStatement() { return true; }
-
-        public withSym: WithSymbol = null;
-
-        constructor (public expr: AST) {
-            super(NodeType.With);
+        constructor(public expr: AST, public body: AST) {
+            super(NodeType.WithStatement);
         }
 
-        public emit(emitter: Emitter, tokenId: TokenID, startLine: bool) {
-            emitter.emitParensAndCommentsInPlace(this, true);
-            emitter.recordSourceMappingStart(this);
+        public emitWorker(emitter: Emitter) {
             emitter.writeToOutput("with (");
             if (this.expr) {
-                emitter.emitJavascript(this.expr, TokenID.With, false);
+                this.expr.emit(emitter);
             }
 
             emitter.writeToOutput(")");
-            emitter.emitJavascriptStatements(this.body, true);
-            emitter.recordSourceMappingEnd(this);
-            emitter.emitParensAndCommentsInPlace(this, false);
+            emitter.emitBlockOrStatement(this.body);
         }
 
-        public typeCheck(typeFlow: TypeFlow) {
-            return typeFlow.typeCheckWith(this);
+        public structuralEquals(ast: WithStatement, includingPosition: boolean): boolean {
+            return super.structuralEquals(ast, includingPosition) &&
+                   structuralEquals(this.expr, ast.expr, includingPosition) &&
+                   structuralEquals(this.body, ast.body, includingPosition);
         }
     }
 
     export class SwitchStatement extends Statement {
         public caseList: ASTList;
-        public defaultCase: CaseStatement = null;
+        public defaultCase: CaseClause = null;
         public statement: ASTSpan = new ASTSpan();
 
-        constructor (public val: AST) {
-            super(NodeType.Switch);
+        constructor(public val: AST) {
+            super(NodeType.SwitchStatement);
         }
 
-        public isCompoundStatement() { return true; }
-
-        public emit(emitter: Emitter, tokenId: TokenID, startLine: bool) {
-            emitter.emitParensAndCommentsInPlace(this, true);
-            emitter.recordSourceMappingStart(this);
-            var temp = emitter.setInObjectLiteral(false);
+        public emitWorker(emitter: Emitter) {
             emitter.recordSourceMappingStart(this.statement);
-            emitter.writeToOutput("switch(");
-            emitter.emitJavascript(this.val, TokenID.Identifier, false);
-            emitter.writeToOutput(")"); 
+            emitter.writeToOutput("switch (");
+            this.val.emit(emitter);
+            emitter.writeToOutput(")");
             emitter.recordSourceMappingEnd(this.statement);
             emitter.writeLineToOutput(" {");
             emitter.indenter.increaseIndent();
-            var casesLen = this.caseList.members.length;
-            for (var i = 0; i < casesLen; i++) {
+
+            var lastEmittedNode = null;
+            for (var i = 0, n = this.caseList.members.length; i < n; i++) {
                 var caseExpr = this.caseList.members[i];
-                emitter.emitJavascript(caseExpr, TokenID.Case, true);
+
+                emitter.emitSpaceBetweenConstructs(lastEmittedNode, caseExpr);
+                emitter.emitJavascript(caseExpr, true);
+
+                lastEmittedNode = caseExpr;
             }
             emitter.indenter.decreaseIndent();
             emitter.emitIndent();
             emitter.writeToOutput("}");
-            emitter.setInObjectLiteral(temp);
-            emitter.recordSourceMappingEnd(this);
-            emitter.emitParensAndCommentsInPlace(this, false);
         }
 
-        public typeCheck(typeFlow: TypeFlow) {
-            var len = this.caseList.members.length;
-            this.val = typeFlow.typeCheck(this.val);
-            for (var i = 0; i < len; i++) {
-                this.caseList.members[i] = typeFlow.typeCheck(this.caseList.members[i]);
-            }
-            this.defaultCase = <CaseStatement>typeFlow.typeCheck(this.defaultCase);
-            this.type = typeFlow.voidType;
-            return this;
-        }
-
-        // if there are break statements that match this switch, then just link cond block with block after switch
-        public addToControlFlow(context: ControlFlowContext) {
-            var condBlock = context.current;
-            context.addContent(this.val);
-            var execBlock = new BasicBlock();
-            var afterSwitch = new BasicBlock();
-
-            condBlock.addSuccessor(execBlock);
-            context.pushSwitch(execBlock);
-            context.current = execBlock;
-            context.pushStatement(this, execBlock, afterSwitch);
-            context.walk(this.caseList, this);
-            context.popSwitch();
-            var targetInfo = context.popStatement();
-            var hasCondContinuation = (this.defaultCase == null);
-            if (this.defaultCase == null) {
-                condBlock.addSuccessor(afterSwitch);
-            }
-            if (afterSwitch.predecessors.length > 0) {
-                context.noContinuation = false;
-                context.current = afterSwitch;
-            }
-            else {
-                context.noContinuation = true;
-            }
-            context.walker.options.goChildren = false;
+        public structuralEquals(ast: SwitchStatement, includingPosition: boolean): boolean {
+            return super.structuralEquals(ast, includingPosition) &&
+                   structuralEquals(this.caseList, ast.caseList, includingPosition) &&
+                   structuralEquals(this.val, ast.val, includingPosition);
         }
     }
 
-    export class CaseStatement extends Statement {
+    export class CaseClause extends AST {
         public expr: AST = null;
         public body: ASTList;
         public colonSpan: ASTSpan = new ASTSpan();
 
-        constructor () {
-            super(NodeType.Case);
+        constructor() {
+            super(NodeType.CaseClause);
         }
 
-        public emit(emitter: Emitter, tokenId: TokenID, startLine: bool) {
-            emitter.emitParensAndCommentsInPlace(this, true);
-            emitter.recordSourceMappingStart(this);
+        public emitWorker(emitter: Emitter) {
             if (this.expr) {
                 emitter.writeToOutput("case ");
-                emitter.emitJavascript(this.expr, TokenID.Identifier, false);
+                this.expr.emit(emitter);
             }
             else {
                 emitter.writeToOutput("default");
@@ -2104,327 +1401,179 @@ module TypeScript {
             emitter.recordSourceMappingStart(this.colonSpan);
             emitter.writeToOutput(":");
             emitter.recordSourceMappingEnd(this.colonSpan);
-            if (this.body.members.length == 1 && this.body.members[0].nodeType == NodeType.Block) {
+
+            if (this.body.members.length === 1 && this.body.members[0].nodeType === NodeType.Block) {
                 // The case statement was written with curly braces, so emit it with the appropriate formatting
-                emitter.emitJavascriptStatements(this.body, false);
+                this.body.members[0].emit(emitter);
+                emitter.writeLineToOutput("");
             }
             else {
                 // No curly braces. Format in the expected way
                 emitter.writeLineToOutput("");
                 emitter.indenter.increaseIndent();
-                emitter.emitBareJavascriptStatements(this.body);
+                this.body.emit(emitter);
                 emitter.indenter.decreaseIndent();
             }
-            emitter.recordSourceMappingEnd(this);
-            emitter.emitParensAndCommentsInPlace(this, false);
         }
 
-        public typeCheck(typeFlow: TypeFlow) {
-            this.expr = typeFlow.typeCheck(this.expr);
-            typeFlow.typeCheck(this.body);
-            this.type = typeFlow.voidType;
-            return this;
+        public structuralEquals(ast: CaseClause, includingPosition: boolean): boolean {
+            return super.structuralEquals(ast, includingPosition) &&
+                   structuralEquals(this.expr, ast.expr, includingPosition) &&
+                   structuralEquals(this.body, ast.body, includingPosition);
+        }
+    }
+
+    export class TypeParameter extends AST {
+        constructor(public name: Identifier, public constraint: AST) {
+            super(NodeType.TypeParameter);
         }
 
-        // TODO: more reasoning about unreachable cases (such as duplicate literals as case expressions)
-        // for now, assume all cases are reachable, regardless of whether some cases fall through
-        public addToControlFlow(context: ControlFlowContext) {
-            var execBlock = new BasicBlock();
-            var sw = context.currentSwitch[context.currentSwitch.length - 1];
-            // TODO: fall-through from previous (+ to end of switch)
-            if (this.expr) {
-                var exprBlock = new BasicBlock();
-                context.current = exprBlock;
-                sw.addSuccessor(exprBlock);
-                context.addContent(this.expr);
-                exprBlock.addSuccessor(execBlock);
-            }
-            else {
-                sw.addSuccessor(execBlock);
-            }
-            context.current = execBlock;
-            if (this.body) {
-                context.walk(this.body, this);
-            }
-            context.noContinuation = false;
-            context.walker.options.goChildren = false;
+        public structuralEquals(ast: TypeParameter, includingPosition: boolean): boolean {
+            return super.structuralEquals(ast, includingPosition) &&
+                   structuralEquals(this.name, ast.name, includingPosition) &&
+                   structuralEquals(this.constraint, ast.constraint, includingPosition);
+        }
+    }
+
+    export class GenericType extends AST {
+        constructor(public name: AST, public typeArguments: ASTList) {
+            super(NodeType.GenericType);
+        }
+
+        public emit(emitter: Emitter): void {
+            this.name.emit(emitter);
+        }
+
+        public structuralEquals(ast: GenericType, includingPosition: boolean): boolean {
+            return super.structuralEquals(ast, includingPosition) &&
+                   structuralEquals(this.name, ast.name, includingPosition) &&
+                   structuralEquals(this.typeArguments, ast.typeArguments, includingPosition);
         }
     }
 
     export class TypeReference extends AST {
-        constructor (public term: AST, public arrayCount: number) {
+        constructor(public term: AST, public arrayCount: number) {
             super(NodeType.TypeRef);
         }
 
-        public emit(emitter: Emitter, tokenId: TokenID, startLine: bool) {
+        public emit(emitter: Emitter) {
             throw new Error("should not emit a type ref");
         }
 
-        public typeCheck(typeFlow: TypeFlow) {
-            var prevInTCTR = typeFlow.inTypeRefTypeCheck;
-            typeFlow.inTypeRefTypeCheck = true;
-            var typeLink = getTypeLink(this, typeFlow.checker, true);
-            typeFlow.checker.resolveTypeLink(typeFlow.scope, typeLink, false);
-
-            if (this.term) {
-                typeFlow.typeCheck(this.term);
-            }
-
-            typeFlow.checkForVoidConstructor(typeLink.type, this);
-
-            this.type = typeLink.type;
-
-            // in error recovery cases, there may not be a term
-            if (this.term) {
-                this.term.type = this.type;
-            }
-
-            typeFlow.inTypeRefTypeCheck = prevInTCTR;
-            return this;
+        public structuralEquals(ast: TypeReference, includingPosition: boolean): boolean {
+            return super.structuralEquals(ast, includingPosition) &&
+                   structuralEquals(this.term, ast.term, includingPosition) &&
+                   this.arrayCount === ast.arrayCount;
         }
     }
 
-    export class TryFinally extends Statement {
-        constructor (public tryNode: AST, public finallyNode: Finally) {
-            super(NodeType.TryFinally);
+    export class TryStatement extends Statement {
+        constructor(public tryBody: Block, public catchClause: CatchClause, public finallyBody: Block) {
+            super(NodeType.TryStatement);
         }
 
-        public isCompoundStatement() { return true; }
-
-        public emit(emitter: Emitter, tokenId: TokenID, startLine: bool) {
-            emitter.recordSourceMappingStart(this);
-            emitter.emitJavascript(this.tryNode, TokenID.Try, false);
-            emitter.emitJavascript(this.finallyNode, TokenID.Finally, false);
-            emitter.recordSourceMappingEnd(this);
-        }
-
-        public typeCheck(typeFlow: TypeFlow) {
-            this.tryNode = typeFlow.typeCheck(this.tryNode);
-            this.finallyNode = <Finally>typeFlow.typeCheck(this.finallyNode);
-            this.type = typeFlow.voidType;
-            return this;
-        }
-
-        public addToControlFlow(context: ControlFlowContext) {
-            var afterFinally = new BasicBlock();
-            context.walk(this.tryNode, this);
-            var finBlock = new BasicBlock();
-            if (context.current) {
-                context.current.addSuccessor(finBlock);
-            }
-            context.current = finBlock;
-            context.pushStatement(this, null, afterFinally);
-            context.walk(this.finallyNode, this);
-            if (!context.noContinuation && context.current) {
-                context.current.addSuccessor(afterFinally);
-            }
-            if (afterFinally.predecessors.length > 0) {
-                context.current = afterFinally;
-            }
-            else {
-                context.noContinuation = true;
-            }
-            context.popStatement();
-            context.walker.options.goChildren = false;
-        }
-    }
-
-    export class TryCatch extends Statement {
-        constructor (public tryNode: Try, public catchNode: Catch) {
-            super(NodeType.TryCatch);
-        }
-
-        public isCompoundStatement() { return true; }
-
-        public emit(emitter: Emitter, tokenId: TokenID, startLine: bool) {
-            emitter.emitParensAndCommentsInPlace(this, true);
-            emitter.recordSourceMappingStart(this);
-            emitter.emitJavascript(this.tryNode, TokenID.Try, false);
-            emitter.emitJavascript(this.catchNode, TokenID.Catch, false);
-            emitter.recordSourceMappingEnd(this);
-            emitter.emitParensAndCommentsInPlace(this, false);
-        }
-
-        public addToControlFlow(context: ControlFlowContext) {
-            var beforeTry = context.current;
-            var tryBlock = new BasicBlock();
-            beforeTry.addSuccessor(tryBlock);
-            context.current = tryBlock;
-            var afterTryCatch = new BasicBlock();
-            context.pushStatement(this, null, afterTryCatch);
-            context.walk(this.tryNode, this);
-            if (!context.noContinuation) {
-                if (context.current) {
-                    context.current.addSuccessor(afterTryCatch);
-                }
-            }
-            context.current = new BasicBlock();
-            beforeTry.addSuccessor(context.current);
-            context.walk(this.catchNode, this);
-            context.popStatement();
-            if (!context.noContinuation) {
-                if (context.current) {
-                    context.current.addSuccessor(afterTryCatch);
-                }
-            }
-            context.current = afterTryCatch;
-            context.walker.options.goChildren = false;
-        }
-
-        public typeCheck(typeFlow: TypeFlow) {
-            this.tryNode = <Try>typeFlow.typeCheck(this.tryNode);
-            this.catchNode = <Catch>typeFlow.typeCheck(this.catchNode);
-            this.type = typeFlow.voidType;
-            return this;
-        }
-    }
-
-    export class Try extends Statement {
-        constructor (public body: AST) {
-            super(NodeType.Try);
-        }
-
-        public emit(emitter: Emitter, tokenId: TokenID, startLine: bool) {
-            emitter.emitParensAndCommentsInPlace(this, true);
-            emitter.recordSourceMappingStart(this);
+        public emitWorker(emitter: Emitter) {
             emitter.writeToOutput("try ");
-            emitter.emitJavascript(this.body, TokenID.Try, false);
-            emitter.recordSourceMappingEnd(this);
-            emitter.emitParensAndCommentsInPlace(this, false);
-        }
+            this.tryBody.emit(emitter);
+            emitter.emitJavascript(this.catchClause, false);
 
-        public typeCheck(typeFlow: TypeFlow) {
-            this.body = typeFlow.typeCheck(this.body);
-            return this;
-        }
-
-        public addToControlFlow(context: ControlFlowContext) {
-            if (this.body) {
-                context.walk(this.body, this);
+            if (this.finallyBody) {
+                emitter.writeToOutput(" finally");
+                this.finallyBody.emit(emitter);
             }
-            context.walker.options.goChildren = false;
-            context.noContinuation = false;
+        }
+
+        public structuralEquals(ast: TryStatement, includingPosition: boolean): boolean {
+            return super.structuralEquals(ast, includingPosition) &&
+                   structuralEquals(this.tryBody, ast.tryBody, includingPosition) &&
+                   structuralEquals(this.catchClause, ast.catchClause, includingPosition) &&
+                   structuralEquals(this.finallyBody, ast.finallyBody, includingPosition);
         }
     }
 
-    export class Catch extends Statement {
-        constructor (public param: VarDecl, public body: AST) {
-            super(NodeType.Catch);
-            if (this.param) {
-                this.param.varFlags |= VarFlags.AutoInit;
-            }
+    export class CatchClause extends AST {
+        constructor(public param: VariableDeclarator, public body: Block) {
+            super(NodeType.CatchClause);
         }
-        public statement: ASTSpan = new ASTSpan();
-        public containedScope: SymbolScope = null;
 
-        public emit(emitter: Emitter, tokenId: TokenID, startLine: bool) {
-            emitter.emitParensAndCommentsInPlace(this, true);
-            emitter.recordSourceMappingStart(this);
+        public statement: ASTSpan = new ASTSpan();
+
+        public emitWorker(emitter: Emitter) {
             emitter.writeToOutput(" ");
             emitter.recordSourceMappingStart(this.statement);
             emitter.writeToOutput("catch (");
-            emitter.emitJavascript(this.param, TokenID.OpenParen, false);
+            this.param.id.emit(emitter);
             emitter.writeToOutput(")");
             emitter.recordSourceMappingEnd(this.statement);
-            emitter.emitJavascript(this.body, TokenID.Catch, false);
-            emitter.recordSourceMappingEnd(this);
-            emitter.emitParensAndCommentsInPlace(this, false);
+            this.body.emit(emitter);
         }
 
-        public addToControlFlow(context: ControlFlowContext) {
-            if (this.param) {
-                context.addContent(this.param);
-                var bodBlock = new BasicBlock();
-                context.current.addSuccessor(bodBlock);
-                context.current = bodBlock;
-            }
-            if (this.body) {
-                context.walk(this.body, this);
-            }
-            context.noContinuation = false;
-            context.walker.options.goChildren = false;
-        }
-
-        public typeCheck(typeFlow: TypeFlow) {
-            var prevScope = typeFlow.scope;
-            typeFlow.scope = this.containedScope;
-            this.param = <VarDecl>typeFlow.typeCheck(this.param);
-            var exceptVar = new ValueLocation();
-            var varSym = new VariableSymbol((<VarDecl>this.param).id.text,
-                                          this.param.minChar,
-                                          typeFlow.checker.locationInfo.unitIndex,
-                                          exceptVar);
-            exceptVar.symbol = varSym;
-            exceptVar.typeLink = new TypeLink();
-            // var type for now (add syntax for type annotation)
-            exceptVar.typeLink.type = typeFlow.anyType;
-            var thisFnc = typeFlow.thisFnc;
-            if (thisFnc && thisFnc.type) {
-                exceptVar.symbol.container = thisFnc.type.symbol;
-            }
-            else {
-                exceptVar.symbol.container = null;
-            }
-            this.param.sym = exceptVar.symbol;
-            typeFlow.scope.enter(exceptVar.symbol.container, this.param, exceptVar.symbol,
-                                 typeFlow.checker.errorReporter, false, false, false);
-            this.body = typeFlow.typeCheck(this.body);
-
-            // if we're in provisional typecheck mode, clean up the symbol entry
-            // REVIEW: This is obviously bad form, since we're counting on the internal
-            // layout of the symbol table, but this is also the only place where we insert
-            // symbols during typecheck
-            if (typeFlow.checker.inProvisionalTypecheckMode()) {
-                var table = typeFlow.scope.getTable();
-                (<any>table).secondaryTable.table[exceptVar.symbol.name] = undefined;
-            }
-            this.type = typeFlow.voidType;
-            typeFlow.scope = prevScope;
-            return this;
+        public structuralEquals(ast: CatchClause, includingPosition: boolean): boolean {
+            return super.structuralEquals(ast, includingPosition) &&
+                   structuralEquals(this.param, ast.param, includingPosition) &&
+                   structuralEquals(this.body, ast.body, includingPosition);
         }
     }
 
-    export class Finally extends Statement {
-        constructor (public body: AST) {
-            super(NodeType.Finally);
+    export class DebuggerStatement extends Statement {
+        constructor() {
+            super(NodeType.DebuggerStatement);
         }
 
-        public emit(emitter: Emitter, tokenId: TokenID, startLine: bool) {
-            emitter.emitParensAndCommentsInPlace(this, true);
-            emitter.recordSourceMappingStart(this);
-            emitter.writeToOutput("finally");
-            emitter.emitJavascript(this.body, TokenID.Finally, false);
-            emitter.recordSourceMappingEnd(this);
-            emitter.emitParensAndCommentsInPlace(this, false);
+        public emitWorker(emitter: Emitter) {
+            emitter.writeToOutput("debugger;");
+        }
+    }
+
+    export class OmittedExpression extends Expression {
+        constructor() {
+            super(NodeType.OmittedExpression);
         }
 
-        public addToControlFlow(context: ControlFlowContext) {
-            if (this.body) {
-                context.walk(this.body, this);
-            }
-            context.walker.options.goChildren = false;
-            context.noContinuation = false;
+        public emitWorker(emitter: Emitter) {
         }
 
-        public typeCheck(typeFlow: TypeFlow) {
-            this.body = typeFlow.typeCheck(this.body);
-            return this;
+        public structuralEquals(ast: CatchClause, includingPosition: boolean): boolean {
+            return super.structuralEquals(ast, includingPosition);
+        }
+    }
+
+    export class EmptyStatement extends Statement {
+        constructor() {
+            super(NodeType.EmptyStatement);
+        }
+
+        public emitWorker(emitter: Emitter) {
+            emitter.writeToOutput(";");
+        }
+
+        public structuralEquals(ast: CatchClause, includingPosition: boolean): boolean {
+            return super.structuralEquals(ast, includingPosition);
         }
     }
 
     export class Comment extends AST {
-
         public text: string[] = null;
         public minLine: number;
         public limLine: number;
         private docCommentText: string = null;
 
-        constructor (public content: string, public isBlockComment: bool, public endsLine) {
+        constructor(public content: string,
+                    public isBlockComment: boolean,
+                    public endsLine) {
             super(NodeType.Comment);
         }
 
+        public structuralEquals(ast: Comment, includingPosition: boolean): boolean {
+            return super.structuralEquals(ast, includingPosition) &&
+                   this.minLine === ast.minLine &&
+                   this.content === ast.content &&
+                   this.isBlockComment === ast.isBlockComment &&
+                   this.endsLine === ast.endsLine;
+        }
+
         public getText(): string[] {
-            if (this.text == null) {
+            if (this.text === null) {
                 if (this.isBlockComment) {
                     this.text = this.content.split("\n");
                     for (var i = 0; i < this.text.length; i++) {
@@ -2441,14 +1590,14 @@ module TypeScript {
 
         public isDocComment() {
             if (this.isBlockComment) {
-                return this.content.charAt(2) == "*" && this.content.charAt(3) != "/";
+                return this.content.charAt(2) === "*" && this.content.charAt(3) !== "/";
             }
 
             return false;
         }
 
-        public getDocCommentText() {
-            if (this.docCommentText == null) {
+        public getDocCommentTextValue() {
+            if (this.docCommentText === null) {
                 this.docCommentText = Comment.cleanJSDocComment(this.content);
             }
 
@@ -2457,18 +1606,18 @@ module TypeScript {
 
         static consumeLeadingSpace(line: string, startIndex: number, maxSpacesToRemove?: number) {
             var endIndex = line.length;
-            if (maxSpacesToRemove != undefined) {
+            if (maxSpacesToRemove !== undefined) {
                 endIndex = min(startIndex + maxSpacesToRemove, endIndex);
             }
 
             for (; startIndex < endIndex; startIndex++) {
                 var charCode = line.charCodeAt(startIndex);
-                if (charCode != LexCodeSpace && charCode != LexCodeTAB) {
+                if (charCode !== CharacterCodes.space && charCode !== CharacterCodes.tab) {
                     return startIndex;
                 }
             }
-            
-            if (endIndex != line.length) {
+
+            if (endIndex !== line.length) {
                 return endIndex;
             }
 
@@ -2480,22 +1629,22 @@ module TypeScript {
             if (index < length) {
                 var charCode = line.charCodeAt(index);
                 // If the character is space
-                return charCode == LexCodeSpace || charCode == LexCodeTAB;
+                return charCode === CharacterCodes.space || charCode === CharacterCodes.tab;
             }
 
             // If the index is end of the line it is space
-            return index == length;
+            return index === length;
         }
 
-        static cleanDocCommentLine(line: string, jsDocStyleComment: bool, jsDocLineSpaceToRemove?: number) {
+        static cleanDocCommentLine(line: string, jsDocStyleComment: boolean, jsDocLineSpaceToRemove?: number) {
             var nonSpaceIndex = Comment.consumeLeadingSpace(line, 0);
-            if (nonSpaceIndex != -1) {
+            if (nonSpaceIndex !== -1) {
                 var jsDocSpacesRemoved = nonSpaceIndex;
-                if (jsDocStyleComment && line.charAt(nonSpaceIndex) == '*') { // remove leading * in case of jsDocComment
+                if (jsDocStyleComment && line.charAt(nonSpaceIndex) === '*') { // remove leading * in case of jsDocComment
                     var startIndex = nonSpaceIndex + 1;
                     nonSpaceIndex = Comment.consumeLeadingSpace(line, startIndex, jsDocLineSpaceToRemove);
 
-                    if (nonSpaceIndex != -1) {
+                    if (nonSpaceIndex !== -1) {
                         jsDocSpacesRemoved = nonSpaceIndex - startIndex;
                     } else {
                         return null;
@@ -2504,7 +1653,7 @@ module TypeScript {
 
                 return {
                     minChar: nonSpaceIndex,
-                    limChar: line.charAt(line.length - 1) == "\r" ? line.length - 1 : line.length,
+                    limChar: line.charAt(line.length - 1) === "\r" ? line.length - 1 : line.length,
                     jsDocSpacesRemoved: jsDocSpacesRemoved
                 };
             }
@@ -2513,9 +1662,10 @@ module TypeScript {
         }
 
         static cleanJSDocComment(content: string, spacesToRemove?: number) {
+
             var docCommentLines: string[] = [];
             content = content.replace("/**", ""); // remove /**
-            if (content.length >= 2 && content.charAt(content.length - 1) == "/" && content.charAt(content.length - 2) == "*") {
+            if (content.length >= 2 && content.charAt(content.length - 1) === "/" && content.charAt(content.length - 2) === "*") {
                 content = content.substring(0, content.length - 2); // remove last */
             }
             var lines = content.split("\n");
@@ -2537,7 +1687,7 @@ module TypeScript {
                     var wasInParamtag = inParamTag;
 
                     // Parse contents next to @
-                    if (line.indexOf("param", i + 1) == i + 1 && Comment.isSpaceChar(line, i + 6)) {
+                    if (line.indexOf("param", i + 1) === i + 1 && Comment.isSpaceChar(line, i + 6)) {
                         // It is param tag. 
 
                         // If we were not in param tag earlier, push the contents from prev pos of the tag this tag start as docComment
@@ -2562,21 +1712,21 @@ module TypeScript {
                 // Add line to comment text if it is not only white space line
                 var newCleanPos = Comment.cleanDocCommentLine(docCommentText, false);
                 if (newCleanPos) {
-                    if (spacesToRemove == undefined) {
+                    if (spacesToRemove === undefined) {
                         spacesToRemove = cleanLinePos.jsDocSpacesRemoved;
                     }
                     docCommentLines.push(docCommentText);
                 }
             }
-            
+
             return docCommentLines.join("\n");
         }
 
         static getDocCommentText(comments: Comment[]) {
             var docCommentText: string[] = [];
             for (var c = 0 ; c < comments.length; c++) {
-                var commentText = comments[c].getDocCommentText();
-                if (commentText != "") {
+                var commentText = comments[c].getDocCommentTextValue();
+                if (commentText !== "") {
                     docCommentText.push(commentText);
                 }
             }
@@ -2584,12 +1734,12 @@ module TypeScript {
         }
 
         static getParameterDocCommentText(param: string, fncDocComments: Comment[]) {
-            if (fncDocComments.length == 0 || !fncDocComments[0].isBlockComment) {
+            if (fncDocComments.length === 0 || !fncDocComments[0].isBlockComment) {
                 // there were no fnc doc comments and the comment is not block comment then it cannot have 
                 // @param comment that can be parsed
                 return "";
             }
-            
+
             for (var i = 0; i < fncDocComments.length; i++) {
                 var commentContents = fncDocComments[i].content;
                 for (var j = commentContents.indexOf("@param", 0); 0 <= j; j = commentContents.indexOf("@param", j)) {
@@ -2601,27 +1751,27 @@ module TypeScript {
 
                     // This is param tag. Check if it is what we are looking for
                     j = Comment.consumeLeadingSpace(commentContents, j);
-                    if (j == -1) {
+                    if (j === -1) {
                         break;
                     }
-                    
+
                     // Ignore the type expression
-                    if (commentContents.charCodeAt(j) == LexCodeLC) {
+                    if (commentContents.charCodeAt(j) === CharacterCodes.openBrace) {
                         j++;
                         // Consume the type
                         var charCode = 0;
                         for (var curlies = 1; j < commentContents.length; j++) {
                             charCode = commentContents.charCodeAt(j);
                             // { character means we need to find another } to match the found one
-                            if (charCode == LexCodeLC) {
+                            if (charCode === CharacterCodes.openBrace) {
                                 curlies++;
                                 continue;
                             }
 
                             // } char
-                            if (charCode == LexCodeRC) {
+                            if (charCode === CharacterCodes.closeBrace) {
                                 curlies--;
-                                if (curlies == 0) {
+                                if (curlies === 0) {
                                     // We do not have any more } to match the type expression is ignored completely
                                     break;
                                 } else {
@@ -2631,52 +1781,52 @@ module TypeScript {
                             }
 
                             // Found start of another tag
-                            if (charCode == LexCodeAtSign) {
+                            if (charCode === CharacterCodes.at) {
                                 break;
                             }
                         }
 
                         // End of the comment
-                        if (j == commentContents.length) {
+                        if (j === commentContents.length) {
                             break;
                         }
 
                         // End of the tag, go onto looking for next tag
-                        if (charCode == LexCodeAtSign) {
+                        if (charCode === CharacterCodes.at) {
                             continue;
                         }
 
                         j = Comment.consumeLeadingSpace(commentContents, j + 1);
-                        if (j == -1) {
+                        if (j === -1) {
                             break;
                         }
                     }
 
                     // Parameter name
-                    if (param != commentContents.substr(j, param.length) || !Comment.isSpaceChar(commentContents, j + param.length)) {
+                    if (param !== commentContents.substr(j, param.length) || !Comment.isSpaceChar(commentContents, j + param.length)) {
                         // this is not the parameter we are looking for
                         continue;
                     }
 
                     // Found the parameter we were looking for
                     j = Comment.consumeLeadingSpace(commentContents, j + param.length);
-                    if (j == -1) {
+                    if (j === -1) {
                         return "";
                     }
-                    
+
                     var endOfParam = commentContents.indexOf("@", j);
                     var paramHelpString = commentContents.substring(j, endOfParam < 0 ? commentContents.length : endOfParam);
 
                     // Find alignement spaces to remove
                     var paramSpacesToRemove: number = undefined;
                     var paramLineIndex = commentContents.substring(0, j).lastIndexOf("\n") + 1;
-                    if (paramLineIndex != 0) {
-                        if (paramLineIndex < j && commentContents.charAt(paramLineIndex + 1) == "\r") {
+                    if (paramLineIndex !== 0) {
+                        if (paramLineIndex < j && commentContents.charAt(paramLineIndex + 1) === "\r") {
                             paramLineIndex++;
                         }
                     }
                     var startSpaceRemovalIndex = Comment.consumeLeadingSpace(commentContents, paramLineIndex);
-                    if (startSpaceRemovalIndex != j && commentContents.charAt(startSpaceRemovalIndex) == "*") {
+                    if (startSpaceRemovalIndex !== j && commentContents.charAt(startSpaceRemovalIndex) === "*") {
                         paramSpacesToRemove = j - startSpaceRemovalIndex - 1;
                     }
 
@@ -2686,34 +1836,6 @@ module TypeScript {
             }
 
             return "";
-        }
-
-        static getDocCommentFirstOverloadSignature(signatureGroup: SignatureGroup) {
-            for (var i = 0; i < signatureGroup.signatures.length; i++) {
-                var signature = signatureGroup.signatures[i];
-                if (signature == signatureGroup.definitionSignature) {
-                    continue;
-                }
-
-                return TypeScript.Comment.getDocCommentText(signature.declAST.getDocComments());
-            }
-
-            return "";
-        }
-    }
-
-    export class DebuggerStatement extends Statement {
-        constructor () {
-            super(NodeType.Debugger);
-        }
-
-        public emit(emitter: Emitter, tokenId: TokenID, startLine: bool) {
-            emitter.emitParensAndCommentsInPlace(this, true);
-            emitter.recordSourceMappingStart(this);
-            emitter.writeToOutput("debugger");
-            emitter.recordSourceMappingEnd(this);
-            emitter.writeLineToOutput(";");
-            emitter.emitParensAndCommentsInPlace(this, false);
         }
     }
 }

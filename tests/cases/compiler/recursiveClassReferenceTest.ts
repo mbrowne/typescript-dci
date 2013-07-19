@@ -2,11 +2,6 @@
 // Scenario 1: Test reqursive function call with "this" parameter
 // Scenario 2: Test recursive function call with cast and "this" parameter
 
-declare module {
-	export class Element {}
-
-	export interface IArguments {}
-}
 
 
 declare module Sample.Thing {
@@ -30,7 +25,7 @@ declare module Sample.Thing {
 	}
 
 	export interface IAction {
-		run(Thing:ICodeThing):bool;
+		run(Thing:ICodeThing):boolean;
 		getId():string;
 	}	
 }
@@ -38,9 +33,9 @@ declare module Sample.Thing {
 module Sample.Actions.Thing.Find {
 	export class StartFindAction implements Sample.Thing.IAction {
 		
-		public getId() => "yo";
+		public getId() { return "yo"; }
 		
-		public run(Thing:Sample.Thing.ICodeThing):bool {
+		public run(Thing:Sample.Thing.ICodeThing):boolean {
 
 			return true;
 		}
@@ -70,7 +65,7 @@ module Sample.Thing.Widgets {
 }
 
 interface IMode { getInitialState(): IState;} 
-class AbstractMode implements IMode { public getInitialState(): IState => null;}
+class AbstractMode implements IMode { public getInitialState(): IState { return null;} }
 
 interface IState {}
 
@@ -83,11 +78,11 @@ module Sample.Thing.Languages.PlainText {
 			return this;
 		}
 
-		public equals(other:IState):bool {
+		public equals(other:IState):boolean {
 			return this === other;
 		}
 		
-		public getMode(): IMode => mode;
+		public getMode(): IMode { return mode; }
 	}
 	
 	export class Mode extends AbstractMode {

@@ -6,11 +6,12 @@ String.fromCharCode(12);
 var M;
 (function (M) {
     var C = (function () {
-        function C() { }
+        function C() {
+        }
         return C;
     })();
-    M.C = C;    
-    var a = new Array();
+    M.C = C;
+    var a = new C[]();
     a.length;
     a.push(new C());
     (new C()).prototype;

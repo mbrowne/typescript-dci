@@ -11,8 +11,10 @@ function makePoint(x, y) {
         }
     };
 }
+
 var C = (function () {
-    function C() { }
+    function C() {
+    }
     Object.defineProperty(C.prototype, "x", {
         get: function () {
             return 0;
@@ -22,9 +24,12 @@ var C = (function () {
     });
     return C;
 })();
+
 function foo(test) {
 }
+
 var x;
 var y;
+
 foo(x);
 foo(x + y);

@@ -1,1 +1,1 @@
-0.ts line 15 col 22: The symbol 'b' is not visible at this point
+0.ts line 15 col 23: error TS2095: Could not find symbol 'b'.

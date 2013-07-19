@@ -4,10 +4,10 @@
 class UnitTestRunner extends RunnerBase {
 
     constructor(public testType?: string) {
-        super();        
+        super(testType);
     }
 
-    public runTests() {
+    public initializeTests() {
         switch (this.testType) {
             case 'compiler':
                 this.tests = this.enumerateFiles('tests/cases/unittests/compiler');
@@ -23,7 +23,8 @@ class UnitTestRunner extends RunnerBase {
                 break;
             case 'samples':
                 this.tests = this.enumerateFiles('tests/cases/unittests/samples');
-            default:               
+                break;
+            default:
                 if (this.tests.length === 0) {
                     throw new Error('Unsupported test cases: ' + this.testType);
                 }
@@ -31,26 +32,31 @@ class UnitTestRunner extends RunnerBase {
         }
 
         var outfile = new Harness.Compiler.WriterAggregator()
-      , outerr = new Harness.Compiler.WriterAggregator()
-      , compiler = <TypeScript.TypeScriptCompiler>new TypeScript.TypeScriptCompiler(outerr)
-      , code;
-
-        compiler.parser.errorRecovery = true;
-        compiler.addUnit(Harness.Compiler.libText, "lib.d.ts", true);
+        var outerr = new Harness.Compiler.WriterAggregator();
 
         for (var i = 0; i < this.tests.length; i++) {
             try {
-                compiler.addUnit(IO.readFile(this.tests[i]), this.tests[i]);
-            } catch (e) {
+                Harness.Compiler.addUnit(Harness.Compiler.CompilerInstance.DesignTime, IO.readFile(this.tests[i]).contents(), this.tests[i]);
+            }
+            catch (e) {
                 IO.printLine('FATAL ERROR COMPILING TEST: ' + this.tests[i]);
                 throw e;
             }
         }
 
-        compiler.typeCheck();
-        compiler.emitToOutfile(outfile);
+        Harness.Compiler.compile(Harness.Compiler.CompilerInstance.DesignTime);
+        
+        var stdout = new Harness.Compiler.EmitterIOHost();
+        var emitDiagnostics = Harness.Compiler.emitAll(Harness.Compiler.CompilerInstance.DesignTime, stdout);
+        var results = stdout.toArray();
+        var lines = [];
+        results.forEach(v => lines = lines.concat(v.file.lines));
+        var code = lines.join("\n")
 
-        code = outfile.lines.join("\n") + ";";
+        describe("Setup compiler for compiler unittests", () => {
+            var useMinimalDefaultLib = this.testType !== 'samples'
+            Harness.Compiler.recreate(Harness.Compiler.CompilerInstance.RunTime, useMinimalDefaultLib);
+        });
 
         if (typeof require !== "undefined") {
             var vm = require('vm');
@@ -61,13 +67,13 @@ class UnitTestRunner extends RunnerBase {
                     process: process,
                     describe: describe,
                     it: it,
-                    assert: assert,
+                    assert: Harness.Assert,
                     Harness: Harness,
                     IO: IO,
                     Exec: Exec,
                     Services: Services,
                     DumpAST: DumpAST,
-                    Formatting: Formatting,
+                    // Formatting: Formatting,
                     Diff: Diff,
                     FourSlash: FourSlash
                 },
@@ -77,7 +83,7 @@ class UnitTestRunner extends RunnerBase {
             eval(code);
         }
 
-        // clean up 
-        Harness.Compiler.recreate();
+        // make sure the next unittestrunner doesn't include the previous one's stuff
+        Harness.Compiler.recreate(Harness.Compiler.CompilerInstance.DesignTime);
     }
 }

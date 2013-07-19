@@ -1,14 +1,11 @@
-var b2 = {
-    a: 0
-};
-b2 = {
-    a: 0
-};
-b2 = {
-    b: 0,
-    a: 0
-};
+var b2 = { a: 0 };
+
+b2 = { a: 0 };
+
+b2 = { b: 0, a: 0 };
+
 var b3;
+
 b3 = {
     f: function (n) {
         return 0;
@@ -18,6 +15,7 @@ b3 = {
     },
     m: 0
 };
+
 b3 = {
     f: function (n) {
         return 0;
@@ -26,12 +24,14 @@ b3 = {
         return 0;
     }
 };
+
 b3 = {
     f: function (n) {
         return 0;
     },
     m: 0
 };
+
 b3 = {
     f: function (n) {
         return 0;
@@ -45,6 +45,7 @@ b3 = {
         return null;
     }
 };
+
 b3 = {
     f: function (n) {
         return 0;

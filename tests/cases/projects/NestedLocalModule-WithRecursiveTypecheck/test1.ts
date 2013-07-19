@@ -1,8 +1,8 @@
 module myModule {
  
- import foo = module("test2");
+ import foo = require("test2");
 
- console.log(foo.$);
+ //console.log(foo.$);
 
  var z = foo.Yo.y();
 

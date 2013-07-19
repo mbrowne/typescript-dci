@@ -4,9 +4,11 @@ var Foo = (function () {
     }
     return Foo;
 })();
+
 var f = new Foo();
+
 var q = f["v"];
-var o = {
-    v: "Yo2"
-};
+
+var o = { v: "Yo2" };
+
 var q2 = o["v"];

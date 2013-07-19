@@ -1,13 +1,13 @@
 function f1() {
 	var a = { x: 1, y: 2 };
-	a = {};
-	a = { x: 1 };
+	a = {}; // error
+    a = { x: 1 }; // error
 	a = { x: 1, y: 2, z: 3 };
-	a = { x: 1, z: 3 }; 
+    a = { x: 1, z: 3 };  // error
 }
 
-class Animal { }
-class Giraffe extends Animal { }
+class Animal { private a; }
+class Giraffe extends Animal { private g; }
 
 function f2() {
     var a = new Animal();
@@ -15,7 +15,7 @@ function f2() {
     var aa = [ a, a, a ];
     var gg = [ g, g, g ];
     aa = gg;
-    gg = aa;
+    gg = aa; // error
     var xa = { f1: 5, f2: aa };
     var xb = { f1: 5, f2: gg };
     xa = xb; // Should be ok
@@ -32,9 +32,9 @@ function f4() {
     a = { x: 1, y: undefined }; 
     a = { x: 1, y: _any }; 
     a = { x: 1, y: _any, z:1 }; 
-    a = { x: 1 }; // ok
-    var mf=function m(n)=>false;
-    var zf=function z(n:number)=>true;
+    a = { x: 1 }; // error
+    var mf = function m(n) { return false; };
+    var zf = function z(n: number) { return true; };
     mf=zf;
     mf(_any);
     zf(_any);

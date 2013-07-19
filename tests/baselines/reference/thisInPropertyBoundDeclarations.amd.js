@@ -1,14 +1,17 @@
 var Bug = (function () {
-    function Bug() { }
-    Bug.func = [
-        function (that, name) {
-            that.foo(name);
-        }    ];
+    function Bug() {
+    }
     Bug.prototype.foo = function (name) {
         this.name = name;
     };
+    Bug.func = [
+        function (that, name) {
+            that.foo(name);
+        }
+    ];
     return Bug;
 })();
+
 var A = (function () {
     function A() {
         this.prop1 = function () {
@@ -19,9 +22,9 @@ var A = (function () {
             function inner() {
                 this;
             }
-            (function () {
+            function () {
                 return _this;
-            });
+            };
         };
         this.prop3 = function () {
             function inner() {

@@ -44,7 +44,7 @@ module Mankala {
     }
 
     export class Position {
-        constructor (public  seedCounts: number[], public startMove: number, public turn: number) { };
+        constructor (public  seedCounts: number[], public startMove: number, public turn: number) { }
         public score() {
             var baseScore = this.seedCounts[storeHouses[1 - this.turn]] - this.seedCounts[storeHouses[this.turn]];
             var otherSpaces = homeSpaces[this.turn];
@@ -55,7 +55,7 @@ module Mankala {
             if (sum == 0) {
                 var mySpaces = homeSpaces[1 - this.turn];
                 var mySum = 0;
-                for (var j = 0, len = mySpaces.length; j < len; j++) {
+                for (var j = 0, length = mySpaces.length; j < length; j++) {
                     mySum += this.seedCounts[mySpaces[j]];
                 }
 
@@ -115,7 +115,7 @@ module Mankala {
     }
 
     export class SeedCoords {
-        constructor(public tx: number, public ty: number, public angle: number) { };
+        constructor(public tx: number, public ty: number, public angle: number) { }
     }
 
     export class DisplayPosition extends Position {
@@ -125,7 +125,7 @@ module Mankala {
             for (var i = 0; i < seedCounts.length; i++) {
                 this.config[i] = [];
             }
-        };
+        }
         public config: SeedCoords[][] = [];
 
 
@@ -224,7 +224,7 @@ module Mankala {
                                        function(seed: number) {
                                            return function(evt: Event) {
                                                game.humanMove(seed);
-                                           };
+                                           }
                                        }(seed));
                     }
                     else {

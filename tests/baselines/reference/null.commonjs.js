@@ -2,7 +2,8 @@ var x = null;
 var y = 3 + x;
 var z = 3 + null;
 var C = (function () {
-    function C() { }
+    function C() {
+    }
     return C;
 })();
 function f() {
@@ -13,7 +14,5 @@ function g() {
     return null;
     return 3;
 }
-var w = {
-    x: null,
-    y: 3
-};
+
+var w = { x: null, y: 3 };

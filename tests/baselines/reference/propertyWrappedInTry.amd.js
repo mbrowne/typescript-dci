@@ -1,11 +1,12 @@
 var Foo = (function () {
     function Foo() {
-        this.bar = someInitThatMightFail();
     }
     return Foo;
 })();
-(e);
- {
+
+try  {
+    bar = someInitThatMightFail();
+} catch (e) {
 }
 
 baz();

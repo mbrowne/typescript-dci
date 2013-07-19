@@ -1,4 +1,4 @@
-﻿//﻿
+//
 // Copyright (c) Microsoft Corporation.  All rights reserved.
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,7 +25,7 @@ module CollateralGenerator {
         options.generateCodeBaseline = options.generateCodeBaseline || true;
         options.logMethod = options.logMethod || function() {};
         
-        var fileContents = IO.readFile(path);
+        var fileContents = IO.readFile(path).contents();
         
         var pathParts = path.match(/^(.*\/|)compiler\/testCode\/([^\/]*)\.(\w+)$/);
         var prefix    = pathParts[1];
@@ -90,10 +90,10 @@ module CollateralGenerator {
         }
 
         options.logMethod("Writing test case to " + testFileLocation);
-        IO.writeFile(testFileLocation, testCase);
+        IO.writeFile(testFileLocation, testCase, /*writeByteOrderMark:*/ false);
         if(!!codeBaseline) {
             options.logMethod("Writing baseline file to " + codeBaselineLocation);
-            IO.writeFile(codeBaselineLocation, codeBaseline);
+            IO.writeFile(codeBaselineLocation, codeBaseline, /*writeByteOrderMark:*/ false);
         } else {
             options.logMethod("Using inline code baseline");
         }

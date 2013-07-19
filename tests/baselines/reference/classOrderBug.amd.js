@@ -1,4 +1,5 @@
 var __extends = this.__extends || function (d, b) {
+    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
     __.prototype = b.prototype;
     d.prototype = new __();
@@ -9,15 +10,16 @@ var bar = (function () {
     }
     return bar;
 })();
+
 var baz = (function () {
-    function baz() { }
+    function baz() {
+    }
     return baz;
 })();
 var foo = (function (_super) {
     __extends(foo, _super);
     function foo() {
         _super.apply(this, arguments);
-
     }
     return foo;
 })(baz);

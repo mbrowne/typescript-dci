@@ -1,4 +1,5 @@
 var __extends = this.__extends || function (d, b) {
+    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
     __.prototype = b.prototype;
     d.prototype = new __();
@@ -7,7 +8,6 @@ var Red = (function (_super) {
     __extends(Red, _super);
     function Red() {
         _super.apply(this, arguments);
-
     }
     Red.prototype.shade = function () {
         var _this = this;
@@ -18,8 +18,10 @@ var Red = (function (_super) {
     };
     return Red;
 })(Color);
+
 var Color = (function () {
-    function Color() { }
+    function Color() {
+    }
     Color.prototype.shade = function () {
         return "some shade";
     };
@@ -28,11 +30,11 @@ var Color = (function () {
     };
     return Color;
 })();
+
 var Blue = (function (_super) {
     __extends(Blue, _super);
     function Blue() {
         _super.apply(this, arguments);
-
     }
     Blue.prototype.shade = function () {
         var _this = this;
@@ -43,8 +45,10 @@ var Blue = (function (_super) {
     };
     return Blue;
 })(Color);
+
 var r = new Red();
 var b = new Blue();
+
 WScript.Echo(r.shade());
 WScript.Echo(r.hue());
 WScript.Echo(b.shade());

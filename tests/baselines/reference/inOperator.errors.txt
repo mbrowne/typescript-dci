@@ -1,2 +1,1 @@
-0.ts line 5 col 4: Cannot convert 'number' to 'string'
-0.ts line 5 col 4: The in operator requires the left operand to be of type Any or the String primitive type, and the right operand to be of type Any or an object type
+0.ts line 10 col 9: error TS2119: The right-hand side of an 'in' expression must be of type 'any', an object type or a type parameter.

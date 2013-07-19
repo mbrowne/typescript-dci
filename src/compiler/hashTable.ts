@@ -1,4 +1,4 @@
-﻿//﻿
+//
 // Copyright (c) Microsoft Corporation.  All rights reserved.
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,6 +16,9 @@
 ///<reference path='typescript.ts' />
 
 module TypeScript {
+    interface IIndexable<T> {
+        [s: string]: T;
+    }
 
     export class BlockIntrinsics {
         public prototype = undefined;
@@ -32,276 +35,138 @@ module TypeScript {
         }
     }
 
-    export interface IHashTable {
+    export interface IHashTable<T> {
         getAllKeys(): string[];
-        add(key: string, data): bool;
-        addOrUpdate(key: string, data): bool;
-        map(fn: (k: string, v, c) => void , context): void;
-        every(fn: (k: string, v, c) => bool, context): bool;
-        some(fn: (k: string, v, c) => bool, context): bool;
+        add(key: string, data: T): boolean;
+        addOrUpdate(key: string, data: T): boolean;
+        map(fn: (k: string, value: T, context: any) => void , context: any): void;
+        every(fn: (k: string, value: T, context: any) => void , context: any): boolean;
+        some(fn: (k: string, value: T, context: any) => void , context: any): boolean;
         count(): number;
-        lookup(key: string): any;
+        lookup(key: string): T;
     }
 
-    export class StringHashTable implements IHashTable {
-        public itemCount = 0;
-        public table = <any>(<any> new BlockIntrinsics());
+    export class StringHashTable<T> implements IHashTable<T> {
+        private itemCount = 0;
+        private table: IIndexable<T> = <any>(new BlockIntrinsics());
 
-        public getAllKeys(): string[]{
+        public getAllKeys(): string[] {
             var result: string[] = [];
+
             for (var k in this.table) {
-                if (this.table[k] != undefined) {
-                    result[result.length] = k;
+                if (this.table[k] !== undefined) {
+                    result.push(k);
                 }
             }
+
             return result;
         }
 
-        public add(key: string, data): bool {
-            if (this.table[key] != undefined) {
+        public add(key: string, data: T): boolean {
+            if (this.table[key] !== undefined) {
                 return false;
             }
+
             this.table[key] = data;
             this.itemCount++;
             return true;
         }
 
-        public addOrUpdate(key: string, data): bool {
-            if (this.table[key] != undefined) {
+        public addOrUpdate(key: string, data: T): boolean {
+            if (this.table[key] !== undefined) {
                 this.table[key] = data;
                 return false;
             }
+
             this.table[key] = data;
             this.itemCount++;
             return true;
         }
 
-        public map(fn: (k: string, v, c) => void , context) {
+        public map(fn: (k: string, value: T, context: any) => void , context: any) {
             for (var k in this.table) {
                 var data = this.table[k];
-                if (data != undefined) {
+
+                if (data !== undefined) {
                     fn(k, this.table[k], context);
                 }
             }
         }
 
-        public every(fn: (k: string, v, c) => bool, context) {
+        public every(fn: (k: string, value: T, context: any) => void , context: any) {
             for (var k in this.table) {
                 var data = this.table[k];
-                if (data != undefined) {
+
+                if (data !== undefined) {
                     if (!fn(k, this.table[k], context)) {
                         return false;
                     }
                 }
             }
+
             return true;
         }
 
-        public some(fn: (k: string, v, c) => bool, context) {
+        public some(fn: (k: string, value: any, context: any) => void , context: any) {
             for (var k in this.table) {
                 var data = this.table[k];
-                if (data != undefined) {
+
+                if (data !== undefined) {
                     if (fn(k, this.table[k], context)) {
                         return true;
                     }
                 }
             }
+
             return false;
         }
 
-        public count(): number { return this.itemCount; }
+        public count(): number {
+            return this.itemCount;
+        }
 
-        public lookup(key: string) {
+        public lookup(key: string) : T {
             var data = this.table[key];
-            if (data != undefined) {
-                return data;
-            }
-            else {
-                return (null);
-            }
+            return data === undefined ? null : data;
         }
     }
 
-    // The resident table is expected to reference the same table object, whereas the 
-    // transientTable may reference different objects over time
-    // REVIEW:  WARNING:  For performance reasons, neither the primary nor secondary table may be null
-    export class DualStringHashTable implements IHashTable {
 
-        public insertPrimary = true;
-
-        constructor (public primaryTable: IHashTable,
-                                        public secondaryTable: IHashTable) { }
-
+    export class IdentiferNameHashTable<T> extends StringHashTable<T> {
         public getAllKeys(): string[]{
-            return this.primaryTable.getAllKeys().concat(this.secondaryTable.getAllKeys());
-        }
+            var result: string[] = [];
 
-        public add(key: string, data): bool {
-            if (this.insertPrimary) {
-                return this.primaryTable.add(key, data);
-            }
-            else {
-                return this.secondaryTable.add(key, data);
-            }
-        }
-
-        public addOrUpdate(key: string, data): bool {
-            if (this.insertPrimary) {
-                return this.primaryTable.addOrUpdate(key, data);
-            }
-            else {
-                return this.secondaryTable.addOrUpdate(key, data);
-            }
-        }
-
-        public map(fn: (k: string, v, c) => void , context) {
-            this.primaryTable.map(fn, context);
-            this.secondaryTable.map(fn, context);
-        }
-
-        public every(fn: (k: string, v, c) => bool, context) {
-            return this.primaryTable.every(fn, context) && this.secondaryTable.every(fn, context);
-        }
-
-        public some(fn: (k: string, v, c) => bool, context) {
-            return this.primaryTable.some(fn, context) || this.secondaryTable.some(fn, context);
-        }
-
-        public count() {
-            return this.primaryTable.count() + this.secondaryTable.count();
-        }
-
-        public lookup(key: string) {
-            var data = this.primaryTable.lookup(key);
-            if (data != undefined) {
-                return data;
-            }
-            else {
-                return this.secondaryTable.lookup(key);
-            }
-        }
-    }
-
-    export function numberHashFn(key: number): number {
-        var c2 = 0x27d4eb2d; // a prime or an odd constant
-        key = (key ^ 61) ^ (key >>> 16);
-        key = key + (key << 3);
-        key = key ^ (key >>> 4);
-        key = key * c2;
-        key = key ^ (key >>> 15);
-        return key;
-    }
-
-    export function combineHashes(key1: number, key2: number) {
-        return key2 ^ ((key1 >> 5) + key1);
-    }
-
-    export class HashEntry {
-        public next: HashEntry;
-
-        constructor (public key, public data) { }
-    }
-
-    export class HashTable {
-        public itemCount: number = 0;
-        public table = new HashEntry[];
-
-        constructor (public size: number, public hashFn: (key) =>number,
-                    public equalsFn: (key1, key2) =>bool) {
-            for (var i: number = 0; i < this.size; i++) {
-                this.table[i] = null;
-            }
-        }
-
-        public add(key, data): bool {
-            var current: HashEntry;
-            var entry: HashEntry = new HashEntry(key, data);
-            var val: number = this.hashFn(key);
-            val = val % this.size;
-
-            for (current = this.table[val]; current != null ; current = current.next) {
-                if (this.equalsFn(key, current.key)) {
-                    return false;
+            super.map((k, v, c) => {
+                if (v !== undefined) {
+                    result.push(k.substring(1));
                 }
-            }
-            entry.next = this.table[val];
-            this.table[val] = entry;
-            this.itemCount++;
-            return true;
-        }
+            }, null);
 
-        public remove(key) {
-            var current: HashEntry;
-            var val: number = this.hashFn(key);
-            val = val % this.size;
-            var result = null;
-            var prevEntry: HashEntry = null;
-
-            for (current = this.table[val]; current != null ; current = current.next) {
-                if (this.equalsFn(key, current.key)) {
-                    result = current.data;
-                    this.itemCount--;
-                    if (prevEntry) {
-                        prevEntry.next = current.next;
-                    }
-                    else {
-                        this.table[val] = current.next;
-                    }
-                    break;
-                }
-                prevEntry = current;
-            }
             return result;
         }
 
-        public count(): number { return this.itemCount; }
+        public add(key: string, data: T): boolean {
+            return super.add("#" + key, data);
+        }
 
-        public lookup(key) {
-            var current: HashEntry;
-            var val: number = this.hashFn(key);
-            val = val % this.size;
-            for (current = this.table[val]; current != null ; current = current.next) {
-                if (this.equalsFn(key, current.key)) {
-                    return (current.data);
-                }
-            }
-            return (null);
+        public addOrUpdate(key: string, data: T): boolean {
+            return super.addOrUpdate("#" + key, data);
+        }
+
+        public map(fn: (k: string, value: T, context: any) => void , context: any) {
+            return super.map((k, v, c) => fn(k.substring(1), v, c), context);
+        }
+
+        public every(fn: (k: string, value: T, context: any) => void , context: any) {
+            return super.every((k, v, c) => fn(k.substring(1), v, c), context);
+        }
+
+        public some(fn: (k: string, value: any, context: any) => void , context: any) {
+            return super.some((k, v, c) => fn(k.substring(1), v, c), context);
+        }
+
+        public lookup(key: string): T {
+            return super.lookup("#" + key);
         }
     }
-
-    // Simple Hash table with list of keys and values matching each other at the given index
-    export class SimpleHashTable {
-        private keys = [];
-        private values = [];
-
-        public lookup(key, findValue?: bool) {
-            var searchArray = this.keys;
-            if (findValue) {
-                searchArray = this.values;
-            }
-
-            for (var i = 0; i < searchArray.length; i++) {
-                if (searchArray[i] == key) {
-                    return {
-                        key: this.keys[i],
-                        data: this.values[i],
-                    };
-                }
-            }
-            return null;
-        }
-
-        public add(key, data): bool {
-            var lookupData = this.lookup(key);
-            if (lookupData) {
-                return false;
-            }
-
-            this.keys[this.keys.length] = key;
-            this.values[this.values.length] = data;
-
-            return true;
-        }
-    }
-
 }

@@ -1,4 +1,4 @@
-﻿//﻿
+//
 // Copyright (c) Microsoft Corporation.  All rights reserved.
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,18 +15,14 @@
 
 ///<reference path='formatting.ts' />
 
-
-module Formatting {
+module TypeScript.Formatting {
     export class TextEditInfo {
 
-        public Position: number;
-        public Length: number;
-        public ReplaceWith: string;
-
         constructor(public position: number, public length: number, public replaceWith: string) {
-            this.Position = this.position;
-            this.Length = length;
-            this.ReplaceWith = this.replaceWith;
+        }
+
+        public toString() {
+            return "[ position: " + this.position + ", length: " + this.length + ", replaceWith: '" + this.replaceWith + "' ]";
         }
     }
 }

@@ -1,0 +1,256 @@
+{
+    "isDeclaration": false,
+    "languageVersion": "EcmaScript5",
+    "parseOptions": {
+        "allowAutomaticSemicolonInsertion": true,
+        "allowModuleKeywordInExternalModuleReference": true
+    },
+    "diagnostics": [
+        {
+            "start": 362,
+            "length": 5,
+            "diagnosticCode": "Unexpected_token__0_expected",
+            "arguments": [
+                "module, class, interface, enum, import or statement"
+            ]
+        },
+        {
+            "start": 369,
+            "length": 1,
+            "diagnosticCode": "_0_expected",
+            "arguments": [
+                "=>"
+            ]
+        },
+        {
+            "start": 372,
+            "length": 7,
+            "diagnosticCode": "Unexpected_token__0_expected",
+            "arguments": [
+                "module, class, interface, enum, import or statement"
+            ]
+        }
+    ],
+    "sourceUnit": {
+        "kind": "SourceUnit",
+        "fullWidth": 385,
+        "isIncrementallyUnusable": true,
+        "moduleElements": [
+            {
+                "kind": "ExpressionStatement",
+                "fullWidth": 379,
+                "isIncrementallyUnusable": true,
+                "expression": {
+                    "kind": "ParenthesizedArrowFunctionExpression",
+                    "fullWidth": 379,
+                    "isIncrementallyUnusable": true,
+                    "callSignature": {
+                        "kind": "CallSignature",
+                        "fullWidth": 369,
+                        "isIncrementallyUnusable": true,
+                        "parameterList": {
+                            "kind": "ParameterList",
+                            "fullWidth": 369,
+                            "isIncrementallyUnusable": true,
+                            "openParenToken": {
+                                "kind": "OpenParenToken",
+                                "width": 1,
+                                "fullWidth": 368,
+                                "text": "(",
+                                "value": "(",
+                                "valueText": "(",
+                                "hasLeadingTrivia": true,
+                                "hasLeadingComment": true,
+                                "hasLeadingNewLine": true,
+                                "hasLeadingSkippedText": true,
+                                "leadingTrivia": [
+                                    {
+                                        "kind": "SingleLineCommentTrivia",
+                                        "text": "// Copyright 2009 the Sputnik authors.  All rights reserved."
+                                    },
+                                    {
+                                        "kind": "NewLineTrivia",
+                                        "text": "\n"
+                                    },
+                                    {
+                                        "kind": "SingleLineCommentTrivia",
+                                        "text": "// This code is governed by the BSD license found in the LICENSE file."
+                                    },
+                                    {
+                                        "kind": "NewLineTrivia",
+                                        "text": "\n"
+                                    },
+                                    {
+                                        "kind": "NewLineTrivia",
+                                        "text": "\n"
+                                    },
+                                    {
+                                        "kind": "MultiLineCommentTrivia",
+                                        "text": "/**\n * TryStatement: \"try Block Catch\" or \"try Block Finally\" or \"try Block Catch Finally\"\n *\n * @path ch12/12.14/S12.14_A16_T9.js\n * @description Checking if execution of \"catch(){} finally{}\" fails\n * @negative\n */"
+                                    },
+                                    {
+                                        "kind": "NewLineTrivia",
+                                        "text": "\n"
+                                    },
+                                    {
+                                        "kind": "NewLineTrivia",
+                                        "text": "\n"
+                                    },
+                                    {
+                                        "kind": "SingleLineCommentTrivia",
+                                        "text": "// CHECK#1"
+                                    },
+                                    {
+                                        "kind": "NewLineTrivia",
+                                        "text": "\n"
+                                    },
+                                    {
+                                        "kind": "SkippedTokenTrivia",
+                                        "skippedToken": {
+                                            "kind": "CatchKeyword",
+                                            "width": 5,
+                                            "text": "catch",
+                                            "value": "catch",
+                                            "valueText": "catch"
+                                        }
+                                    }
+                                ]
+                            },
+                            "parameters": [],
+                            "closeParenToken": {
+                                "kind": "CloseParenToken",
+                                "width": 1,
+                                "text": ")",
+                                "value": ")",
+                                "valueText": ")"
+                            }
+                        }
+                    },
+                    "equalsGreaterThanToken": {
+                        "kind": "EqualsGreaterThanToken",
+                        "width": 0,
+                        "text": ""
+                    },
+                    "body": {
+                        "kind": "Block",
+                        "fullWidth": 10,
+                        "isIncrementallyUnusable": true,
+                        "openBraceToken": {
+                            "kind": "OpenBraceToken",
+                            "width": 1,
+                            "text": "{",
+                            "value": "{",
+                            "valueText": "{"
+                        },
+                        "statements": [],
+                        "closeBraceToken": {
+                            "kind": "CloseBraceToken",
+                            "width": 1,
+                            "fullWidth": 9,
+                            "text": "}",
+                            "value": "}",
+                            "valueText": "}",
+                            "hasTrailingTrivia": true,
+                            "hasTrailingNewLine": true,
+                            "hasTrailingSkippedText": true,
+                            "trailingTrivia": [
+                                {
+                                    "kind": "NewLineTrivia",
+                                    "text": "\n"
+                                },
+                                {
+                                    "kind": "SkippedTokenTrivia",
+                                    "skippedToken": {
+                                        "kind": "FinallyKeyword",
+                                        "width": 7,
+                                        "text": "finally",
+                                        "value": "finally",
+                                        "valueText": "finally"
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                },
+                "semicolonToken": {
+                    "kind": "SemicolonToken",
+                    "width": 0,
+                    "text": ""
+                }
+            },
+            {
+                "kind": "Block",
+                "fullWidth": 3,
+                "openBraceToken": {
+                    "kind": "OpenBraceToken",
+                    "width": 1,
+                    "text": "{",
+                    "value": "{",
+                    "valueText": "{"
+                },
+                "statements": [],
+                "closeBraceToken": {
+                    "kind": "CloseBraceToken",
+                    "width": 1,
+                    "fullWidth": 2,
+                    "text": "}",
+                    "value": "}",
+                    "valueText": "}",
+                    "hasTrailingTrivia": true,
+                    "hasTrailingNewLine": true,
+                    "trailingTrivia": [
+                        {
+                            "kind": "NewLineTrivia",
+                            "text": "\n"
+                        }
+                    ]
+                }
+            }
+        ],
+        "endOfFileToken": {
+            "kind": "EndOfFileToken",
+            "width": 0,
+            "fullWidth": 3,
+            "text": "",
+            "hasLeadingTrivia": true,
+            "hasLeadingNewLine": true,
+            "leadingTrivia": [
+                {
+                    "kind": "NewLineTrivia",
+                    "text": "\n"
+                },
+                {
+                    "kind": "NewLineTrivia",
+                    "text": "\n"
+                },
+                {
+                    "kind": "NewLineTrivia",
+                    "text": "\n"
+                }
+            ]
+        }
+    },
+    "lineMap": {
+        "lineStarts": [
+            0,
+            61,
+            132,
+            133,
+            137,
+            224,
+            227,
+            264,
+            333,
+            346,
+            350,
+            351,
+            362,
+            372,
+            382,
+            383,
+            384,
+            385
+        ],
+        "length": 385
+    }
+}

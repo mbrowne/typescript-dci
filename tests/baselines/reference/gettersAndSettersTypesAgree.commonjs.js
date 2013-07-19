@@ -1,5 +1,6 @@
 var C = (function () {
-    function C() { }
+    function C() {
+    }
     Object.defineProperty(C.prototype, "Foo", {
         get: function () {
             return "foo";
@@ -9,6 +10,7 @@ var C = (function () {
         enumerable: true,
         configurable: true
     });
+
     Object.defineProperty(C.prototype, "Bar", {
         get: function () {
             return "foo";
@@ -20,17 +22,12 @@ var C = (function () {
     });
     return C;
 })();
-var o1 = {
-    get Foo() {
+
+var o1 = { get Foo() {
         return 0;
-    },
-    set Foo(val) {
-    }
-};
-var o2 = {
-    get Foo() {
+    }, set Foo(val) {
+    } };
+var o2 = { get Foo() {
         return 0;
-    },
-    set Foo(val) {
-    }
-};
+    }, set Foo(val) {
+    } };

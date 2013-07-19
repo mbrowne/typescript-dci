@@ -1,5 +1,6 @@
 var C = (function () {
-    function C() { }
+    function C() {
+    }
     Object.defineProperty(C.prototype, "x", {
         get: function () {
             return 1;
@@ -10,3 +11,4 @@ var C = (function () {
     return C;
 })();
 exports.C = C;
+

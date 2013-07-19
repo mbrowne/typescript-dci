@@ -1,4 +1,4 @@
-﻿//﻿
+//
 // Copyright (c) Microsoft Corporation.  All rights reserved.
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,8 +15,7 @@
 
 ///<reference path='formatting.ts' />
 
-
-module Formatting {
+module TypeScript.Formatting {
     export class RuleOperation {
         public Context: RuleOperationContext;
         public Action: RuleAction;
@@ -32,7 +31,7 @@ module Formatting {
         }
 
         static create1(action: RuleAction) {
-            return create2(RuleOperationContext.Any, action)
+            return RuleOperation.create2(RuleOperationContext.Any, action)
         }
 
         static create2(context: RuleOperationContext, action: RuleAction) {

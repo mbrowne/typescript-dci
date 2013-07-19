@@ -1,4 +1,4 @@
-﻿//﻿
+//
 // Copyright (c) Microsoft Corporation.  All rights reserved.
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -31,17 +31,17 @@ module Services {
         constructor (public host: ICoreServicesHost) {
         }
 
-        public getPreProcessedFileInfo(scritpId: string, sourceText: TypeScript.ISourceText): TypeScript.IPreProcessedFileInfo {
+        public getPreProcessedFileInfo(fileName: string, sourceText: TypeScript.IScriptSnapshot): TypeScript.IPreProcessedFileInfo {
             var settings = new TypeScript.CompilationSettings();
-            settings.codeGenTarget = TypeScript.CodeGenTarget.ES5;
-            var result = TypeScript.preProcessFile(sourceText, settings);
+            settings.codeGenTarget = TypeScript.LanguageVersion.EcmaScript5;
+            var result = TypeScript.preProcessFile(fileName, sourceText, settings);
             return result;
         }
 
         public getDefaultCompilationSettings(): TypeScript.CompilationSettings {
             // Set "ES5" target by default for language service
             var settings = new TypeScript.CompilationSettings();
-            settings.codeGenTarget = TypeScript.CodeGenTarget.ES5;
+            settings.codeGenTarget = TypeScript.LanguageVersion.EcmaScript5;
             return settings;
         }
 

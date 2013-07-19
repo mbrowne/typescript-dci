@@ -1,4 +1,4 @@
-﻿/* -----------------------------------------------------------------------------
+/* -----------------------------------------------------------------------------
 This file is based on or incorporates material from the projects listed below 
 (collectively, "Third Party Code"). Microsoft is not the original author of the 
 Third Party Code. The original copyright notice and the license, under which 
@@ -171,7 +171,7 @@ the Apache 2.0 License, whether by implication, estoppel or otherwise.
 // methods in a closure to avoid creating global variables.
 
 ///<reference path='json2Stringify.ts'/>
-
+var JSON = (typeof JSON === "undefined") ? JSON2 : JSON;
 (function() {
     'use strict';
 

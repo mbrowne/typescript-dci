@@ -1,19 +1,25 @@
 var Foo;
 (function (Foo) {
     var Helper = (function () {
-        function Helper() { }
+        function Helper() {
+        }
         return Helper;
-    })();    
+    })();
+
     var Inner = (function () {
-        function Inner() { }
+        function Inner() {
+        }
         return Inner;
-    })();    
+    })();
+
     Foo.Outer = 0;
 })(Foo || (Foo = {}));
+
 var Foo;
 (function (Foo) {
     var Helper = (function () {
-        function Helper() { }
+        function Helper() {
+        }
         return Helper;
-    })();    
+    })();
 })(Foo || (Foo = {}));

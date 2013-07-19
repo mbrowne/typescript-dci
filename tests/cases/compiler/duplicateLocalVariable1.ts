@@ -8,13 +8,13 @@ declare var App: any;
 var TestFileDir = ".\\TempTestFiles";
 
 export class TestCase {
-    constructor (public name: string, public test: ()=>bool, public errorMessageRegEx?: string) {
+    constructor (public name: string, public test: ()=>boolean, public errorMessageRegEx?: string) {
     }
 }
 export class TestRunner { 
     private tests: TestCase[] = [];
 
-    static arrayCompare(arg1: any[], arg2: any[]): bool {
+    static arrayCompare(arg1: any[], arg2: any[]): boolean {
         return (arg1.every(function (val, index) { return val === arg2[index] }));
     }
 
@@ -27,7 +27,7 @@ export class TestRunner {
         for (var test in this.tests) {
             var exception = false;
             var testcase = <TestCase>this.tests[test]
-            var testResult: bool = false;
+            var testResult: boolean = false;
             try {
                 console.log("Executing test: " + testcase.name);
                 testResult = testcase.test();
@@ -67,8 +67,8 @@ export var tests: TestRunner = (function () {
     var testRunner = new TestRunner();
     // First 3 are for simple harness validation
     testRunner.addTest(new TestCase("Basic test", function () { return true; }));
-    testRunner.addTest(new TestCase("Test for any error", function () { throw new Error(); }, ""));
-    testRunner.addTest(new TestCase("Test RegEx error message match", function () { throw new Error("Should also pass"); }, "Should [alos]+ pass"));
+    testRunner.addTest(new TestCase("Test for any error", function () { throw new Error(); return false; }, ""));
+    testRunner.addTest(new TestCase("Test RegEx error message match", function () { throw new Error("Should also pass"); return false; }, "Should [also]+ pass"));
     testRunner.addTest(new TestCase("Test array compare true", function () { return TestRunner.arrayCompare([1, 2, 3], [1, 2, 3]); }));
     testRunner.addTest(new TestCase("Test array compare false", function () { return !TestRunner.arrayCompare([3, 2, 3], [1, 2, 3]); }));
 

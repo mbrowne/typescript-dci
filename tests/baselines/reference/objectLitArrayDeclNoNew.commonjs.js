@@ -7,7 +7,8 @@ var Test;
         }
         return Gar;
     })();
-    Test.Gar = Gar;    
+    Test.Gar = Gar;
+
     function bug() {
         var state = null;
         return {

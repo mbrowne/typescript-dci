@@ -22,7 +22,7 @@ module M {
     }
 
     export function test() {
-        var x:IEye[]=new IEye[];
+        var x:IEye[]= [];
         var result="";
     
         x[0]={ color:Color.Brown };
@@ -37,7 +37,7 @@ module M {
             result+=((Color._map[z[i].color])+"\r\n");
         }
 
-        var eeks:IFrenchEye[]=new IFrenchEye[];
+        var eeks:IFrenchEye[] = [];
         for (var j=z.length=1;j>=0;j--) {
             eeks[j]=z[j];  // nope: element assignment
         }

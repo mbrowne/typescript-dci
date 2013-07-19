@@ -1,4 +1,4 @@
-﻿//﻿
+//
 // Copyright (c) Microsoft Corporation.  All rights reserved.
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,9 +26,6 @@
 ///<reference path='..\..\tests\runners\projects\runner.ts' />
 ///<reference path='..\..\tests\runners\unittest\unittestrunner.ts' />
 
-declare var IO: IIO;
-declare var Exec: IExec;
-declare var process: any;
 declare var _inheritsFrom; // reference base inheritsFrom in child contexts.
 
 class ConsoleLogger extends Harness.Logger {
@@ -66,7 +63,7 @@ class ConsoleLogger extends Harness.Logger {
     }
 
     public start() {
-        IO.printLine("Running tests" + (iterations > 1 ? " "  + iterations + " times" : "") + (reverse ? " in reverse." : "."));
+        IO.printLine("Running tests" + (iterations > 1 ? " " + iterations + " times" : "") + (reverse ? " in reverse." : "."));
     }
 
     public end() {
@@ -84,6 +81,8 @@ class ConsoleLogger extends Harness.Logger {
 
     public testStart(test: Harness.ITestMetadata) {
         this.descriptionStack.push(test.desc);
+        //IO.printLine(test.id);
+        //IO.printLine(test.desc);
     }
 
     public pass(test: Harness.ITestMetadata) {
@@ -121,6 +120,8 @@ class ConsoleLogger extends Harness.Logger {
 
     public scenarioStart(scenario: Harness.IScenarioMetadata) {
         this.descriptionStack.push(scenario.desc);
+        //IO.printLine(scenario.id);
+        //IO.printLine(scenario.desc);
     }
 
     public scenarioEnd(scenario: Harness.IScenarioMetadata, error?: Error) {
@@ -187,19 +188,18 @@ class JSONLogger extends Harness.Logger {
     }
 
     public end() {
-        IO.writeFile(this.path, JSON.stringify(this.root));
+        IO.writeFile(this.path, JSON.stringify(this.root), /*writeByteOrderMark:*/ false);
     }
 }
 
 function runTests(tests: RunnerBase[]) {
-
     if (reverse) {
         tests = tests.reverse();
     }
 
     for (var i = iterations; i > 0; i--) {
         for (var j = 0; j < tests.length; j++) {
-            tests[j].runTests();
+            tests[j].initializeTests();
         }
     }
 
@@ -207,15 +207,16 @@ function runTests(tests: RunnerBase[]) {
 }
 
 var runners: RunnerBase[] = [];
-var reverse: bool = false;
+global.runners = runners;
+var reverse: boolean = false;
 var iterations: number = 1;
 
 var opts = new OptionsParser(IO);
 
 opts.flag('compiler', {
     set: function () {
-        runners.push(new UnitTestRunner('compiler'));
         runners.push(new CompilerBaselineRunner());
+        runners.push(new UnitTestRunner('compiler'));        
         runners.push(new ProjectRunner());
     }
 });
@@ -232,10 +233,36 @@ opts.flag('fourslash', {
     }
 });
 
+opts.flag('fourslash-generated', {
+    set: function () {
+        runners.push(new GeneratedFourslashRunner());
+    }
+});
+
+// for running fourslash tests written against 0.8.3 in the fourslash_old directory
+opts.option('fourslash-all', {
+    experimental: true,
+    set: function (str) {
+        runners.push(new FourslashRunner('all'));
+    }
+});
+
+opts.flag('unittests', {
+    set: function () {
+        runners.push(new UnitTestRunner('compiler'));
+        runners.push(new UnitTestRunner('samples'));
+    }
+});
+
+opts.flag('samples', {
+    set: function () {
+        runners.push(new UnitTestRunner('samples'));
+    }
+});
+
 opts.flag('ls', {
     set: function () {
         runners.push(new UnitTestRunner('ls'));
-        runners.push(new FourslashRunner());
     }
 });
 
@@ -246,13 +273,13 @@ opts.flag('services', {
 });
 
 opts.flag('harness', {
-    set: function () => {
+    set: function () {
         runners.push(new UnitTestRunner('harness'));
     }
 });
 
 opts.option('dump', {
-    set: function (file) => Harness.registerLogger(new JSONLogger(file))
+    set: function (file) { Harness.registerLogger(new JSONLogger(file)); }
 });
 
 opts.option('root', {
@@ -278,21 +305,28 @@ opts.option('iterations', {
     }
 });
 
+// For running only compiler baselines with specific options like emit, decl files, etc
+opts.option('compiler-baselines', {
+    experimental: true,
+    set: function (str) {
+        var runner = new CompilerBaselineRunner();
+        runner.options = str;
+        runners.push(runner);
+    }
+});
+
 opts.parse(IO.arguments)
 
 if (runners.length === 0) {
     if (opts.unnamed.length === 0) {
         // compiler
-        runners.push(new UnitTestRunner('compiler'));
         runners.push(new CompilerBaselineRunner());
+        runners.push(new UnitTestRunner('compiler'));        
         runners.push(new ProjectRunner());
 
         // language services
-        runners.push(new UnitTestRunner('ls'));
         runners.push(new FourslashRunner());
-
-        // services
-        runners.push(new UnitTestRunner('services'));
+        runners.push(new GeneratedFourslashRunner());
 
         // samples
         runners.push(new UnitTestRunner('samples'));

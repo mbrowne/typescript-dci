@@ -1,6 +1,6 @@
 export module myModule {
- import foo = module("test2");
- console.log(foo.$);
+ import foo = require("test2");
+ //console.log(foo.$);
 }
 
 

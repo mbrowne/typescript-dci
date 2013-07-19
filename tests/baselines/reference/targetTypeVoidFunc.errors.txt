@@ -1,2 +1,2 @@
-0.ts line 1 col 41: Cannot convert '() => number' to 'new() => void': Type '() => number' requires a call signature, but Type 'new() => void' lacks one
-0.ts line 1 col 15: Constructors may not have a return type of 'void'
+0.ts line 2 col 12: error TS2012: Cannot convert '() => void' to 'new() => number':
+	Type 'new() => number' requires a construct signature, but type '() => void' lacks one.

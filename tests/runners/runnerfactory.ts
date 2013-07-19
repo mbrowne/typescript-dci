@@ -12,10 +12,12 @@ class RunnerFactory {
         if (/tests\/cases\/compiler/.test(normalizedName)) {
             this.runners['compiler'] = this.runners['compiler'] || new CompilerBaselineRunner();
             this.runners['compiler'].addTest(Harness.userSpecifiedroot + name);
-        }
-        else if (/tests\/cases\/fourslash/.test(normalizedName)) {
+        } else if (/tests\/cases\/fourslash/.test(normalizedName)) {
             this.runners['fourslash'] = this.runners['fourslash'] || new FourslashRunner();
             this.runners['fourslash'].addTest(Harness.userSpecifiedroot + name);
+        } else if (/tests\/cases\/fourslash\/generated/.test(normalizedName)) {
+            this.runners['fourslash-generated'] = this.runners['fourslash-generated'] || new GeneratedFourslashRunner();
+            this.runners['fourslash-generated'].addTest(Harness.userSpecifiedroot + name);
         } else {
             this.runners['unitTestRunner'] = this.runners['unitTestRunner'] || new UnitTestRunner();
             this.runners['unitTestRunner'].addTest(Harness.userSpecifiedroot + name);

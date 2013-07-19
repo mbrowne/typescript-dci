@@ -1,6 +1,9 @@
 var foo = (function () {
-    function foo() { }
+    function foo() {
+    }
     return foo;
 })();
+
 var f = new foo();
+
 f[0] = 4;

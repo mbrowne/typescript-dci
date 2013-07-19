@@ -1,4 +1,4 @@
-﻿/* -----------------------------------------------------------------------------
+/* -----------------------------------------------------------------------------
 This file is based on or incorporates material from the projects listed below 
 (collectively, "Third Party Code"). Microsoft is not the original author of the 
 Third Party Code. The original copyright notice and the license, under which 
@@ -172,8 +172,6 @@ the Apache 2.0 License, whether by implication, estoppel or otherwise.
 
 var JSON2: any = {};
 
-declare var IO;
-
 (function() {
     'use strict';
 
@@ -184,7 +182,7 @@ declare var IO;
 
     if (typeof Date.prototype.toJSON !== 'function') {
 
-        Date.prototype.toJSON = <any>function (key) {
+        (<any>Date.prototype.toJSON) = <any>function (key) {
 
             return isFinite(this.valueOf())
                 ? this.getUTCFullYear() + '-' +
@@ -308,7 +306,7 @@ declare var IO;
                     // for non-JSON values.
 
                     length = value.length;
-                    for (i = 0; i < length; i += 1) {
+                    for (var i = 0; i < length; i += 1) {
                         partial[i] = str(i, value) || 'null';
                     }
 
@@ -328,7 +326,7 @@ declare var IO;
 
                 if (rep && typeof rep === 'object') {
                     length = rep.length;
-                    for (i = 0; i < length; i += 1) {
+                    for (var i = 0; i < length; i += 1) {
                         if (typeof rep[i] === 'string') {
                             k = rep[i];
                             v = str(k, value);
@@ -383,7 +381,7 @@ declare var IO;
             // many spaces.
 
             if (typeof space === 'number') {
-                for (i = 0; i < space; i += 1) {
+                for (var i = 0; i < space; i += 1) {
                     indent += ' ';
                 }
 

@@ -1,8 +1,10 @@
 var c1 = (function () {
-    function c1() { }
+    function c1() {
+    }
     return c1;
 })();
 var instance2 = new c1();
+
 ////[0.d.ts]
 interface a0 {
     (): string;
@@ -10,7 +12,7 @@ interface a0 {
     new(): string;
     new(s: string);
     [n: number]: () => string;
-    [s: string]: () => string;
+    [s: string]: any;
     p1;
     p2: string;
     p3?;
@@ -22,7 +24,7 @@ interface a0 {
     f4? (s: number): string;
 }
 interface a1 {
-    [n: number];
+    [n: number]: number;
 }
 interface a2 {
     [s: string]: number;
@@ -35,6 +37,6 @@ interface c extends a, b {
 }
 interface d extends a {
 }
-class c1 implements a {
+declare class c1 implements a {
 }
-var instance2: c1;
+declare var instance2: c1;

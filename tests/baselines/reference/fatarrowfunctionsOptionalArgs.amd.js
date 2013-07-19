@@ -1,68 +1,78 @@
-(function () {
+function () {
     return 1;
-});
-(function (arg) {
+};
+
+function (arg) {
     return 2;
-});
-(function (arg) {
+};
+
+function (arg) {
     return 2;
-});
-(function (arg) {
+};
+
+function (arg) {
     if (typeof arg === "undefined") { arg = 1; }
     return 3;
-});
-(function (arg) {
+};
+
+function (arg) {
     return 4;
-});
-(function (arg) {
+};
+
+function (arg) {
     return 5;
-});
-(function (arg) {
+};
+
+function (arg) {
     if (typeof arg === "undefined") { arg = 0; }
     return 6;
-});
-(function (arg) {
+};
+
+function (arg) {
     return 7;
-});
-(function () {
+};
+
+function () {
     var arg = [];
     for (var _i = 0; _i < (arguments.length - 0); _i++) {
         arg[_i] = arguments[_i + 0];
     }
     return 8;
-});
-(function (arg1, arg2) {
+};
+
+function (arg1, arg2) {
     return 12;
-});
-(function (arg1, arg2) {
+};
+function (arg1, arg2) {
     if (typeof arg1 === "undefined") { arg1 = 1; }
     if (typeof arg2 === "undefined") { arg2 = 3; }
     return 13;
-});
-(function (arg1, arg2) {
+};
+function (arg1, arg2) {
     return 14;
-});
-(function (arg1, arg2) {
+};
+function (arg1, arg2) {
     return 15;
-});
-(function (arg1, arg2) {
+};
+function (arg1, arg2) {
     if (typeof arg1 === "undefined") { arg1 = 0; }
     if (typeof arg2 === "undefined") { arg2 = 1; }
     return 16;
-});
-(function (arg1, arg2) {
+};
+function (arg1, arg2) {
     return 17;
-});
-(function (arg1) {
+};
+function (arg1) {
     var arg2 = [];
     for (var _i = 0; _i < (arguments.length - 1); _i++) {
         arg2[_i] = arguments[_i + 1];
     }
     return 18;
-});
-(function (arg1, arg2) {
+};
+function (arg1, arg2) {
     return 19;
-});
+};
+
 (function () {
     return 21;
 });
@@ -93,9 +103,11 @@
     }
     return 28;
 });
-(function (arg) {
+
+((((function (arg) {
     return 32;
-});
+}))));
+
 false ? function () {
     return 41;
 } : null;
@@ -126,6 +138,7 @@ false ? function () {
     }
     return 48;
 } : null;
+
 false ? (function () {
     return 51;
 }) : null;
@@ -156,6 +169,7 @@ false ? (function () {
     }
     return 58;
 }) : null;
+
 false ? null : function () {
     return 61;
 };
@@ -186,6 +200,7 @@ false ? null : function () {
     }
     return 68;
 };
+
 function (a) {
     return a;
 } ? function (b) {
@@ -193,6 +208,7 @@ function (a) {
 } : function (c) {
     return c;
 };
+
 function (a) {
     return a;
 } ? function (b) {
@@ -204,6 +220,7 @@ function (a) {
         return 82;
     };
 };
+
 (function (arg) {
     return 90;
 }) instanceof Function;
@@ -231,6 +248,7 @@ function (a) {
     }
     return 96;
 }) instanceof Function;
+
 '' + function (arg) {
     return 100;
 };
@@ -301,12 +319,14 @@ function (a) {
     }
     return 108;
 };
+
 function foo() {
     var arg = [];
     for (var _i = 0; _i < (arguments.length - 0); _i++) {
         arg[_i] = arguments[_i + 0];
     }
 }
+
 foo(function (a) {
     return 110;
 }, (function (a) {

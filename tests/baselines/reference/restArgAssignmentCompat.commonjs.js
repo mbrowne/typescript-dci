@@ -9,8 +9,7 @@ function f() {
 }
 function g(x, y) {
 }
+
 var n = g;
 n = f;
-n([
-    4
-], 'foo');
+n([4], 'foo');

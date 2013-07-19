@@ -20,34 +20,34 @@ var compilerSources = [
 	"flags.ts",
 	"nodeTypes.ts",
 	"hashTable.ts",
-	"printContext.ts",
-	"scopeWalk.ts",
-	"typeCollection.ts",
-	"scopeAssignment.ts",
-	"binder.ts",
-	"tokens.ts",
 	"ast.ts",
 	"astWalker.ts",
 	"astWalkerCallback.ts",
 	"astPath.ts",
-	"astLogger.ts",
-	"scanner.ts",
-	"parser.ts",
-	"symbolScope.ts",
 	"types.ts",
-	"signatures.ts",
-	"symbols.ts",
-	"errorReporter.ts",
-	"typeFlow.ts",
-	"typeChecker.ts",
 	"base64.ts",
 	"sourceMapping.ts",
 	"emitter.ts",
 	"declarationEmitter.ts",
 	"precompile.ts",
-	"incrementalParser.ts",
 	"pathUtils.ts",
 	"referenceResolution.ts",
+	"typecheck/dataMap.ts",
+	"typecheck/pullFlags.ts",
+	"typecheck/pullDecls.ts",
+	"typecheck/pullSymbols.ts",
+	"typecheck/pullSymbolBindingContext.ts",
+	"typecheck/pullTypeResolutionContext.ts",
+	"typecheck/pullTypeResolution.ts",
+	"typecheck/pullTypeChecker.ts",
+	"typecheck/pullDeclDiffer.ts",
+	"typecheck/pullSemanticInfo.ts",
+	"typecheck/pullDeclCollection.ts",
+	"typecheck/pullSymbolBinder.ts",
+	"typecheck/pullSymbolGraph.ts",
+	"typecheck/SemanticDiagnostic.ts",
+	"typecheck/pullHelpers.ts",	
+	"syntaxTreeToAstVisitor.ts",
 	"typescript.ts"
 ].map(function (f) {
 	return path.join(compilerDirectory, f);
@@ -63,23 +63,12 @@ var tscSources = [
 
 var servicesSources = [
 	"es5compat.ts",
-	"formatting/formatting.ts",
-	"formatting/interop.ts",
+	"formatting/textSnapshot.ts",
+	"formatting/textSnapshotLine.ts",
+	"formatting/snapshotPoint.ts",
 	"formatting/formattingContext.ts",
 	"formatting/formattingManager.ts",
 	"formatting/formattingRequestKind.ts",
-	"formatting/formattingTask.ts",
-	"formatting/iformatter.ts",
-	"formatting/ilineIndentationResolver.ts",
-	"formatting/indentationBag.ts",
-	"formatting/indentationEdgeFinder.ts",
-	"formatting/indentationEditInfo.ts",
-	"formatting/indentationInfo.ts",
-	"formatting/indenter.ts",
-	"formatting/matchingBlockFinderTask.ts",
-	"formatting/parseNode.ts",
-	"formatting/parseNodeExtensions.ts",
-	"formatting/parseTree.ts",
 	"formatting/rule.ts",
 	"formatting/ruleAction.ts",
 	"formatting/ruleDescriptor.ts",
@@ -89,22 +78,31 @@ var servicesSources = [
 	"formatting/rules.ts",
 	"formatting/rulesMap.ts",
 	"formatting/rulesProvider.ts",
-	"formatting/smartIndentManager.ts",
-	"formatting/smartIndentTask.ts",
-	"formatting/statementFinderTask.ts",
 	"formatting/textEditInfo.ts",
 	"formatting/tokenRange.ts",
-	"formatting/tokenSpan.ts",
+	"formatting/tokenSpan.ts", 
+	"formatting/indentationNodeContext.ts", 
+	"formatting/indentationNodeContextPool.ts", 
+	"formatting/indentationTrackingWalker.ts", 
+	"formatting/multipleTokenIndenter.ts", 
+	"formatting/singleTokenIndenter.ts", 
+	"formatting/formatter.ts", 
 	"classifier.ts",
 	"coreServices.ts",
-	"scriptSyntaxAST.ts",
+	"emitOutputTextWriter.ts",
 	"compilerState.ts",
-	"braceMatchingManager.ts",
-	"symbolSet.ts",
-	"symbolTree.ts",
-	"overridesCollector.ts",
 	"languageService.ts",
+	"completionHelpers.ts",
+	"keywordCompletions.ts",
+	"signatureInfoHelpers.ts",
+	"completionSession.ts",
+	"pullLanguageService.ts",
 	"shims.ts",
+	"outliningElementsCollector.ts",
+	"braceMatcher.ts",
+	"indenter.ts",
+	"breakpoints.ts",
+	"findReferenceHelpers.ts",
 	"typescriptServices.ts"
 ].map(function (f) {
 	return path.join(servicesDirectory, f);
@@ -170,20 +168,32 @@ var useDebugMode = false;
 function compileFile(outFile, sources, prereqs, prefixes, useBuiltCompiler) {
 	file(outFile, prereqs, function() {
 		var dir = useBuiltCompiler ? builtLocalDirectory : LKGDirectory;
-		var cmd = (process.env.TYPESCRIPT_HOST || "Node") + " " + dir + "tsc.js -cflowu " + sources.join(" ") + " -out " + outFile;
+		var cmd = (process.env.host || process.env.TYPESCRIPT_HOST || "node") + " " + dir + "tsc.js -const -declaration -disallowbool -disallowimportmodule " + sources.join(" ") + " -out " + outFile;
 		if (useDebugMode) {
 			cmd = cmd + " -sourcemap -fullSourceMapPath";
 		}
-		console.log(cmd);
-		jake.exec([cmd], function() {
-			if (!useDebugMode && prefixes) {
+		console.log(cmd + "\n");
+		var ex = jake.createExec([cmd]);
+		// Add listeners for output and error
+		ex.addListener("stdout", function(output) {
+			process.stdout.write(output);
+		});
+		ex.addListener("stderr", function(error) {
+			process.stderr.write(error);
+		});
+		ex.addListener("cmdEnd", function() {
+			if (!useDebugMode && prefixes && fs.existsSync(outFile)) {
 				for (var i in prefixes) {
 					prependFile(prefixes[i], outFile);
 				}
 			}
 			complete();
-		},
-		{printStdout: true, printStderror: true});
+		});
+		ex.addListener("error", function() {
+			fs.unlinkSync(outFile);
+			console.log("Compilation of " + outFile + " unsuccessful");
+		});
+		ex.run();	
 	}, {async: true});
 }
 
@@ -229,7 +239,8 @@ desc("Cleans the compiler output, declare files, and tests");
 task("clean", function() {
 	jake.rmRf(builtDirectory);
 });
-	
+
+
 // Makes a new LKG. This target does not build anything, but errors if not all the outputs are present in the built/local directory
 desc("Makes a new LKG out of the built js files");
 task("LKG", libraryTargets, function() {
@@ -258,23 +269,32 @@ directory(builtTestDirectory);
 var run = path.join(builtTestDirectory, "run.js");
 compileFile(run, harnessSources, [builtTestDirectory, tscFile].concat(libraryTargets).concat(harnessSources), [], true);
 
-desc("Builds the test infrastructure using the built compiler");
-task("tests", [run, serviceFile].concat(libraryTargets), function() {
-	// Copy the language service over to the test directory
-	jake.cpR(serviceFile, builtTestDirectory);
-	jake.cpR(path.join(libraryDirectory, "lib.d.ts"), builtTestDirectory);
-});
+// Webharness
+var frontEndPath = "tests/cases/webharness/frontEnd.ts";
+var perfCompilerPath = "tests/cases/webharness/perfCompiler.js";
+compileFile(perfCompilerPath, [frontEndPath], [tscFile], [], true);
+
+desc("Builds the web harness front end");
+task("test-harness", [perfCompilerPath]);
 
 var localBaseline = "tests/baselines/local/";
 var refBaseline = "tests/baselines/reference/";
-desc("Runs the tests using the built run.js file. Syntax is jake runtests. Optional parameters 'host=' and 'tests='. Both parameters are optional.");
-task("runtests", ["tests", builtTestDirectory], function() {
+
+desc("Builds the test infrastructure using the built compiler");
+task("tests", [run, serviceFile, perfCompilerPath].concat(libraryTargets), function() {	
+	// Copy the language service over to the test directory
+	jake.cpR(serviceFile, builtTestDirectory);
+	jake.cpR(path.join(libraryDirectory, "lib.d.ts"), builtTestDirectory);	
+});
+
+desc("Runs the tests using the built run.js file. Syntax is jake runtests. Optional parameters 'host=' and 'tests='.");
+task("runtests", ["local", "tests", builtTestDirectory], function() {
 	// Clean the local baselines directory
-	if (fs.exists(localBaseline)) {
+	if (fs.existsSync(localBaseline)) {
 		jake.rmRf(localBaseline);
 	}
 	jake.mkdirP(localBaseline);
-	host = process.env.host || process.env.TYPESCRIPT_HOST || "Node";
+	host = process.env.host || process.env.TYPESCRIPT_HOST || "node";
 	tests = process.env.test || process.env.tests;
 	tests = tests ? tests.split(',').join(' ') : ([].slice.call(arguments).join(' ') || "");
 	var cmd = host + " " + run + " " + tests;
@@ -290,8 +310,11 @@ task("runtests", ["tests", builtTestDirectory], function() {
 	ex.addListener("cmdEnd", function() {
 		complete();
 	});
-	ex.run();
+	ex.run();	
 }, {async: true});
+
+desc("Builds the test sources and automation in debug mode");
+task("tests-debug", ["setDebugMode", "tests"]);
 
 // Makes the test results the new baseline
 desc("Makes the most recent test results the new baseline, overwriting the old baseline");
@@ -299,3 +322,51 @@ task("baseline-accept", function() {
 	jake.rmRf(refBaseline);
 	fs.renameSync(localBaseline, refBaseline);
 });
+
+// Fidelity Tests
+var fidelityTestsOutFile = "tests/Fidelity/program.js";
+var fidelityTestsInFile = "tests/Fidelity/Program.ts";
+compileFile(fidelityTestsOutFile, [fidelityTestsInFile], [tscFile], [], true);
+
+// Syntax Generator
+var syntaxGeneratorOutFile = compilerDirectory + "syntax/SyntaxGenerator.js";
+var syntaxGeneratorInFile = compilerDirectory + "syntax/SyntaxGenerator.ts";
+compileFile(syntaxGeneratorOutFile, [syntaxGeneratorInFile], [tscFile], [], true);
+
+desc("Builds and runs the syntax generator");
+task("run-syntax-generator", [syntaxGeneratorOutFile], function() {
+	host = process.env.host || process.env.TYPESCRIPT_HOST || "node";
+	var cmd = host + " " + syntaxGeneratorOutFile;
+	console.log(cmd);
+	var ex = jake.createExec([cmd]);
+	// Add listeners for output and error
+	ex.addListener("stdout", function(output) {
+		process.stdout.write(output);
+	});
+	ex.addListener("stderr", function(error) {
+		process.stderr.write(error);
+	});
+	ex.addListener("cmdEnd", function() {
+		complete();
+	});
+	ex.run();	
+}, {async: true});
+
+desc("Builds and runs the Fidelity tests");
+task("run-fidelity-tests", [fidelityTestsOutFile], function() {
+	host = process.env.host || process.env.TYPESCRIPT_HOST || "node";
+	var cmd = host + " " + fidelityTestsOutFile;
+	console.log(cmd);
+	var ex = jake.createExec([cmd]);
+	// Add listeners for output and error
+	ex.addListener("stdout", function(output) {
+		process.stdout.write(output);
+	});
+	ex.addListener("stderr", function(error) {
+		process.stderr.write(error);
+	});
+	ex.addListener("cmdEnd", function() {
+		complete();
+	});
+	ex.run();	
+}, {async: true});
