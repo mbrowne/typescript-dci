@@ -730,6 +730,21 @@ module TypeScript {
             // Visible if parent is visible
             return PullSymbol.getIsExternallyVisible(container, this, inIsExternallyVisibleSymbols);
         }
+
+        public isModule() {
+            return this.getKind() == PullElementKind.Container || this.isOneDeclarationOfKind(PullElementKind.Container);
+        }
+
+        private isOneDeclarationOfKind(kind: TypeScript.PullElementKind): boolean {
+            var decls = this.getDeclarations();
+            for (var i = 0; i < decls.length; i++) {
+                if (decls[i].getKind() === kind) {
+                    return true;
+                }
+            }
+
+            return false;
+        }
     }
 
     export class PullExpressionSymbol extends PullSymbol {
@@ -980,6 +995,33 @@ module TypeScript {
             return true;
         }
 
+        public isFixed(): boolean {
+
+            if (!this.isGeneric()) {
+                return true;
+            }
+
+            if (this.parameterLinks) {
+                var parameterType: PullTypeSymbol = null;
+                
+                for (var i = 0; i < this.parameterLinks.length; i++) {
+                    parameterType = this.parameterLinks[i].end.getType();
+                    
+                    if (parameterType && !parameterType.isFixed()) {
+                        return false;
+                    }    
+                }
+            }
+
+            if (this.returnTypeLink) {
+                var returnType = <PullTypeSymbol>this.returnTypeLink.end;
+
+                return returnType.isFixed();
+            }
+
+            return true;
+        }
+
         public invalidate() {
 
             this.parameterLinks = this.findOutgoingLinks(psl => psl.kind === SymbolLinkKind.Parameter);
@@ -1210,6 +1252,16 @@ module TypeScript {
 
         private constructorMethod: PullSymbol = null;
         private hasDefaultConstructor = false;
+
+        public setUnresolved() {
+            super.setUnresolved();
+
+            var specializations = this.getKnownSpecializations();
+
+            for (var i = 0; i < specializations.length; i++) {
+                specializations[i].setUnresolved();
+            }
+        }
 
         public isType() { return true; }
         public isClass() {
@@ -2164,7 +2216,7 @@ module TypeScript {
                 typars = this.getTypeParameters();
             }
 
-            builder.add(PullSymbol.getTypeParameterStringEx(typars, this, getTypeParamMarkerInfo, useConstraintInName));
+            builder.add(PullSymbol.getTypeParameterStringEx(typars, scopeSymbol, getTypeParamMarkerInfo, useConstraintInName));
 
             return builder;
         }
@@ -3353,6 +3405,13 @@ module TypeScript {
 
                 prevSpecializationSignature = decl.getSpecializingSignatureSymbol();
                 decl.setSpecializingSignatureSymbol(newSignature);
+
+                // if the signature is not yet specialized, specialize the signature using an empty context first - that way, no type parameters
+                // will be accidentally specialized
+                if (!(signature.isResolved() || signature.isResolving())) {
+                    resolver.resolveDeclaredSymbol(signature, enclosingDecl, new PullTypeResolutionContext());
+                }   
+
                 resolver.resolveAST(declAST, false, newTypeDecl, context);
                 decl.setSpecializingSignatureSymbol(prevSpecializationSignature);
 
@@ -3418,6 +3477,11 @@ module TypeScript {
 
                 prevSpecializationSignature = decl.getSpecializingSignatureSymbol();
                 decl.setSpecializingSignatureSymbol(newSignature);
+
+                if (!(signature.isResolved() || signature.isResolving())) {
+                    resolver.resolveDeclaredSymbol(signature, enclosingDecl, new PullTypeResolutionContext());
+                } 
+
                 resolver.resolveAST(declAST, false, newTypeDecl, context);
                 decl.setSpecializingSignatureSymbol(prevSpecializationSignature);
 
@@ -3485,6 +3549,11 @@ module TypeScript {
 
                 prevSpecializationSignature = decl.getSpecializingSignatureSymbol();
                 decl.setSpecializingSignatureSymbol(newSignature);
+
+                if (!(signature.isResolved() || signature.isResolving())) {
+                    resolver.resolveDeclaredSymbol(signature, enclosingDecl, new PullTypeResolutionContext());
+                } 
+
                 resolver.resolveAST(declAST, false, newTypeDecl, context);
                 decl.setSpecializingSignatureSymbol(prevSpecializationSignature);
 
