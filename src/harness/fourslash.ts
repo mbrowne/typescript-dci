@@ -1341,7 +1341,7 @@ module FourSlash {
     var fsOutput = new Harness.Compiler.WriterAggregator();
     var fsErrors = new Harness.Compiler.WriterAggregator();
     export function runFourSlashTest(fileName: string) {
-        var content = IO.readFile(fileName);
+        var content = IO.readFile(fileName, /*codepage:*/ null);
         runFourSlashTestContent(content.contents, fileName)
     }
 
