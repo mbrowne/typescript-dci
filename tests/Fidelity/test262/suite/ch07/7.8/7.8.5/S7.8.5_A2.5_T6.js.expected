@@ -2,8 +2,7 @@
     "isDeclaration": false,
     "languageVersion": "EcmaScript5",
     "parseOptions": {
-        "allowAutomaticSemicolonInsertion": true,
-        "allowModuleKeywordInExternalModuleReference": true
+        "allowAutomaticSemicolonInsertion": true
     },
     "sourceUnit": {
         "kind": "SourceUnit",
@@ -131,8 +130,8 @@
                                                 "kind": "StringLiteral",
                                                 "width": 13,
                                                 "text": "\"/a\\\\\\u2029/\"",
-                                                "value": "/a\\\u2029/",
-                                                "valueText": "/a\\\u2029/"
+                                                "value": "/a\\ /",
+                                                "valueText": "/a\\ /"
                                             }
                                         ],
                                         "closeParenToken": {
@@ -279,8 +278,8 @@
                                                                     "kind": "StringLiteral",
                                                                     "width": 13,
                                                                     "text": "\"/a\\\\\\u2029/\"",
-                                                                    "value": "/a\\\u2029/",
-                                                                    "valueText": "/a\\\u2029/"
+                                                                    "value": "/a\\ /",
+                                                                    "valueText": "/a\\ /"
                                                                 }
                                                             ],
                                                             "closeParenToken": {

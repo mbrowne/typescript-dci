@@ -1,6 +1,5 @@
 // enum then var
 enum e1111 { One }
-// BUG 694387
 var e1111 = 1; // error
 
 // enum then function
@@ -8,12 +7,10 @@ enum e2 { One }
 function e2() { } // error
 
 enum e3 { One }
-// BUG 694387
 var e3 = () => { } // error
 
 // enum then class
 enum e4 { One }
-// BUG 694387
 class e4 { public foo() { } } // error
 
 // enum then enum
@@ -33,6 +30,6 @@ module e6a { var y = 2; } // should be error
 enum e6b { One }
 module e6b { export var y = 2; } // should be error
 
-// enum then import
-enum e7 { One }
+// enum then import, messes with error reporting
+//enum e7 { One }
 //import e7 = require(''); // should be error

@@ -97,7 +97,7 @@ module TypeScript {
 
     export class ExternalModuleReferenceSyntax extends ModuleReferenceSyntax {
 
-        constructor(public moduleOrRequireKeyword: ISyntaxToken,
+        constructor(public requireKeyword: ISyntaxToken,
                     public openParenToken: ISyntaxToken,
                     public stringLiteral: ISyntaxToken,
                     public closeParenToken: ISyntaxToken,
@@ -120,7 +120,7 @@ module TypeScript {
 
     public childAt(slot: number): ISyntaxElement {
         switch (slot) {
-            case 0: return this.moduleOrRequireKeyword;
+            case 0: return this.requireKeyword;
             case 1: return this.openParenToken;
             case 2: return this.stringLiteral;
             case 3: return this.closeParenToken;
@@ -128,20 +128,19 @@ module TypeScript {
         }
     }
 
-    public update(moduleOrRequireKeyword: ISyntaxToken,
+    public update(requireKeyword: ISyntaxToken,
                   openParenToken: ISyntaxToken,
                   stringLiteral: ISyntaxToken,
                   closeParenToken: ISyntaxToken): ExternalModuleReferenceSyntax {
-        if (this.moduleOrRequireKeyword === moduleOrRequireKeyword && this.openParenToken === openParenToken && this.stringLiteral === stringLiteral && this.closeParenToken === closeParenToken) {
+        if (this.requireKeyword === requireKeyword && this.openParenToken === openParenToken && this.stringLiteral === stringLiteral && this.closeParenToken === closeParenToken) {
             return this;
         }
 
-        return new ExternalModuleReferenceSyntax(moduleOrRequireKeyword, openParenToken, stringLiteral, closeParenToken, /*parsedInStrictMode:*/ this.parsedInStrictMode());
+        return new ExternalModuleReferenceSyntax(requireKeyword, openParenToken, stringLiteral, closeParenToken, /*parsedInStrictMode:*/ this.parsedInStrictMode());
     }
 
-    public static create1(moduleOrRequireKeyword: ISyntaxToken,
-                          stringLiteral: ISyntaxToken): ExternalModuleReferenceSyntax {
-        return new ExternalModuleReferenceSyntax(moduleOrRequireKeyword, Syntax.token(SyntaxKind.OpenParenToken), stringLiteral, Syntax.token(SyntaxKind.CloseParenToken), /*parsedInStrictMode:*/ false);
+    public static create1(stringLiteral: ISyntaxToken): ExternalModuleReferenceSyntax {
+        return new ExternalModuleReferenceSyntax(Syntax.token(SyntaxKind.RequireKeyword), Syntax.token(SyntaxKind.OpenParenToken), stringLiteral, Syntax.token(SyntaxKind.CloseParenToken), /*parsedInStrictMode:*/ false);
     }
 
     public withLeadingTrivia(trivia: ISyntaxTriviaList): ExternalModuleReferenceSyntax {
@@ -152,20 +151,20 @@ module TypeScript {
         return <ExternalModuleReferenceSyntax>super.withTrailingTrivia(trivia);
     }
 
-    public withModuleOrRequireKeyword(moduleOrRequireKeyword: ISyntaxToken): ExternalModuleReferenceSyntax {
-        return this.update(moduleOrRequireKeyword, this.openParenToken, this.stringLiteral, this.closeParenToken);
+    public withRequireKeyword(requireKeyword: ISyntaxToken): ExternalModuleReferenceSyntax {
+        return this.update(requireKeyword, this.openParenToken, this.stringLiteral, this.closeParenToken);
     }
 
     public withOpenParenToken(openParenToken: ISyntaxToken): ExternalModuleReferenceSyntax {
-        return this.update(this.moduleOrRequireKeyword, openParenToken, this.stringLiteral, this.closeParenToken);
+        return this.update(this.requireKeyword, openParenToken, this.stringLiteral, this.closeParenToken);
     }
 
     public withStringLiteral(stringLiteral: ISyntaxToken): ExternalModuleReferenceSyntax {
-        return this.update(this.moduleOrRequireKeyword, this.openParenToken, stringLiteral, this.closeParenToken);
+        return this.update(this.requireKeyword, this.openParenToken, stringLiteral, this.closeParenToken);
     }
 
     public withCloseParenToken(closeParenToken: ISyntaxToken): ExternalModuleReferenceSyntax {
-        return this.update(this.moduleOrRequireKeyword, this.openParenToken, this.stringLiteral, closeParenToken);
+        return this.update(this.requireKeyword, this.openParenToken, this.stringLiteral, closeParenToken);
     }
 
     public isTypeScriptSpecific(): boolean {
@@ -227,7 +226,8 @@ module TypeScript {
 
     export class ImportDeclarationSyntax extends SyntaxNode implements IModuleElementSyntax {
 
-        constructor(public importKeyword: ISyntaxToken,
+        constructor(public modifiers: ISyntaxList,
+                    public importKeyword: ISyntaxToken,
                     public identifier: ISyntaxToken,
                     public equalsToken: ISyntaxToken,
                     public moduleReference: ModuleReferenceSyntax,
@@ -246,16 +246,17 @@ module TypeScript {
     }
 
     public childCount(): number {
-        return 5;
+        return 6;
     }
 
     public childAt(slot: number): ISyntaxElement {
         switch (slot) {
-            case 0: return this.importKeyword;
-            case 1: return this.identifier;
-            case 2: return this.equalsToken;
-            case 3: return this.moduleReference;
-            case 4: return this.semicolonToken;
+            case 0: return this.modifiers;
+            case 1: return this.importKeyword;
+            case 2: return this.identifier;
+            case 3: return this.equalsToken;
+            case 4: return this.moduleReference;
+            case 5: return this.semicolonToken;
             default: throw Errors.invalidOperation();
         }
     }
@@ -264,21 +265,30 @@ module TypeScript {
         return true;
     }
 
-    public update(importKeyword: ISyntaxToken,
+    public update(modifiers: ISyntaxList,
+                  importKeyword: ISyntaxToken,
                   identifier: ISyntaxToken,
                   equalsToken: ISyntaxToken,
                   moduleReference: ModuleReferenceSyntax,
                   semicolonToken: ISyntaxToken): ImportDeclarationSyntax {
-        if (this.importKeyword === importKeyword && this.identifier === identifier && this.equalsToken === equalsToken && this.moduleReference === moduleReference && this.semicolonToken === semicolonToken) {
+        if (this.modifiers === modifiers && this.importKeyword === importKeyword && this.identifier === identifier && this.equalsToken === equalsToken && this.moduleReference === moduleReference && this.semicolonToken === semicolonToken) {
             return this;
         }
 
-        return new ImportDeclarationSyntax(importKeyword, identifier, equalsToken, moduleReference, semicolonToken, /*parsedInStrictMode:*/ this.parsedInStrictMode());
+        return new ImportDeclarationSyntax(modifiers, importKeyword, identifier, equalsToken, moduleReference, semicolonToken, /*parsedInStrictMode:*/ this.parsedInStrictMode());
+    }
+
+    public static create(importKeyword: ISyntaxToken,
+                         identifier: ISyntaxToken,
+                         equalsToken: ISyntaxToken,
+                         moduleReference: ModuleReferenceSyntax,
+                         semicolonToken: ISyntaxToken): ImportDeclarationSyntax {
+        return new ImportDeclarationSyntax(Syntax.emptyList, importKeyword, identifier, equalsToken, moduleReference, semicolonToken, /*parsedInStrictMode:*/ false);
     }
 
     public static create1(identifier: ISyntaxToken,
                           moduleReference: ModuleReferenceSyntax): ImportDeclarationSyntax {
-        return new ImportDeclarationSyntax(Syntax.token(SyntaxKind.ImportKeyword), identifier, Syntax.token(SyntaxKind.EqualsToken), moduleReference, Syntax.token(SyntaxKind.SemicolonToken), /*parsedInStrictMode:*/ false);
+        return new ImportDeclarationSyntax(Syntax.emptyList, Syntax.token(SyntaxKind.ImportKeyword), identifier, Syntax.token(SyntaxKind.EqualsToken), moduleReference, Syntax.token(SyntaxKind.SemicolonToken), /*parsedInStrictMode:*/ false);
     }
 
     public withLeadingTrivia(trivia: ISyntaxTriviaList): ImportDeclarationSyntax {
@@ -289,24 +299,32 @@ module TypeScript {
         return <ImportDeclarationSyntax>super.withTrailingTrivia(trivia);
     }
 
+    public withModifiers(modifiers: ISyntaxList): ImportDeclarationSyntax {
+        return this.update(modifiers, this.importKeyword, this.identifier, this.equalsToken, this.moduleReference, this.semicolonToken);
+    }
+
+    public withModifier(modifier: ISyntaxToken): ImportDeclarationSyntax {
+        return this.withModifiers(Syntax.list([modifier]));
+    }
+
     public withImportKeyword(importKeyword: ISyntaxToken): ImportDeclarationSyntax {
-        return this.update(importKeyword, this.identifier, this.equalsToken, this.moduleReference, this.semicolonToken);
+        return this.update(this.modifiers, importKeyword, this.identifier, this.equalsToken, this.moduleReference, this.semicolonToken);
     }
 
     public withIdentifier(identifier: ISyntaxToken): ImportDeclarationSyntax {
-        return this.update(this.importKeyword, identifier, this.equalsToken, this.moduleReference, this.semicolonToken);
+        return this.update(this.modifiers, this.importKeyword, identifier, this.equalsToken, this.moduleReference, this.semicolonToken);
     }
 
     public withEqualsToken(equalsToken: ISyntaxToken): ImportDeclarationSyntax {
-        return this.update(this.importKeyword, this.identifier, equalsToken, this.moduleReference, this.semicolonToken);
+        return this.update(this.modifiers, this.importKeyword, this.identifier, equalsToken, this.moduleReference, this.semicolonToken);
     }
 
     public withModuleReference(moduleReference: ModuleReferenceSyntax): ImportDeclarationSyntax {
-        return this.update(this.importKeyword, this.identifier, this.equalsToken, moduleReference, this.semicolonToken);
+        return this.update(this.modifiers, this.importKeyword, this.identifier, this.equalsToken, moduleReference, this.semicolonToken);
     }
 
     public withSemicolonToken(semicolonToken: ISyntaxToken): ImportDeclarationSyntax {
-        return this.update(this.importKeyword, this.identifier, this.equalsToken, this.moduleReference, semicolonToken);
+        return this.update(this.modifiers, this.importKeyword, this.identifier, this.equalsToken, this.moduleReference, semicolonToken);
     }
 
     public isTypeScriptSpecific(): boolean {
@@ -2279,6 +2297,81 @@ module TypeScript {
 
     public withTypeArgumentList(typeArgumentList: TypeArgumentListSyntax): GenericTypeSyntax {
         return this.update(this.name, typeArgumentList);
+    }
+
+    public isTypeScriptSpecific(): boolean {
+        return true;
+    }
+    }
+
+    export class TypeQuerySyntax extends SyntaxNode implements ITypeSyntax {
+
+        constructor(public typeOfKeyword: ISyntaxToken,
+                    public name: INameSyntax,
+                    parsedInStrictMode: boolean) {
+            super(parsedInStrictMode); 
+
+        }
+
+    public accept(visitor: ISyntaxVisitor): any {
+        return visitor.visitTypeQuery(this);
+    }
+
+    public kind(): SyntaxKind {
+        return SyntaxKind.TypeQuery;
+    }
+
+    public childCount(): number {
+        return 2;
+    }
+
+    public childAt(slot: number): ISyntaxElement {
+        switch (slot) {
+            case 0: return this.typeOfKeyword;
+            case 1: return this.name;
+            default: throw Errors.invalidOperation();
+        }
+    }
+
+    public isType(): boolean {
+        return true;
+    }
+
+    public isUnaryExpression(): boolean {
+        return true;
+    }
+
+    public isExpression(): boolean {
+        return true;
+    }
+
+    public update(typeOfKeyword: ISyntaxToken,
+                  name: INameSyntax): TypeQuerySyntax {
+        if (this.typeOfKeyword === typeOfKeyword && this.name === name) {
+            return this;
+        }
+
+        return new TypeQuerySyntax(typeOfKeyword, name, /*parsedInStrictMode:*/ this.parsedInStrictMode());
+    }
+
+    public static create1(name: INameSyntax): TypeQuerySyntax {
+        return new TypeQuerySyntax(Syntax.token(SyntaxKind.TypeOfKeyword), name, /*parsedInStrictMode:*/ false);
+    }
+
+    public withLeadingTrivia(trivia: ISyntaxTriviaList): TypeQuerySyntax {
+        return <TypeQuerySyntax>super.withLeadingTrivia(trivia);
+    }
+
+    public withTrailingTrivia(trivia: ISyntaxTriviaList): TypeQuerySyntax {
+        return <TypeQuerySyntax>super.withTrailingTrivia(trivia);
+    }
+
+    public withTypeOfKeyword(typeOfKeyword: ISyntaxToken): TypeQuerySyntax {
+        return this.update(typeOfKeyword, this.name);
+    }
+
+    public withName(name: INameSyntax): TypeQuerySyntax {
+        return this.update(this.typeOfKeyword, name);
     }
 
     public isTypeScriptSpecific(): boolean {

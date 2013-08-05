@@ -2,8 +2,7 @@
     "isDeclaration": false,
     "languageVersion": "EcmaScript5",
     "parseOptions": {
-        "allowAutomaticSemicolonInsertion": true,
-        "allowModuleKeywordInExternalModuleReference": true
+        "allowAutomaticSemicolonInsertion": true
     },
     "sourceUnit": {
         "kind": "SourceUnit",
@@ -229,8 +228,8 @@
                                                         "kind": "StringLiteral",
                                                         "width": 37,
                                                         "text": "\"//Single Line Comments\\u2029 var =;\"",
-                                                        "value": "//Single Line Comments\u2029 var =;",
-                                                        "valueText": "//Single Line Comments\u2029 var =;"
+                                                        "value": "//Single Line Comments  var =;",
+                                                        "valueText": "//Single Line Comments  var =;"
                                                     }
                                                 ],
                                                 "closeParenToken": {

@@ -1,4 +1,4 @@
-/// <reference path="../fourslash.ts" />
+/// <reference path="fourslash.ts" />
 
 //// function f18(a?:string, ...b){}
 ////  

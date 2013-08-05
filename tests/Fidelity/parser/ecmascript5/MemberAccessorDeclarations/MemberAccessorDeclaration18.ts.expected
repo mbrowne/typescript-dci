@@ -2,14 +2,13 @@
     "isDeclaration": false,
     "languageVersion": "EcmaScript5",
     "parseOptions": {
-        "allowAutomaticSemicolonInsertion": true,
-        "allowModuleKeywordInExternalModuleReference": true
+        "allowAutomaticSemicolonInsertion": true
     },
     "diagnostics": [
         {
             "start": 21,
             "length": 4,
-            "diagnosticCode": "_set__accessor_cannot_have_rest_parameter"
+            "diagnosticCode": "'set' accessor cannot have rest parameter."
         }
     ],
     "sourceUnit": {

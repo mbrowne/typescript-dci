@@ -42,14 +42,14 @@ module TypeScript {
     // be a good thing.  If it decreases, that's not great (less reusability), but that may be 
     // unavoidable.  If it does decrease an investigation 
     function compareTrees(oldText: IText, newText: IText, textChangeRange: TextChangeRange, reusedElements: number = -1): void {
-        var oldTree = Parser.parse("", oldText, false, LanguageVersion.EcmaScript5, new ParseOptions(true, true));
-        var oldAST = SyntaxTreeToAstVisitor.visit(oldTree, "", new CompilationSettings());
+        var oldTree = Parser.parse("", oldText, false, new ParseOptions(LanguageVersion.EcmaScript5, true));
+        var oldAST = SyntaxTreeToAstVisitor.visit(oldTree, "", new CompilationSettings(), /*incrementalAST:*/ true);
 
-        var newTree = Parser.parse("", newText, false, LanguageVersion.EcmaScript5, new ParseOptions(true, true));
-        var newAST = SyntaxTreeToAstVisitor.visit(newTree, "", new CompilationSettings());
+        var newTree = Parser.parse("", newText, false, new ParseOptions(LanguageVersion.EcmaScript5, true));
+        var newAST = SyntaxTreeToAstVisitor.visit(newTree, "", new CompilationSettings(), /*incrementalAST:*/ true);
 
         var incrementalNewTree = Parser.incrementalParse(oldTree, textChangeRange, newText);
-        var incrementalNewAST = SyntaxTreeToAstVisitor.visit(incrementalNewTree, "", new CompilationSettings());
+        var incrementalNewAST = SyntaxTreeToAstVisitor.visit(incrementalNewTree, "", new CompilationSettings(), /*incrementalAST:*/ true);
 
         // We should get the same tree when doign a full or incremental parse.
         Debug.assert(newTree.structuralEquals(incrementalNewTree));
@@ -546,7 +546,34 @@ constructor(name) { }\
 
             compareTrees(oldText, newTextAndChange.text, newTextAndChange.textChangeRange, -1);
         }
-        
+
+        public static testInsertDeclareAboveModule() {
+            var source =
+"module mAmbient {\
+module m3 { }\
+}";
+
+            var oldText = TextFactory.createText(source);
+            var index = 0;
+            var newTextAndChange = withInsert(oldText, index, "declare ");
+
+            compareTrees(oldText, newTextAndChange.text, newTextAndChange.textChangeRange, -1);
+        }
+
+        public static testInsertFunctionAboveLambdaWithComment() {
+            var source =
+"\
+() =>\
+   // do something\
+0;";
+
+            var oldText = TextFactory.createText(source);
+            var index = 0;
+            var newTextAndChange = withInsert(oldText, index, "function Foo() { }");
+
+            compareTrees(oldText, newTextAndChange.text, newTextAndChange.textChangeRange, -1);
+        }
+
         //public static testComplexEdits1() {
         //    var source = Environment.readFile(Environment.currentDirectory() + "\\tests\\Fidelity\\incremental\\resources\\pullTypeChecker.ts");
             

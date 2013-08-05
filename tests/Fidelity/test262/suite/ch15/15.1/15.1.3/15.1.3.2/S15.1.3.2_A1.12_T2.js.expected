@@ -2,8 +2,7 @@
     "isDeclaration": false,
     "languageVersion": "EcmaScript5",
     "parseOptions": {
-        "allowAutomaticSemicolonInsertion": true,
-        "allowModuleKeywordInExternalModuleReference": true
+        "allowAutomaticSemicolonInsertion": true
     },
     "sourceUnit": {
         "kind": "SourceUnit",
@@ -222,8 +221,8 @@
                                                     "kind": "NumericLiteral",
                                                     "width": 4,
                                                     "text": "0x29",
-                                                    "value": 0,
-                                                    "valueText": "0"
+                                                    "value": 41,
+                                                    "valueText": "41"
                                                 }
                                             ],
                                             "closeBracketToken": {
@@ -264,8 +263,8 @@
                                                     "kind": "NumericLiteral",
                                                     "width": 4,
                                                     "text": "0x40",
-                                                    "value": 0,
-                                                    "valueText": "0"
+                                                    "value": 64,
+                                                    "valueText": "64"
                                                 },
                                                 {
                                                     "kind": "CommaToken",
@@ -278,8 +277,8 @@
                                                     "kind": "NumericLiteral",
                                                     "width": 4,
                                                     "text": "0x40",
-                                                    "value": 0,
-                                                    "valueText": "0"
+                                                    "value": 64,
+                                                    "valueText": "64"
                                                 }
                                             ],
                                             "closeBracketToken": {
@@ -320,8 +319,8 @@
                                                     "kind": "NumericLiteral",
                                                     "width": 4,
                                                     "text": "0x47",
-                                                    "value": 0,
-                                                    "valueText": "0"
+                                                    "value": 71,
+                                                    "valueText": "71"
                                                 },
                                                 {
                                                     "kind": "CommaToken",
@@ -342,8 +341,8 @@
                                                     "kind": "NumericLiteral",
                                                     "width": 4,
                                                     "text": "0x60",
-                                                    "value": 0,
-                                                    "valueText": "0"
+                                                    "value": 96,
+                                                    "valueText": "96"
                                                 }
                                             ],
                                             "closeBracketToken": {
@@ -384,8 +383,8 @@
                                                     "kind": "NumericLiteral",
                                                     "width": 4,
                                                     "text": "0x67",
-                                                    "value": 0,
-                                                    "valueText": "0"
+                                                    "value": 103,
+                                                    "valueText": "103"
                                                 },
                                                 {
                                                     "kind": "CommaToken",
@@ -406,8 +405,8 @@
                                                     "kind": "NumericLiteral",
                                                     "width": 6,
                                                     "text": "0xFFFF",
-                                                    "value": 0,
-                                                    "valueText": "0"
+                                                    "value": 65535,
+                                                    "valueText": "65535"
                                                 }
                                             ],
                                             "closeBracketToken": {

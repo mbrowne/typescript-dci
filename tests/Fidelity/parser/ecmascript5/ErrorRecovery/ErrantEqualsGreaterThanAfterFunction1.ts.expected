@@ -2,19 +2,21 @@
     "isDeclaration": false,
     "languageVersion": "EcmaScript5",
     "parseOptions": {
-        "allowAutomaticSemicolonInsertion": true,
-        "allowModuleKeywordInExternalModuleReference": true
+        "allowAutomaticSemicolonInsertion": true
     },
     "diagnostics": [
         {
             "start": 13,
             "length": 2,
-            "diagnosticCode": "Unexpected_token_"
+            "diagnosticCode": "Unexpected token; '{0}' expected.",
+            "arguments": [
+                "{"
+            ]
         },
         {
             "start": 16,
             "length": 1,
-            "diagnosticCode": "_0_expected",
+            "diagnosticCode": "'{0}' expected.",
             "arguments": [
                 "{"
             ]
@@ -22,7 +24,7 @@
         {
             "start": 18,
             "length": 0,
-            "diagnosticCode": "_0_expected",
+            "diagnosticCode": "'{0}' expected.",
             "arguments": [
                 "}"
             ]

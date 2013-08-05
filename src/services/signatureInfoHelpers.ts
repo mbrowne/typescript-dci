@@ -122,7 +122,6 @@ module Services {
                     case TypeScript.SyntaxKind.StringKeyword:
                     case TypeScript.SyntaxKind.VoidKeyword:
                     case TypeScript.SyntaxKind.BooleanKeyword:
-                    case TypeScript.SyntaxKind.BoolKeyword:
                     case TypeScript.SyntaxKind.DotToken:
                     case TypeScript.SyntaxKind.OpenBracketToken:
                     case TypeScript.SyntaxKind.CloseBracketToken:
@@ -155,8 +154,8 @@ module Services {
                 var signatureGroupInfo = new FormalSignatureItemInfo();
                 var paramIndexInfo: number[] = [];
                 var functionName = signature.getScopedNameEx(enclosingScopeSymbol).toString();
-                if (!functionName) {
-                    functionName = symbol.getDisplayName();
+                if (!functionName && (!symbol.isType() || (<TypeScript.PullTypeSymbol>symbol).isNamedTypeSymbol())) {
+                    functionName = symbol.getScopedNameEx(enclosingScopeSymbol).toString();
                 }
 
                 var signatureMemberName = signature.getSignatureTypeNameEx(functionName, false, false, enclosingScopeSymbol, true, true);
@@ -179,11 +178,11 @@ module Services {
                     }
                 }
 
-                var parameters = signature.getParameters();
+                var parameters = signature.parameters;
                 for (var j = 0, m = parameters.length; j < m; j++) {
                     var parameter = parameters[j];
                     var signatureParameterInfo = new FormalParameterInfo();
-                    signatureParameterInfo.isVariable = signature.hasVariableParamList() && (j === parameters.length - 1);
+                    signatureParameterInfo.isVariable = signature.hasVarArgs && (j === parameters.length - 1);
                     signatureParameterInfo.name = parameter.getDisplayName();
                     signatureParameterInfo.docComment = compilerState.getDocComments(parameter);
                     signatureParameterInfo.minChar = paramIndexInfo[2 * parameterMarkerIndex];
@@ -209,7 +208,7 @@ module Services {
 
             var parameterMarkerIndex = 0;
 
-            var typeSymbol = symbol.getType();
+            var typeSymbol = symbol.type;
 
             var typeParameters = typeSymbol.getTypeParameters();
             for (var i = 0, n = typeParameters.length; i < n; i++) {
@@ -225,7 +224,7 @@ module Services {
             return [signatureGroupInfo];
         }
 
-        public static getActualSignatureInfoFromCallExpression(ast: TypeScript.CallExpression, caretPosition: number, typeParameterInformation: IPartiallyWrittenTypeArgumentListInformation): ActualSignatureInfo {
+        public static getActualSignatureInfoFromCallExpression(ast: TypeScript.ICallExpression, caretPosition: number, typeParameterInformation: IPartiallyWrittenTypeArgumentListInformation): ActualSignatureInfo {
             if (!ast) {
                 return null;
             }

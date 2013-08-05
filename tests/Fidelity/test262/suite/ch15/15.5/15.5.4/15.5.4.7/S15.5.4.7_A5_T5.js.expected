@@ -2,8 +2,7 @@
     "isDeclaration": false,
     "languageVersion": "EcmaScript5",
     "parseOptions": {
-        "allowAutomaticSemicolonInsertion": true,
-        "allowModuleKeywordInExternalModuleReference": true
+        "allowAutomaticSemicolonInsertion": true
     },
     "sourceUnit": {
         "kind": "SourceUnit",
@@ -372,8 +371,8 @@
                                     "kind": "NumericLiteral",
                                     "width": 6,
                                     "text": "0x0020",
-                                    "value": 0,
-                                    "valueText": "0"
+                                    "value": 32,
+                                    "valueText": "32"
                                 }
                             }
                         }
@@ -431,8 +430,8 @@
                         "kind": "NumericLiteral",
                         "width": 6,
                         "text": "0x007d",
-                        "value": 0,
-                        "valueText": "0"
+                        "value": 125,
+                        "valueText": "125"
                     }
                 },
                 "secondSemicolonToken": {
@@ -1096,8 +1095,8 @@
                                                                                                                     "kind": "NumericLiteral",
                                                                                                                     "width": 6,
                                                                                                                     "text": "0x0020",
-                                                                                                                    "value": 0,
-                                                                                                                    "valueText": "0"
+                                                                                                                    "value": 32,
+                                                                                                                    "valueText": "32"
                                                                                                                 }
                                                                                                             },
                                                                                                             "closeParenToken": {

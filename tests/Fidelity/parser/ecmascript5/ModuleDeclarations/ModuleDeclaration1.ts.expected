@@ -2,14 +2,13 @@
     "isDeclaration": false,
     "languageVersion": "EcmaScript5",
     "parseOptions": {
-        "allowAutomaticSemicolonInsertion": true,
-        "allowModuleKeywordInExternalModuleReference": true
+        "allowAutomaticSemicolonInsertion": true
     },
     "diagnostics": [
         {
             "start": 7,
             "length": 5,
-            "diagnosticCode": "Non_ambient_modules_cannot_use_quoted_names"
+            "diagnosticCode": "Only ambient modules can use quoted names."
         }
     ],
     "sourceUnit": {

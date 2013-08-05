@@ -1,5 +1,4 @@
-//bug 702119: Retyper: LS crash when typeChecking indexer
-/// <reference path="../fourslash.ts" />
+/// <reference path="fourslash.ts" />
 
 //// // @sourcemap: true
 //// module Foo.Bar {
@@ -38,4 +37,4 @@
 //// }
 
 edit.disableFormatting();
-//diagnostics.validateTypesAtPositions(705);
+diagnostics.validateTypesAtPositions(705);

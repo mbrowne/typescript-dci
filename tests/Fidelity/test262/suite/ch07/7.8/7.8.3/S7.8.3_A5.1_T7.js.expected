@@ -2,8 +2,7 @@
     "isDeclaration": false,
     "languageVersion": "EcmaScript5",
     "parseOptions": {
-        "allowAutomaticSemicolonInsertion": true,
-        "allowModuleKeywordInExternalModuleReference": true
+        "allowAutomaticSemicolonInsertion": true
     },
     "sourceUnit": {
         "kind": "SourceUnit",
@@ -87,8 +86,8 @@
                         "width": 3,
                         "fullWidth": 4,
                         "text": "0xa",
-                        "value": 0,
-                        "valueText": "0",
+                        "value": 10,
+                        "valueText": "10",
                         "hasTrailingTrivia": true,
                         "trailingTrivia": [
                             {
@@ -290,8 +289,8 @@
                         "width": 3,
                         "fullWidth": 4,
                         "text": "0xb",
-                        "value": 0,
-                        "valueText": "0",
+                        "value": 11,
+                        "valueText": "11",
                         "hasTrailingTrivia": true,
                         "trailingTrivia": [
                             {
@@ -493,8 +492,8 @@
                         "width": 3,
                         "fullWidth": 4,
                         "text": "0xc",
-                        "value": 0,
-                        "valueText": "0",
+                        "value": 12,
+                        "valueText": "12",
                         "hasTrailingTrivia": true,
                         "trailingTrivia": [
                             {
@@ -696,8 +695,8 @@
                         "width": 3,
                         "fullWidth": 4,
                         "text": "0xd",
-                        "value": 0,
-                        "valueText": "0",
+                        "value": 13,
+                        "valueText": "13",
                         "hasTrailingTrivia": true,
                         "trailingTrivia": [
                             {
@@ -899,8 +898,8 @@
                         "width": 3,
                         "fullWidth": 4,
                         "text": "0xe",
-                        "value": 0,
-                        "valueText": "0",
+                        "value": 14,
+                        "valueText": "14",
                         "hasTrailingTrivia": true,
                         "trailingTrivia": [
                             {
@@ -1102,8 +1101,8 @@
                         "width": 3,
                         "fullWidth": 4,
                         "text": "0xf",
-                        "value": 0,
-                        "valueText": "0",
+                        "value": 15,
+                        "valueText": "15",
                         "hasTrailingTrivia": true,
                         "trailingTrivia": [
                             {

@@ -2,14 +2,13 @@
     "isDeclaration": false,
     "languageVersion": "EcmaScript5",
     "parseOptions": {
-        "allowAutomaticSemicolonInsertion": true,
-        "allowModuleKeywordInExternalModuleReference": true
+        "allowAutomaticSemicolonInsertion": true
     },
     "diagnostics": [
         {
             "start": 359,
             "length": 1,
-            "diagnosticCode": "Unexpected_character_0",
+            "diagnosticCode": "Unexpected character {0}.",
             "arguments": [
                 "\"\\\""
             ]
@@ -17,7 +16,7 @@
         {
             "start": 359,
             "length": 1,
-            "diagnosticCode": "_0_expected",
+            "diagnosticCode": "'{0}' expected.",
             "arguments": [
                 ";"
             ]

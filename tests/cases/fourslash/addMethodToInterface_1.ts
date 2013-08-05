@@ -1,5 +1,4 @@
-//bug 701953: retyper: adding method to interface and checking types crashes LS
-/// <reference path="../fourslash.ts" />
+/// <reference path="fourslash.ts" />
 
 //// interface Comparable<T> {
 //// /*1*/}
@@ -13,4 +12,4 @@ edit.disableFormatting();
 goTo.marker(1);
 
 edit.insert("    compareTo(): number;\n");
-//diagnostics.validateTypesAtPositions(168,84,53,118,22);
+diagnostics.validateTypesAtPositions(168,84,53,118,22);

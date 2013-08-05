@@ -2,8 +2,7 @@
     "isDeclaration": false,
     "languageVersion": "EcmaScript5",
     "parseOptions": {
-        "allowAutomaticSemicolonInsertion": true,
-        "allowModuleKeywordInExternalModuleReference": true
+        "allowAutomaticSemicolonInsertion": true
     },
     "sourceUnit": {
         "kind": "SourceUnit",
@@ -184,8 +183,8 @@
                                             "kind": "StringLiteral",
                                             "width": 31,
                                             "text": "\"var test7_3_1\\u2028prop = 66;\"",
-                                            "value": "var test7_3_1\u2028prop = 66;",
-                                            "valueText": "var test7_3_1\u2028prop = 66;"
+                                            "value": "var test7_3_1 prop = 66;",
+                                            "valueText": "var test7_3_1 prop = 66;"
                                         }
                                     ],
                                     "closeParenToken": {

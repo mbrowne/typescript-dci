@@ -2,14 +2,13 @@
     "isDeclaration": false,
     "languageVersion": "EcmaScript5",
     "parseOptions": {
-        "allowAutomaticSemicolonInsertion": true,
-        "allowModuleKeywordInExternalModuleReference": true
+        "allowAutomaticSemicolonInsertion": true
     },
     "diagnostics": [
         {
             "start": 21,
             "length": 9,
-            "diagnosticCode": "_extends__clause_must_precede__implements__clause"
+            "diagnosticCode": "'extends' clause must precede 'implements' clause."
         }
     ],
     "sourceUnit": {

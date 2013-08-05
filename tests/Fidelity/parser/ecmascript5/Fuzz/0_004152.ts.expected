@@ -2,14 +2,13 @@
     "isDeclaration": false,
     "languageVersion": "EcmaScript5",
     "parseOptions": {
-        "allowAutomaticSemicolonInsertion": true,
-        "allowModuleKeywordInExternalModuleReference": true
+        "allowAutomaticSemicolonInsertion": true
     },
     "diagnostics": [
         {
             "start": 65,
             "length": 1,
-            "diagnosticCode": "Unexpected_token__0_expected",
+            "diagnosticCode": "Unexpected token; '{0}' expected.",
             "arguments": [
                 "expression"
             ]
@@ -17,7 +16,7 @@
         {
             "start": 66,
             "length": 1,
-            "diagnosticCode": "_0_expected",
+            "diagnosticCode": "'{0}' expected.",
             "arguments": [
                 ";"
             ]
@@ -25,7 +24,7 @@
         {
             "start": 69,
             "length": 1,
-            "diagnosticCode": "_0_expected",
+            "diagnosticCode": "'{0}' expected.",
             "arguments": [
                 ";"
             ]
@@ -33,7 +32,7 @@
         {
             "start": 72,
             "length": 1,
-            "diagnosticCode": "_0_expected",
+            "diagnosticCode": "'{0}' expected.",
             "arguments": [
                 ";"
             ]
@@ -41,7 +40,7 @@
         {
             "start": 75,
             "length": 1,
-            "diagnosticCode": "_0_expected",
+            "diagnosticCode": "'{0}' expected.",
             "arguments": [
                 ";"
             ]
@@ -49,7 +48,7 @@
         {
             "start": 78,
             "length": 1,
-            "diagnosticCode": "_0_expected",
+            "diagnosticCode": "'{0}' expected.",
             "arguments": [
                 ";"
             ]
@@ -57,7 +56,7 @@
         {
             "start": 81,
             "length": 1,
-            "diagnosticCode": "_0_expected",
+            "diagnosticCode": "'{0}' expected.",
             "arguments": [
                 ";"
             ]
@@ -65,7 +64,7 @@
         {
             "start": 84,
             "length": 1,
-            "diagnosticCode": "_0_expected",
+            "diagnosticCode": "'{0}' expected.",
             "arguments": [
                 ";"
             ]
@@ -73,7 +72,7 @@
         {
             "start": 87,
             "length": 1,
-            "diagnosticCode": "_0_expected",
+            "diagnosticCode": "'{0}' expected.",
             "arguments": [
                 ";"
             ]
@@ -81,7 +80,7 @@
         {
             "start": 90,
             "length": 1,
-            "diagnosticCode": "_0_expected",
+            "diagnosticCode": "'{0}' expected.",
             "arguments": [
                 ";"
             ]
@@ -89,7 +88,7 @@
         {
             "start": 93,
             "length": 1,
-            "diagnosticCode": "_0_expected",
+            "diagnosticCode": "'{0}' expected.",
             "arguments": [
                 ";"
             ]
@@ -97,7 +96,7 @@
         {
             "start": 96,
             "length": 1,
-            "diagnosticCode": "_0_expected",
+            "diagnosticCode": "'{0}' expected.",
             "arguments": [
                 ";"
             ]
@@ -105,7 +104,7 @@
         {
             "start": 99,
             "length": 1,
-            "diagnosticCode": "_0_expected",
+            "diagnosticCode": "'{0}' expected.",
             "arguments": [
                 ";"
             ]
@@ -113,7 +112,7 @@
         {
             "start": 102,
             "length": 1,
-            "diagnosticCode": "_0_expected",
+            "diagnosticCode": "'{0}' expected.",
             "arguments": [
                 ";"
             ]
@@ -121,7 +120,7 @@
         {
             "start": 105,
             "length": 1,
-            "diagnosticCode": "_0_expected",
+            "diagnosticCode": "'{0}' expected.",
             "arguments": [
                 ";"
             ]
@@ -129,7 +128,7 @@
         {
             "start": 106,
             "length": 1,
-            "diagnosticCode": "Unexpected_token__0_expected",
+            "diagnosticCode": "Unexpected token; '{0}' expected.",
             "arguments": [
                 "constructor, function, accessor or variable"
             ]
@@ -137,7 +136,7 @@
         {
             "start": 114,
             "length": 1,
-            "diagnosticCode": "_0_expected",
+            "diagnosticCode": "'{0}' expected.",
             "arguments": [
                 ";"
             ]
@@ -145,7 +144,7 @@
         {
             "start": 117,
             "length": 1,
-            "diagnosticCode": "_0_expected",
+            "diagnosticCode": "'{0}' expected.",
             "arguments": [
                 ";"
             ]
@@ -153,7 +152,7 @@
         {
             "start": 118,
             "length": 1,
-            "diagnosticCode": "Unexpected_token__0_expected",
+            "diagnosticCode": "Unexpected token; '{0}' expected.",
             "arguments": [
                 "constructor, function, accessor or variable"
             ]

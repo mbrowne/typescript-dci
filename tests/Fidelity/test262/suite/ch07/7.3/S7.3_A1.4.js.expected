@@ -2,8 +2,7 @@
     "isDeclaration": false,
     "languageVersion": "EcmaScript5",
     "parseOptions": {
-        "allowAutomaticSemicolonInsertion": true,
-        "allowModuleKeywordInExternalModuleReference": true
+        "allowAutomaticSemicolonInsertion": true
     },
     "sourceUnit": {
         "kind": "SourceUnit",
@@ -83,8 +82,8 @@
                                 "kind": "StringLiteral",
                                 "width": 38,
                                 "text": "\"\\u2029var\\u2029x\\u2029=\\u20291\\u2029\"",
-                                "value": "\u2029var\u2029x\u2029=\u20291\u2029",
-                                "valueText": "\u2029var\u2029x\u2029=\u20291\u2029"
+                                "value": " var x = 1 ",
+                                "valueText": " var x = 1 "
                             }
                         ],
                         "closeParenToken": {
@@ -422,8 +421,8 @@
                                                                 "width": 8,
                                                                 "fullWidth": 9,
                                                                 "text": "\"\\u2029\"",
-                                                                "value": "\u2029",
-                                                                "valueText": "\u2029",
+                                                                "value": " ",
+                                                                "valueText": " ",
                                                                 "hasTrailingTrivia": true,
                                                                 "trailingTrivia": [
                                                                     {
@@ -483,8 +482,8 @@
                                                             "width": 8,
                                                             "fullWidth": 9,
                                                             "text": "\"\\u2029\"",
-                                                            "value": "\u2029",
-                                                            "valueText": "\u2029",
+                                                            "value": " ",
+                                                            "valueText": " ",
                                                             "hasTrailingTrivia": true,
                                                             "trailingTrivia": [
                                                                 {
@@ -545,8 +544,8 @@
                                                     "width": 8,
                                                     "fullWidth": 9,
                                                     "text": "\"\\u2029\"",
-                                                    "value": "\u2029",
-                                                    "valueText": "\u2029",
+                                                    "value": " ",
+                                                    "valueText": " ",
                                                     "hasTrailingTrivia": true,
                                                     "trailingTrivia": [
                                                         {
@@ -607,8 +606,8 @@
                                             "width": 8,
                                             "fullWidth": 9,
                                             "text": "\"\\u2029\"",
-                                            "value": "\u2029",
-                                            "valueText": "\u2029",
+                                            "value": " ",
+                                            "valueText": " ",
                                             "hasTrailingTrivia": true,
                                             "trailingTrivia": [
                                                 {
@@ -668,8 +667,8 @@
                                     "kind": "StringLiteral",
                                     "width": 8,
                                     "text": "\"\\u2029\"",
-                                    "value": "\u2029",
-                                    "valueText": "\u2029"
+                                    "value": " ",
+                                    "valueText": " "
                                 }
                             }
                         ],

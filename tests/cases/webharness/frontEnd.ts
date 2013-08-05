@@ -40,31 +40,52 @@ class BatchCompiler implements Services.ILanguageServiceHost {
     private compilerScriptSnapshot = TypeScript.ScriptSnapshot.fromString(compilerString);
 
     public compile() {
-        var settings = this.getCompilationSettings();
+        var settings = new TypeScript.CompilationSettings();
+        settings.generateDeclarationFiles = true;
+        settings.outFileOption = "Output.ts";
 
         this.compiler = new TypeScript.TypeScriptCompiler(new DiagnosticsLogger(), settings);
 
-        this.compiler.addSourceUnit(libraryFileName, this.libScriptSnapshot, ByteOrderMark.None, 0, true, []);
-        this.compiler.addSourceUnit(compilerFileName, this.compilerScriptSnapshot, ByteOrderMark.None, 0, true, []);
+        this.compiler.addSourceUnit("lib.d.ts", this.libScriptSnapshot, ByteOrderMark.None, 0, false, []);
+        this.compiler.addSourceUnit("compiler.ts", this.compilerScriptSnapshot, ByteOrderMark.None, 0, false, []);
 
         this.compiler.pullTypeCheck();
+
+        var emitterIOHost = {
+            writeFile: (fileName: string, contents: string, writeByteOrderMark: boolean) => { },
+            directoryExists: (a: string) => false,
+            fileExists: (a: string) => true,
+            resolvePath: (a: string) => a,
+        };
+
+        var mapInputToOutput = (inputFile: string, outputFile: string): void => { };
+
+        // TODO: if there are any emit diagnostics.  Don't proceed.
+        var emitDiagnostics = this.compiler.emitAll(emitterIOHost, mapInputToOutput);
+
+        var emitDeclarationsDiagnostics = this.compiler.emitAllDeclarations();
     }
 
     public information(): boolean {
         return true;
     }
+
     public debug(): boolean {
         return true;
     }
+
     public warning(): boolean {
         return true;
     }
+
     public error(): boolean {
         return true;
     }
+
     public fatal(): boolean {
         return true;
     }
+
     public log(s: string): void {
 
     }
@@ -85,6 +106,10 @@ class BatchCompiler implements Services.ILanguageServiceHost {
         return fileName !== libraryFileName;
     }
 
+    public getScriptByteOrderMark(fileName: string): ByteOrderMark {
+        return ByteOrderMark.None;
+    }
+
     public getScriptSnapshot(fileName: string): TypeScript.IScriptSnapshot {
         switch (fileName) {
             case libraryFileName: return this.libScriptSnapshot;
@@ -98,17 +123,33 @@ class BatchCompiler implements Services.ILanguageServiceHost {
         return null;
     }
 
+    public getLocalizedDiagnosticMessages(): any {
+        return null;
+    }
+
     public createLanguageService() {
         return new Services.LanguageService(this);
     }
 
     // use this to test "clean" re-typecheck speed
     public reTypeCheck() {
-        this.compiler.pullTypeCheck();
+        var settings = new TypeScript.CompilationSettings();
+
+        if (!this.compiler) {
+            this.compiler = new TypeScript.TypeScriptCompiler(new DiagnosticsLogger(), settings);
+
+            this.compiler.addSourceUnit("lib.d.ts", this.libScriptSnapshot, ByteOrderMark.None, 0, false, []);
+            this.compiler.addSourceUnit("compiler.ts", this.compilerScriptSnapshot, ByteOrderMark.None, 0, false, []);
+            this.compiler.pullTypeCheck();
+        }
+
+        this.compiler.semanticInfoChain.update();
+        this.compiler.semanticInfoChain.forceTypeCheck("compiler.ts");
+        this.compiler.getSemanticDiagnostics("compiler.ts");
     }
 
     public newParse(): TypeScript.SyntaxTree {
-        return TypeScript.Parser.parse(compilerFileName, this.simpleText, false, TypeScript.LanguageVersion.EcmaScript5,
+        return TypeScript.Parser.parse(compilerFileName, this.simpleText, false,
             TypeScript.getParseOptions(new TypeScript.CompilationSettings()));
     }
 
@@ -118,6 +159,11 @@ class BatchCompiler implements Services.ILanguageServiceHost {
         var range = new TypeScript.TextChangeRange(span, width);
         return TypeScript.Parser.incrementalParse(tree, range, this.simpleText);
     }
+
+    public resolveRelativePath(path: string, directory: string): string { throw new Error(); }
+    public fileExists(path: string): boolean { throw new Error(); }
+    public directoryExists(path: string): boolean { throw new Error(); }
+    public getParentDirectory(path: string): string { throw new Error(); }
 }
 
 function compile() {

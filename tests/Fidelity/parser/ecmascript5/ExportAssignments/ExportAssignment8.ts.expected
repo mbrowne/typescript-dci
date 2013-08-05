@@ -1,15 +1,14 @@
-﻿{
+{
     "isDeclaration": false,
     "languageVersion": "EcmaScript5",
     "parseOptions": {
-        "allowAutomaticSemicolonInsertion": true,
-        "allowModuleKeywordInExternalModuleReference": true
+        "allowAutomaticSemicolonInsertion": true
     },
     "diagnostics": [
         {
             "start": 0,
             "length": 11,
-            "diagnosticCode": "Export_assignment_not_allowed_in_module_with_exported_element"
+            "diagnosticCode": "Export assignment not allowed in module with exported element."
         }
     ],
     "sourceUnit": {

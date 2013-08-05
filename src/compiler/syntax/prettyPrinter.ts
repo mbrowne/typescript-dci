@@ -161,7 +161,7 @@ module TypeScript.PrettyPrinter {
         }
 
         private appendModuleElements(list: ISyntaxList): void {
-            var lastModuleElement = null;
+            var lastModuleElement: IModuleElementSyntax = null;
             for (var i = 0, n = list.childCount(); i < n; i++) {
                 var moduleElement = <IModuleElementSyntax>list.childAt(i);
                 var newLineCount = this.newLineCountBetweenModuleElements(lastModuleElement, moduleElement);
@@ -178,7 +178,7 @@ module TypeScript.PrettyPrinter {
         }
 
         public visitExternalModuleReference(node: ExternalModuleReferenceSyntax): void {
-            this.appendToken(node.moduleOrRequireKeyword);
+            this.appendToken(node.requireKeyword);
             this.appendToken(node.openParenToken);
             this.appendToken(node.stringLiteral);
             this.appendToken(node.closeParenToken);
@@ -392,6 +392,12 @@ module TypeScript.PrettyPrinter {
             node.left.accept(this);
             this.appendToken(node.dotToken);
             this.appendToken(node.right);
+        }
+
+        public visitTypeQuery(node: TypeQuerySyntax): void {
+            this.appendToken(node.typeOfKeyword);
+            this.ensureSpace();
+            node.name.accept(this);
         }
 
         public visitTypeArgumentList(node: TypeArgumentListSyntax): void {

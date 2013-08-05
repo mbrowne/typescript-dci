@@ -51,7 +51,7 @@ module TypeScript.Syntax {
             token.leadingTrivia(), token.text(), token.text(), token.text(), token.trailingTrivia());
     }
 
-    export function tokenToJSON(token: ISyntaxToken) {
+    export function tokenToJSON(token: ISyntaxToken): any {
         var result: any = {};
 
         for (var name in SyntaxKind) {
@@ -124,7 +124,7 @@ module TypeScript.Syntax {
     }
 
     function hexValue(text: string, start: number, length: number): number {
-        var intChar = 0
+        var intChar = 0;
         for (var i = 0; i < length; i++) {
             var ch2 = text.charCodeAt(start + i);
             if (!CharacterInfo.isHexDigit(ch2)) {
@@ -212,10 +212,10 @@ module TypeScript.Syntax {
             result = result.concat(String.fromCharCode.apply(null, characterArray));
         }
 
-        return result
+        return result;
     }
 
-    function massageEscapes(text: string): string {
+    export function massageEscapes(text: string): string {
         return text.indexOf("\\") >= 0 ? convertEscapes(text) : text;
     }
 
@@ -238,7 +238,7 @@ module TypeScript.Syntax {
         }
 
         if (kind === SyntaxKind.NumericLiteral) {
-            return parseFloat(text);
+            return isHexInteger(text) ? parseInt(text, /*radix:*/ 16) : parseFloat(text);
         }
         else if (kind === SyntaxKind.StringLiteral) {
             if (text.length > 1 && text.charCodeAt(text.length - 1) === text.charCodeAt(0)) {
@@ -306,7 +306,7 @@ module TypeScript.Syntax {
             throw Errors.argumentOutOfRange("index");
         }
 
-        public toJSON(key) { return tokenToJSON(this); }
+        public toJSON(key: any): any { return tokenToJSON(this); }
         public accept(visitor: ISyntaxVisitor): any { return visitor.visitToken(this); }
 
         private findTokenInternal(parent: PositionedElement, position: number, fullStart: number): PositionedToken {
@@ -324,7 +324,7 @@ module TypeScript.Syntax {
         public width() { return 0; }
         public text() { return ""; }
         public fullText(): string { return ""; }
-        public value() { return null; }
+        public value(): any { return null; }
         public valueText() { return ""; }
 
         public hasLeadingTrivia() { return false; }
@@ -386,7 +386,7 @@ module TypeScript.Syntax {
         }
 
         public kind(): SyntaxKind { return this.tokenKind; }
-        public toJSON(key) { return tokenToJSON(this); }
+        public toJSON(key: any): any { return tokenToJSON(this); }
         public firstToken() { return this; }
         public lastToken() { return this; }
         public isTypeScriptSpecific() { return false; }

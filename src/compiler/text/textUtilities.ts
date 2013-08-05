@@ -6,14 +6,14 @@ module TypeScript.TextUtilities {
 
         // Corner case check
         if (0 === length) {
-            var result: number[] = [];
+            var result = new Array<number>();
             result.push(0);
             return result;
         }
 
         var position = 0;
         var index = 0;
-        var arrayBuilder: number[] = [];
+        var arrayBuilder = new Array<number>();
         var lineNumber = 0;
 
         // The following loop goes through every character in the text. It is highly
@@ -21,7 +21,7 @@ module TypeScript.TextUtilities {
         // and non-line breaks.
         while (index < length) {
             var c = text.charCodeAt(index);
-            var lineBreakLength;
+            var lineBreakLength: number;
 
             // common case - ASCII & not a line break
             if (c > CharacterCodes.carriageReturn && c <= 127) {

@@ -42,7 +42,7 @@ module TypeScript {
         }
 
         private dedentTriviaList(triviaList: ISyntaxTriviaList): ISyntaxTriviaList {
-            var result = [];
+            var result: ISyntaxTrivia[] = [];
             var dedentNextWhitespace = true;
 
             // Keep walking through all our trivia (as long as we haven't decided to stop dedenting).
@@ -155,7 +155,7 @@ module TypeScript {
             return indentationString + segment.substring(firstNonWhitespacePosition);
         }
 
-        private dedentWhitespace(trivia: ISyntaxTrivia, hasFollowingNewLineTrivia): ISyntaxTrivia {
+        private dedentWhitespace(trivia: ISyntaxTrivia, hasFollowingNewLineTrivia: boolean): ISyntaxTrivia {
             var newIndentation = this.dedentSegment(trivia.fullText(), hasFollowingNewLineTrivia);
             return Syntax.whitespace(newIndentation);
         }

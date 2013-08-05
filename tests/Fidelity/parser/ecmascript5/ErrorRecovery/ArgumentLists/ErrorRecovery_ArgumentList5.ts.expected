@@ -2,14 +2,13 @@
     "isDeclaration": false,
     "languageVersion": "EcmaScript5",
     "parseOptions": {
-        "allowAutomaticSemicolonInsertion": true,
-        "allowModuleKeywordInExternalModuleReference": true
+        "allowAutomaticSemicolonInsertion": true
     },
     "diagnostics": [
         {
             "start": 26,
             "length": 1,
-            "diagnosticCode": "Trailing_separator_not_allowed"
+            "diagnosticCode": "Trailing separator not allowed."
         }
     ],
     "sourceUnit": {

@@ -32,7 +32,6 @@
 ..\..\..\src\compiler\text\textSpan.ts
 ..\..\..\src\compiler\text\textChangeRange.ts
 ..\..\..\src\compiler\text\references.ts
-..\..\..\src\harness\external\json2Stringify.ts
 ..\..\..\src\compiler\syntax\characterInfo.ts
 ..\..\..\src\compiler\syntax\constants.ts
 ..\..\..\src\compiler\syntax\formattingOptions.ts
@@ -90,6 +89,7 @@
 ..\..\..\src\compiler\types.ts
 ..\..\..\src\compiler\pathUtils.ts
 ..\..\..\src\compiler\referenceResolution.ts
+..\..\..\src\compiler\referenceResolver.ts
 ..\..\..\src\compiler\precompile.ts
 ..\..\..\src\compiler\declarationEmitter.ts
 ..\..\..\src\compiler\typecheck\dataMap.ts
@@ -99,13 +99,9 @@
 ..\..\..\src\compiler\typecheck\pullSymbolBindingContext.ts
 ..\..\..\src\compiler\typecheck\pullTypeResolutionContext.ts
 ..\..\..\src\compiler\typecheck\pullTypeResolution.ts
-..\..\..\src\compiler\typecheck\pullTypeResolution2.ts
-..\..\..\src\compiler\typecheck\pullTypeChecker.ts
-..\..\..\src\compiler\typecheck\pullDeclDiffer.ts
 ..\..\..\src\compiler\typecheck\pullSemanticInfo.ts
 ..\..\..\src\compiler\typecheck\pullDeclCollection.ts
 ..\..\..\src\compiler\typecheck\pullSymbolBinder.ts
-..\..\..\src\compiler\typecheck\pullSymbolGraph.ts
 ..\..\..\src\compiler\typecheck\SemanticDiagnostic.ts
 ..\..\..\src\compiler\typecheck\pullHelpers.ts
 ..\..\..\src\compiler\syntaxTreeToAstVisitor.ts

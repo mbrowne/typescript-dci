@@ -84,7 +84,6 @@ module TypeScript {
         // TypeScript keywords.
         AnyKeyword,
         BooleanKeyword,
-        BoolKeyword,
         ConstructorKeyword,
         DeclareKeyword,
         GetKeyword,
@@ -158,6 +157,7 @@ module TypeScript {
         ArrayType,
         ConstructorType,
         GenericType,
+        TypeQuery,
 
         // Module elements.
         InterfaceDeclaration,

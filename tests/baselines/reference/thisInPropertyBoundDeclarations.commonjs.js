@@ -12,6 +12,7 @@ var Bug = (function () {
     return Bug;
 })();
 
+// Valid use of this in a property bound decl
 var A = (function () {
     function A() {
         this.prop1 = function () {
@@ -22,9 +23,9 @@ var A = (function () {
             function inner() {
                 this;
             }
-            function () {
+            (function () {
                 return _this;
-            };
+            });
         };
         this.prop3 = function () {
             function inner() {
@@ -45,4 +46,44 @@ var A = (function () {
         };
     }
     return A;
+})();
+
+var B = (function () {
+    function B() {
+        var _this = this;
+        this.prop1 = this;
+        this.prop2 = function () {
+            return _this;
+        };
+        this.prop3 = function () {
+            return function () {
+                return function () {
+                    return function () {
+                        return _this;
+                    };
+                };
+            };
+        };
+        this.prop4 = '  ' + function () {
+        } + ' ' + function () {
+            return function () {
+                return function () {
+                    return _this;
+                };
+            };
+        };
+        this.prop5 = {
+            a: function () {
+                return _this;
+            }
+        };
+        this.prop6 = function () {
+            return {
+                a: function () {
+                    return _this;
+                }
+            };
+        };
+    }
+    return B;
 })();

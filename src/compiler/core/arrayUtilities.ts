@@ -6,7 +6,7 @@ module TypeScript {
             return Object.prototype.toString.apply(value, []) === '[object Array]';
         }
 
-        public static sequenceEquals(array1: any[], array2: any[], equals: (v1, v2) => boolean) {
+        public static sequenceEquals(array1: any[], array2: any[], equals: (v1: any, v2: any) => boolean) {
             if (array1 === array2) {
                 return true;
             }
@@ -42,10 +42,10 @@ module TypeScript {
             var result = {};
 
             for (var i = 0, n = array.length; i < n; i++) {
-                var v = array[i];
+                var v: any = array[i];
                 var k = func(v);
 
-                var list = result[k] || [];
+                var list: any[] = result[k] || [];
                 list.push(v);
                 result[k] = list;
             }
@@ -81,7 +81,7 @@ module TypeScript {
             return max;
         }
 
-        public static last(array: any[]) {
+        public static last<T>(array: T[]): T {
             if (array.length === 0) {
                 throw Errors.argumentOutOfRange('array');
             }
@@ -89,7 +89,7 @@ module TypeScript {
             return array[array.length - 1];
         }
 
-        public static firstOrDefault(array: any[], func: (v: any) => boolean): any {
+        public static firstOrDefault<T>(array: T[], func: (v: T) => boolean): T {
             for (var i = 0, n = array.length; i < n; i++) {
                 var value = array[i];
                 if (func(value)) {
@@ -100,7 +100,7 @@ module TypeScript {
             return null;
         }
 
-        public static sum(array: any[], func: (v: any) => number): number {
+        public static sum<T>(array: T[], func: (v: T) => number): number {
             var result = 0;
 
             for (var i = 0, n = array.length; i < n; i++) {
@@ -110,10 +110,10 @@ module TypeScript {
             return result;
         }
 
-        public static whereNotNull(array: any[]): any[] {
-            var result = [];
+        public static whereNotNull<T>(array: T[]): T[] {
+            var result: T[] = [];
             for (var i = 0; i < array.length; i++) {
-                var value = array[i];
+                var value: T = array[i];
                 if (value !== null) {
                     result.push(value);
                 }
@@ -122,18 +122,18 @@ module TypeScript {
             return result;
         }
 
-        public static select(values: any[], func: (v: any) => any): any[] {
-            var result = [];
+        public static select<T,S>(values: T[], func: (v: T) => S): S[] {
+            var result: S[] = new Array(values.length);
 
             for (var i = 0; i < values.length; i++) {
-                result.push(func(values[i]));
+                result[i] = func(values[i]);
             }
 
             return result;
         }
 
-        public static where(values: any[], func: (v: any) => boolean): any[] {
-            var result = [];
+        public static where<T>(values: T[], func: (v: T) => boolean): T[] {
+            var result = new Array<T>();
 
             for (var i = 0; i < values.length; i++) {
                 if (func(values[i])) {
@@ -144,7 +144,7 @@ module TypeScript {
             return result;
         }
 
-        public static any(array: any[], func: (v: any) => boolean): boolean {
+        public static any<T>(array: T[], func: (v: T) => boolean): boolean {
             for (var i = 0, n = array.length; i < n; i++) {
                 if (func(array[i])) {
                     return true;
@@ -154,7 +154,7 @@ module TypeScript {
             return false;
         }
 
-        public static all(array: any[], func: (v: any) => boolean): boolean {
+        public static all<T>(array: T[], func: (v: T) => boolean): boolean {
             for (var i = 0, n = array.length; i < n; i++) {
                 if (!func(array[i])) {
                     return false;
@@ -186,23 +186,23 @@ module TypeScript {
             return ~low;
         }
 
-        public static createArray(length: number, defaultvalue: any): any[] {
-            var result = [];
+        public static createArray<T>(length: number, defaultValue: any): T[] {
+            var result = new Array<T>(length);
             for (var i = 0; i < length; i++) {
-                result.push(defaultvalue);
+                result[i] = defaultValue;
             }
 
             return result;
         }
 
-        public static grow(array: any[], length: number, defaultValue: any): void {
+        public static grow<T>(array: T[], length: number, defaultValue: T): void {
             var count = length - array.length;
             for (var i = 0; i < count; i++) {
                 array.push(defaultValue);
             }
         }
 
-        public static copy(sourceArray: any[], sourceIndex: number, destinationArray: any[], destinationIndex: number, length: number): void {
+        public static copy<T>(sourceArray: T[], sourceIndex: number, destinationArray: T[], destinationIndex: number, length: number): void {
             for (var i = 0; i < length; i++) {
                 destinationArray[destinationIndex + i] = sourceArray[sourceIndex + i];
             }

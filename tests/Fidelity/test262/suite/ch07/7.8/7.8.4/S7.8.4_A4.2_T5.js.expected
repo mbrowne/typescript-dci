@@ -2,8 +2,7 @@
     "isDeclaration": false,
     "languageVersion": "EcmaScript5",
     "parseOptions": {
-        "allowAutomaticSemicolonInsertion": true,
-        "allowModuleKeywordInExternalModuleReference": true
+        "allowAutomaticSemicolonInsertion": true
     },
     "sourceUnit": {
         "kind": "SourceUnit",
@@ -128,8 +127,8 @@
                                             "kind": "NumericLiteral",
                                             "width": 6,
                                             "text": "0x0410",
-                                            "value": 0,
-                                            "valueText": "0"
+                                            "value": 1040,
+                                            "valueText": "1040"
                                         },
                                         {
                                             "kind": "CommaToken",
@@ -150,8 +149,8 @@
                                             "kind": "NumericLiteral",
                                             "width": 6,
                                             "text": "0x0411",
-                                            "value": 0,
-                                            "valueText": "0"
+                                            "value": 1041,
+                                            "valueText": "1041"
                                         },
                                         {
                                             "kind": "CommaToken",
@@ -172,8 +171,8 @@
                                             "kind": "NumericLiteral",
                                             "width": 6,
                                             "text": "0x0412",
-                                            "value": 0,
-                                            "valueText": "0"
+                                            "value": 1042,
+                                            "valueText": "1042"
                                         },
                                         {
                                             "kind": "CommaToken",
@@ -194,8 +193,8 @@
                                             "kind": "NumericLiteral",
                                             "width": 6,
                                             "text": "0x0413",
-                                            "value": 0,
-                                            "valueText": "0"
+                                            "value": 1043,
+                                            "valueText": "1043"
                                         },
                                         {
                                             "kind": "CommaToken",
@@ -216,8 +215,8 @@
                                             "kind": "NumericLiteral",
                                             "width": 6,
                                             "text": "0x0414",
-                                            "value": 0,
-                                            "valueText": "0"
+                                            "value": 1044,
+                                            "valueText": "1044"
                                         },
                                         {
                                             "kind": "CommaToken",
@@ -238,8 +237,8 @@
                                             "kind": "NumericLiteral",
                                             "width": 6,
                                             "text": "0x0415",
-                                            "value": 0,
-                                            "valueText": "0"
+                                            "value": 1045,
+                                            "valueText": "1045"
                                         },
                                         {
                                             "kind": "CommaToken",
@@ -260,8 +259,8 @@
                                             "kind": "NumericLiteral",
                                             "width": 6,
                                             "text": "0x0416",
-                                            "value": 0,
-                                            "valueText": "0"
+                                            "value": 1046,
+                                            "valueText": "1046"
                                         },
                                         {
                                             "kind": "CommaToken",
@@ -282,8 +281,8 @@
                                             "kind": "NumericLiteral",
                                             "width": 6,
                                             "text": "0x0417",
-                                            "value": 0,
-                                            "valueText": "0"
+                                            "value": 1047,
+                                            "valueText": "1047"
                                         },
                                         {
                                             "kind": "CommaToken",
@@ -304,8 +303,8 @@
                                             "kind": "NumericLiteral",
                                             "width": 6,
                                             "text": "0x0418",
-                                            "value": 0,
-                                            "valueText": "0"
+                                            "value": 1048,
+                                            "valueText": "1048"
                                         },
                                         {
                                             "kind": "CommaToken",
@@ -326,8 +325,8 @@
                                             "kind": "NumericLiteral",
                                             "width": 6,
                                             "text": "0x0419",
-                                            "value": 0,
-                                            "valueText": "0"
+                                            "value": 1049,
+                                            "valueText": "1049"
                                         },
                                         {
                                             "kind": "CommaToken",
@@ -348,8 +347,8 @@
                                             "kind": "NumericLiteral",
                                             "width": 6,
                                             "text": "0x041A",
-                                            "value": 0,
-                                            "valueText": "0"
+                                            "value": 1050,
+                                            "valueText": "1050"
                                         },
                                         {
                                             "kind": "CommaToken",
@@ -370,8 +369,8 @@
                                             "kind": "NumericLiteral",
                                             "width": 6,
                                             "text": "0x041B",
-                                            "value": 0,
-                                            "valueText": "0"
+                                            "value": 1051,
+                                            "valueText": "1051"
                                         },
                                         {
                                             "kind": "CommaToken",
@@ -392,8 +391,8 @@
                                             "kind": "NumericLiteral",
                                             "width": 6,
                                             "text": "0x041C",
-                                            "value": 0,
-                                            "valueText": "0"
+                                            "value": 1052,
+                                            "valueText": "1052"
                                         },
                                         {
                                             "kind": "CommaToken",
@@ -414,8 +413,8 @@
                                             "kind": "NumericLiteral",
                                             "width": 6,
                                             "text": "0x041D",
-                                            "value": 0,
-                                            "valueText": "0"
+                                            "value": 1053,
+                                            "valueText": "1053"
                                         },
                                         {
                                             "kind": "CommaToken",
@@ -436,8 +435,8 @@
                                             "kind": "NumericLiteral",
                                             "width": 6,
                                             "text": "0x041E",
-                                            "value": 0,
-                                            "valueText": "0"
+                                            "value": 1054,
+                                            "valueText": "1054"
                                         },
                                         {
                                             "kind": "CommaToken",
@@ -458,8 +457,8 @@
                                             "kind": "NumericLiteral",
                                             "width": 6,
                                             "text": "0x041F",
-                                            "value": 0,
-                                            "valueText": "0"
+                                            "value": 1055,
+                                            "valueText": "1055"
                                         },
                                         {
                                             "kind": "CommaToken",
@@ -480,8 +479,8 @@
                                             "kind": "NumericLiteral",
                                             "width": 6,
                                             "text": "0x0420",
-                                            "value": 0,
-                                            "valueText": "0"
+                                            "value": 1056,
+                                            "valueText": "1056"
                                         },
                                         {
                                             "kind": "CommaToken",
@@ -502,8 +501,8 @@
                                             "kind": "NumericLiteral",
                                             "width": 6,
                                             "text": "0x0421",
-                                            "value": 0,
-                                            "valueText": "0"
+                                            "value": 1057,
+                                            "valueText": "1057"
                                         },
                                         {
                                             "kind": "CommaToken",
@@ -524,8 +523,8 @@
                                             "kind": "NumericLiteral",
                                             "width": 6,
                                             "text": "0x0422",
-                                            "value": 0,
-                                            "valueText": "0"
+                                            "value": 1058,
+                                            "valueText": "1058"
                                         },
                                         {
                                             "kind": "CommaToken",
@@ -546,8 +545,8 @@
                                             "kind": "NumericLiteral",
                                             "width": 6,
                                             "text": "0x0423",
-                                            "value": 0,
-                                            "valueText": "0"
+                                            "value": 1059,
+                                            "valueText": "1059"
                                         },
                                         {
                                             "kind": "CommaToken",
@@ -568,8 +567,8 @@
                                             "kind": "NumericLiteral",
                                             "width": 6,
                                             "text": "0x0424",
-                                            "value": 0,
-                                            "valueText": "0"
+                                            "value": 1060,
+                                            "valueText": "1060"
                                         },
                                         {
                                             "kind": "CommaToken",
@@ -590,8 +589,8 @@
                                             "kind": "NumericLiteral",
                                             "width": 6,
                                             "text": "0x0425",
-                                            "value": 0,
-                                            "valueText": "0"
+                                            "value": 1061,
+                                            "valueText": "1061"
                                         },
                                         {
                                             "kind": "CommaToken",
@@ -612,8 +611,8 @@
                                             "kind": "NumericLiteral",
                                             "width": 6,
                                             "text": "0x0426",
-                                            "value": 0,
-                                            "valueText": "0"
+                                            "value": 1062,
+                                            "valueText": "1062"
                                         },
                                         {
                                             "kind": "CommaToken",
@@ -634,8 +633,8 @@
                                             "kind": "NumericLiteral",
                                             "width": 6,
                                             "text": "0x0427",
-                                            "value": 0,
-                                            "valueText": "0"
+                                            "value": 1063,
+                                            "valueText": "1063"
                                         },
                                         {
                                             "kind": "CommaToken",
@@ -656,8 +655,8 @@
                                             "kind": "NumericLiteral",
                                             "width": 6,
                                             "text": "0x0428",
-                                            "value": 0,
-                                            "valueText": "0"
+                                            "value": 1064,
+                                            "valueText": "1064"
                                         },
                                         {
                                             "kind": "CommaToken",
@@ -678,8 +677,8 @@
                                             "kind": "NumericLiteral",
                                             "width": 6,
                                             "text": "0x0429",
-                                            "value": 0,
-                                            "valueText": "0"
+                                            "value": 1065,
+                                            "valueText": "1065"
                                         },
                                         {
                                             "kind": "CommaToken",
@@ -700,8 +699,8 @@
                                             "kind": "NumericLiteral",
                                             "width": 6,
                                             "text": "0x042A",
-                                            "value": 0,
-                                            "valueText": "0"
+                                            "value": 1066,
+                                            "valueText": "1066"
                                         },
                                         {
                                             "kind": "CommaToken",
@@ -722,8 +721,8 @@
                                             "kind": "NumericLiteral",
                                             "width": 6,
                                             "text": "0x042B",
-                                            "value": 0,
-                                            "valueText": "0"
+                                            "value": 1067,
+                                            "valueText": "1067"
                                         },
                                         {
                                             "kind": "CommaToken",
@@ -744,8 +743,8 @@
                                             "kind": "NumericLiteral",
                                             "width": 6,
                                             "text": "0x042C",
-                                            "value": 0,
-                                            "valueText": "0"
+                                            "value": 1068,
+                                            "valueText": "1068"
                                         },
                                         {
                                             "kind": "CommaToken",
@@ -766,8 +765,8 @@
                                             "kind": "NumericLiteral",
                                             "width": 6,
                                             "text": "0x042D",
-                                            "value": 0,
-                                            "valueText": "0"
+                                            "value": 1069,
+                                            "valueText": "1069"
                                         },
                                         {
                                             "kind": "CommaToken",
@@ -788,8 +787,8 @@
                                             "kind": "NumericLiteral",
                                             "width": 6,
                                             "text": "0x042E",
-                                            "value": 0,
-                                            "valueText": "0"
+                                            "value": 1070,
+                                            "valueText": "1070"
                                         },
                                         {
                                             "kind": "CommaToken",
@@ -810,8 +809,8 @@
                                             "kind": "NumericLiteral",
                                             "width": 6,
                                             "text": "0x042F",
-                                            "value": 0,
-                                            "valueText": "0"
+                                            "value": 1071,
+                                            "valueText": "1071"
                                         },
                                         {
                                             "kind": "CommaToken",
@@ -832,8 +831,8 @@
                                             "kind": "NumericLiteral",
                                             "width": 6,
                                             "text": "0x0401",
-                                            "value": 0,
-                                            "valueText": "0"
+                                            "value": 1025,
+                                            "valueText": "1025"
                                         }
                                     ],
                                     "closeBracketToken": {

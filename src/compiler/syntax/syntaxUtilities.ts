@@ -33,6 +33,10 @@ module TypeScript {
         }
 
         public static hasExportKeyword(moduleElement: IModuleElementSyntax): boolean {
+            return SyntaxUtilities.getExportKeyword(moduleElement) !== null;
+        }
+
+        public static getExportKeyword(moduleElement: IModuleElementSyntax): ISyntaxToken {
             switch (moduleElement.kind()) {
                 case SyntaxKind.ModuleDeclaration:
                 case SyntaxKind.ClassDeclaration:
@@ -40,10 +44,11 @@ module TypeScript {
                 case SyntaxKind.VariableStatement:
                 case SyntaxKind.EnumDeclaration:
                 case SyntaxKind.InterfaceDeclaration:
-                    return SyntaxUtilities.containsToken((<any>moduleElement).modifiers, SyntaxKind.ExportKeyword);
+                case SyntaxKind.ImportDeclaration:
+                    return SyntaxUtilities.getToken((<any>moduleElement).modifiers, SyntaxKind.ExportKeyword);
+                default: 
+                    return null;
             }
-
-            return false;
         }
 
         public static isAmbientDeclarationSyntax(positionNode: PositionedNode): boolean {

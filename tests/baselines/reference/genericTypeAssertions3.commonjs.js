@@ -1,4 +1,6 @@
-function foo(x, y) {
-    x = y;
-    var z = y;
-}
+var r = function (x) {
+    return null;
+};
+var s = function (x) {
+    return null;
+};

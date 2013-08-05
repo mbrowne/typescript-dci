@@ -14,7 +14,6 @@
 //
 
 /// <reference path='harness.ts'/>
-/// <reference path='external\json2.ts'/>
 
 module DumpAST {
 
@@ -86,13 +85,13 @@ module DumpAST {
                 }
             }
 
-            dumpComments(cur.preComments);
+            dumpComments(cur.preComments());
             entries.push(newEntry);
-            dumpComments(cur.postComments);
+            dumpComments(cur.postComments());
             return cur;
         };
 
-        var post = (cur, parent) => {
+        var post = (cur: TypeScript.AST, parent: TypeScript.AST) => {
             entries.pop();
             return cur;
         };
@@ -107,7 +106,7 @@ module DumpAST {
         entry.minChar = ast.minChar;
         entry.limChar = ast.limChar;
 
-        var lineMap = null; //script.locationInfo.lineMap;
+        var lineMap: TypeScript.LineMap  = null; //script.locationInfo.lineMap;
         entry.startLine = lineMap.getLineAndCharacterFromPosition(ast.minChar).line();
         entry.startCol = lineMap.getLineAndCharacterFromPosition(ast.minChar).character();
         entry.endLine = lineMap.getLineAndCharacterFromPosition(ast.limChar).line();
@@ -134,7 +133,7 @@ module DumpAST {
     }
 
     function verifyAstNodePositions(script: TypeScript.Script, ast: TypeScript.AST): void {
-        var fileName = null;  //script.locationInfo.fileName;
+        var fileName: string = null;  //script.locationInfo.fileName;
         var maxLimChar = script.limChar;
 
         var minChar = ast.minChar;
@@ -168,15 +167,15 @@ module DumpAST {
     }
 
     var addKey = function (key: string): string {
-        return JSON2.stringify(key);
+        return JSON.stringify(key);
     }
 
     var addString = function (key: string, value: string): string {
-        return addKey(key) + ": " + JSON2.stringify(value);
+        return addKey(key) + ": " + JSON.stringify(value);
     }
 
     var addNumber = function (key: string, value: number): string {
-        return addKey(key) + ": " + JSON2.stringify(value);
+        return addKey(key) + ": " + JSON.stringify(value);
     }
 
     function dumpEntries(entry: DumpEntry, indent: number): string {
@@ -214,7 +213,7 @@ module DumpAST {
     }
 
     function createDumpContentForFile(typescriptLS: Harness.TypeScriptLS, fileName: string): string {
-        var sourceText = TypeScript.ScriptSnapshot.fromString(IO.readFile(fileName).contents())
+        var sourceText = TypeScript.ScriptSnapshot.fromString(IO.readFile(fileName).contents)
         var script = typescriptLS.parseSourceText(fileName, sourceText);
 
         // Dump source text (as JS comments)
@@ -224,14 +223,14 @@ module DumpAST {
         text += addKey("sourceText");
         text += ": [\r\n";
 
-        var lineStarts = null;// script.locationInfo.lineMap.lineStarts();
+        var lineStarts: number[] = null;// script.locationInfo.lineMap.lineStarts();
         for (var i = 0; i < lineStarts.length; i++) {
             if (i > 0) {
                 text += ",\r\n";
             }
             var start = lineStarts[i];
             var end = (i < lineStarts.length - 1 ? lineStarts[i + 1] : sourceText.getLength());
-            text += indentStr + indentStr + JSON2.stringify(sourceText.getText(start, end));
+            text += indentStr + indentStr + JSON.stringify(sourceText.getText(start, end));
         }
         text += "],";
         text += "\r\n";
@@ -254,7 +253,7 @@ module DumpAST {
             var fileName = switchToForwardSlashes(fileNames[i]);
             var nameOnly = fileName.substr(fileName.lastIndexOf('/') + 1);
             
-            var run = (fn) => {
+            var run = (fn: string) => {
                 Harness.Baseline.runBaseline('AST data for ' + fn, nameOnly.replace(/\.ts/, '.ast'),
                     function () {
                         return createDumpContentForFile(typescriptLS, fn);

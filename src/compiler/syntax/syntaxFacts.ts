@@ -3,7 +3,6 @@
 module TypeScript.SyntaxFacts {
     var textToKeywordKind: any = {
         "any": SyntaxKind.AnyKeyword,
-        "bool": SyntaxKind.BoolKeyword,
         "boolean": SyntaxKind.BooleanKeyword,
         "break": SyntaxKind.BreakKeyword,
         "case": SyntaxKind.CaseKeyword,
@@ -111,7 +110,7 @@ module TypeScript.SyntaxFacts {
         "/=": SyntaxKind.SlashEqualsToken,
     };
 
-    var kindToText: string[] = [];
+    var kindToText = new Array<string>();
 
     for (var name in textToKeywordKind) {
         if (textToKeywordKind.hasOwnProperty(name)) {

@@ -23,10 +23,11 @@ module Services {
         private _sourceText: TypeScript.IScriptSnapshot;
 
         constructor(
-            private fileName: string,
+            public fileName: string,
             private host: ILanguageServiceHost,
             public version: number,
-            public isOpen: boolean) {
+            public isOpen: boolean,
+            public byteOrderMark: ByteOrderMark) {
             this._sourceText = null;
         }
         
@@ -54,13 +55,21 @@ module Services {
             var fileNames = this.host.getScriptFileNames();
             for (var i = 0, n = fileNames.length; i < n; i++) {
                 var fileName = fileNames[i];
-                this.map.add(fileName, new HostCacheEntry(
-                    fileName, this.host, this.host.getScriptVersion(fileName), this.host.getScriptIsOpen(fileName)));
+                this.map.add(TypeScript.switchToForwardSlashes(fileName), new HostCacheEntry(
+                    fileName, this.host, this.host.getScriptVersion(fileName), this.host.getScriptIsOpen(fileName), this.host.getScriptByteOrderMark(fileName)));
             }
         }
 
         public contains(fileName: string): boolean {
-            return this.map.lookup(fileName) !== null;
+            return this.map.lookup(TypeScript.switchToForwardSlashes(fileName)) !== null;
+        }
+
+        public getHostFileName(fileName: string) {
+            var hostCacheEntry = this.map.lookup(TypeScript.switchToForwardSlashes(fileName));
+            if (hostCacheEntry) {
+                return hostCacheEntry.fileName;
+            }
+            return fileName;
         }
 
         public getFileNames(): string[]{
@@ -68,15 +77,19 @@ module Services {
         }
 
         public getVersion(fileName: string): number {
-            return this.map.lookup(fileName).version;
+            return this.map.lookup(TypeScript.switchToForwardSlashes(fileName)).version;
         }
 
         public isOpen(fileName: string): boolean {
-            return this.map.lookup(fileName).isOpen;
+            return this.map.lookup(TypeScript.switchToForwardSlashes(fileName)).isOpen;
+        }
+
+        public getByteOrderMark(fileName: string): ByteOrderMark {
+            return this.map.lookup(TypeScript.switchToForwardSlashes(fileName)).byteOrderMark;
         }
 
         public getScriptSnapshot(fileName: string): TypeScript.IScriptSnapshot {
-            return this.map.lookup(fileName).getScriptSnapshot();
+            return this.map.lookup(TypeScript.switchToForwardSlashes(fileName)).getScriptSnapshot();
         }
     }
 
@@ -104,6 +117,10 @@ module Services {
             return this._compilationSettings;
         }
 
+        public getHostFileName(fileName: string) {
+            return this.hostCache.getHostFileName(fileName);
+        }
+
         public getFileNames(): string[] {
             return this.compiler.fileNameToDocument.getAllKeys();
         }
@@ -127,7 +144,7 @@ module Services {
         private addCompilerUnit(compiler: TypeScript.TypeScriptCompiler, fileName: string): void {
             compiler.addSourceUnit(fileName,
                 this.hostCache.getScriptSnapshot(fileName),
-                ByteOrderMark.None,
+                this.hostCache.getByteOrderMark(fileName),
                 this.hostCache.getVersion(fileName),
                 this.hostCache.isOpen(fileName));
         }
@@ -197,15 +214,15 @@ module Services {
             }
 
             // If any compilation settings changes, a new compiler instance is needed
-            //if (!Services.compareDataObjects(this.compilationSettings, this.getHostCompilationSettings())) {
-            //    this.logger.log("Creating new compiler instance because compilation settings have changed.");
-            //    this.createCompiler();
-            //    return true;
-            //}
+            if (!Services.compareDataObjects(this.compilationSettings(), this.getHostCompilationSettings())) {
+                this.logger.log("Creating new compiler instance because compilation settings have changed.");
+                this.createCompiler();
+                return true;
+            }
 
-            /// If any file was deleted, we need to create a new compiler, because we are not
-            /// even close to supporting removing symbols (unitindex will be all over the place
-            /// if we remove scripts from the list).
+            // If any file was deleted, we need to create a new compiler, because we are not
+            // even close to supporting removing symbols (unitindex will be all over the place
+            // if we remove scripts from the list).
             var fileNames = this.compiler.fileNameToDocument.getAllKeys();
             for (var unitIndex = 0, len = fileNames.length; unitIndex < len; unitIndex++) {
                 var fileName = fileNames[unitIndex];
@@ -249,46 +266,72 @@ module Services {
             return this.compiler.getDocument(fileName);
         }
 
-        public getSyntacticDiagnostics(fileName: string): TypeScript.IDiagnostic[] {
-            return this.compiler.getSyntacticDiagnostics(fileName);
+        public getSyntacticDiagnostics(fileName: string): TypeScript.Diagnostic[] {
+            return this.compiler.getSyntacticDiagnostics(TypeScript.switchToForwardSlashes(fileName));
         }
 
-        public getSemanticDiagnostics(fileName: string): TypeScript.IDiagnostic[] {
-            return this.compiler.getSemanticDiagnostics(fileName);
+        public getSemanticDiagnostics(fileName: string): TypeScript.Diagnostic[] {
+            return this.compiler.getSemanticDiagnostics(TypeScript.switchToForwardSlashes(fileName));
+        }
+
+        private getAllSyntacticDiagnostics(): TypeScript.Diagnostic[]{
+            var diagnostics: TypeScript.Diagnostic[] = [];
+
+            this.compiler.fileNameToDocument.map((fileName, value, context) => {
+                var fileDiagnostics = this.compiler.getSyntacticDiagnostics(fileName);
+                diagnostics = diagnostics.concat(fileDiagnostics);
+            }, null);
+
+            return diagnostics;
+        }
+
+        private getAllSemanticDiagnostics(): TypeScript.Diagnostic[]{
+            var diagnostics: TypeScript.Diagnostic[] = [];
+
+            this.compiler.fileNameToDocument.map((fileName, value, context) => {
+                var fileDiagnostics = this.compiler.getSemanticDiagnostics(fileName);
+                diagnostics = diagnostics.concat(fileDiagnostics);
+            }, null);
+
+            return diagnostics;
         }
 
         public getEmitOutput(fileName: string): EmitOutput {
             var result = new EmitOutput();
 
-            // Check for syntactic errors
-            var syntacticDiagnostics = this.compiler.getSyntacticDiagnostics(fileName);
-            if (this.containErrors(syntacticDiagnostics)) {
-                // This file has at least one syntactic error, return and do not emit code.
-                return result;
-            }
-            
-            // Force a type check before emit
-            this.compiler.getSemanticDiagnostics(fileName);
-
             var emitterIOHost: TypeScript.EmitterIOHost = {
                 writeFile: (fileName: string, contents: string, writeByteOrderMark: boolean) => {
-                    var outputFile = new EmitOutputTextWriter(fileName, writeByteOrderMark);
-                    outputFile.Write(contents);
-                    result.outputFiles.push(outputFile);
+                    result.outputFiles.push({
+                        name: fileName,
+                        text: contents,
+                        writeByteOrderMark: writeByteOrderMark
+                    });
                 },
-                directoryExists: (fileName: string) => true,
-                fileExists: (fileName: string) => false,
-                resolvePath: (fileName: string) => fileName
+                directoryExists: (fileName: string) => this.host.directoryExists(fileName),
+                fileExists: (fileName: string) => this.host.fileExists(fileName),
+                resolvePath: (fileName: string) => this.host.resolveRelativePath(fileName, null)
             };
 
-            // Call the emitter
-            var diagnostics: TypeScript.IDiagnostic[];
+            var diagnostics: TypeScript.Diagnostic[];
 
-            diagnostics = this.compiler.parseEmitOption(emitterIOHost) || [];
+            // Parse the emit options
+            diagnostics = this.compiler.setEmitOptions(emitterIOHost) || [];
             result.diagnostics = result.diagnostics.concat(diagnostics);
             if (this.containErrors(diagnostics)) {
                 return result;
             }
+
+            var outputMany = this.compiler.emitOptions.outputMany;
+
+            // Check for syntactic errors
+            var syntacticDiagnostics = outputMany ? this.getSyntacticDiagnostics(fileName) : this.getAllSyntacticDiagnostics();
+            if (this.containErrors(syntacticDiagnostics)) {
+                // This file has at least one syntactic error, return and do not emit code.
+                return result;
+            }
+
+            // Force a type check before emit to ensure that all symbols have been resolved
+            var semanticDiagnostics = outputMany ? this.getSemanticDiagnostics(fileName) : this.getAllSemanticDiagnostics();
 
             // Emit output files and source maps
             diagnostics = this.compiler.emitUnit(fileName, emitterIOHost) || [];
@@ -297,8 +340,8 @@ module Services {
                 return result;
             }
 
-            // Emit declarations
-            if (this.shouldEmitDeclarations(fileName)) {
+            // Emit declarations, if there are no semantic errors
+            if (!this.containErrors(semanticDiagnostics)) {
                 diagnostics = this.compiler.emitUnitDeclarations(fileName) || [];
                 result.diagnostics = result.diagnostics.concat(diagnostics);
             }
@@ -306,22 +349,10 @@ module Services {
             return result;
         }
 
-        private shouldEmitDeclarations(fileName: string): boolean {
-            // Only emit declarations if there are no semantic errors
-            var semanticDiagnostics = this.compiler.getSemanticDiagnostics(fileName);
-            if (this.containErrors(semanticDiagnostics)) {
-                // This file has at least one semantic error, return and do not emit declaration.
-                return false;
-            }
-
-            return true;
-        }
-
-
-        private containErrors(diagnostics: TypeScript.IDiagnostic[]): boolean {
+        private containErrors(diagnostics: TypeScript.Diagnostic[]): boolean {
             if (diagnostics && diagnostics.length > 0) {
                 for (var i = 0; i < diagnostics.length; i++) {
-                    var diagnosticInfo = TypeScript.getDiagnosticInfoFromCode(diagnostics[i].diagnosticCode());
+                    var diagnosticInfo = TypeScript.getDiagnosticInfoFromKey(diagnostics[i].diagnosticKey());
                     if (diagnosticInfo.category === TypeScript.DiagnosticCategory.Error) {
                         return true;
                     }
@@ -398,10 +429,12 @@ module Services {
                 version, isOpen, textChangeRange);
         }
 
-        private getDocCommentsOfDecl(decl: TypeScript.PullDecl) {
+        private getDocCommentsOfDecl(decl: TypeScript.PullDecl): TypeScript.Comment[] {
             var ast = this.compiler.semanticInfoChain.getASTForDecl(decl);
-            if (ast && (ast.nodeType != TypeScript.NodeType.ModuleDeclaration || decl.getKind() != TypeScript.PullElementKind.Variable)) {
-                return ast.getDocComments();
+
+            if (ast && (ast.nodeType() != TypeScript.NodeType.ModuleDeclaration ||
+                (<TypeScript.ModuleDeclaration>ast).isEnum() || decl.kind != TypeScript.PullElementKind.Variable)) {
+                return ast.docComments();
             }
 
             return [];
@@ -413,10 +446,10 @@ module Services {
                 return docComments;
             }
 
-            var isParameter = symbol.getKind() == TypeScript.PullElementKind.Parameter;
+            var isParameter = symbol.kind == TypeScript.PullElementKind.Parameter;
             var decls = symbol.getDeclarations();
             for (var i = 0; i < decls.length; i++) {
-                if (isParameter && decls[i].getKind() == TypeScript.PullElementKind.Property) {
+                if (isParameter && decls[i].kind == TypeScript.PullElementKind.Property) {
                     // Ignore declaration for property that was defined as parameter because they both 
                     // point to same doc comment
                     continue;
@@ -426,16 +459,16 @@ module Services {
             return docComments;
         }
 
-        static getDefaultConstructorSymbolForDocComments(classSymbol: TypeScript.PullClassTypeSymbol) {
+        static getDefaultConstructorSymbolForDocComments(classSymbol: TypeScript.PullTypeSymbol) {
             if (classSymbol.getHasDefaultConstructor()) {
                 // get from parent if possible
                 var extendedTypes = classSymbol.getExtendedTypes();
                 if (extendedTypes.length) {
-                    return CompilerState.getDefaultConstructorSymbolForDocComments(<TypeScript.PullClassTypeSymbol>extendedTypes[0]);
+                    return CompilerState.getDefaultConstructorSymbolForDocComments(extendedTypes[0]);
                 }
             }
 
-            return classSymbol.getType().getConstructSignatures()[0];
+            return classSymbol.type.getConstructSignatures()[0];
         }
 
         public getDocComments(symbol: TypeScript.PullSymbol, useConstructorAsClass?: boolean): string {
@@ -443,33 +476,32 @@ module Services {
                 return "";
             }
             var decls = symbol.getDeclarations();
-            if (useConstructorAsClass && decls.length && decls[0].getKind() == TypeScript.PullElementKind.ConstructorMethod) {
+            if (useConstructorAsClass && decls.length && decls[0].kind == TypeScript.PullElementKind.ConstructorMethod) {
                 var classDecl = decls[0].getParentDecl();
                 return TypeScript.Comment.getDocCommentText(this.getDocCommentsOfDecl(classDecl));
             }
 
             if (symbol.docComments === null) {
                 var docComments: string = "";
-                if (!useConstructorAsClass && symbol.getKind() == TypeScript.PullElementKind.ConstructSignature &&
-                    decls.length && decls[0].getKind() == TypeScript.PullElementKind.Class) {
-                    var classSymbol = <TypeScript.PullClassTypeSymbol>(<TypeScript.PullSignatureSymbol>symbol).getReturnType();
+                if (!useConstructorAsClass && symbol.kind == TypeScript.PullElementKind.ConstructSignature &&
+                    decls.length && decls[0].kind == TypeScript.PullElementKind.Class) {
+                    var classSymbol = (<TypeScript.PullSignatureSymbol>symbol).returnType;
                     var extendedTypes = classSymbol.getExtendedTypes();
                     if (extendedTypes.length) {
-                        docComments = this.getDocComments((<TypeScript.PullClassTypeSymbol>extendedTypes[0]).getConstructorMethod());
+                        docComments = this.getDocComments(extendedTypes[0].getConstructorMethod());
                     } else {
                         docComments = "";
                     }
-                } else if (symbol.getKind() == TypeScript.PullElementKind.Parameter) {
+                } else if (symbol.kind == TypeScript.PullElementKind.Parameter) {
                     var parameterComments: string[] = [];
-                    var funcContainerList = symbol.findIncomingLinks(link => link.kind == TypeScript.SymbolLinkKind.Parameter);
-                    for (var i = 0; i < funcContainerList.length; i++) {
-                        var funcContainer = funcContainerList[i].start;
-                        var funcDocComments = this.getDocCommentArray(funcContainer);
-                        var paramComment = TypeScript.Comment.getParameterDocCommentText(symbol.getDisplayName(), funcDocComments);
-                        if (paramComment != "") {
-                            parameterComments.push(paramComment);
-                        }
+
+                    var funcContainer = symbol.getEnclosingSignature();
+                    var funcDocComments = this.getDocCommentArray(funcContainer);
+                    var paramComment = TypeScript.Comment.getParameterDocCommentText(symbol.getDisplayName(), funcDocComments);
+                    if (paramComment != "") {
+                        parameterComments.push(paramComment);
                     }
+
                     var paramSelfComment = TypeScript.Comment.getDocCommentText(this.getDocCommentArray(symbol));
                     if (paramSelfComment != "") {
                         parameterComments.push(paramSelfComment);
@@ -477,24 +509,30 @@ module Services {
                     docComments = parameterComments.join("\n");
                 } else {
                     var getSymbolComments = true;
-                    if (symbol.getKind() == TypeScript.PullElementKind.FunctionType) {
-                        var declarationList = symbol.findIncomingLinks(link => link.kind == TypeScript.SymbolLinkKind.TypedAs);
-                        if (declarationList.length > 0) {
-                            docComments = this.getDocComments(declarationList[0].start);
+                    if (symbol.kind == TypeScript.PullElementKind.FunctionType) {
+                        var functionSymbol = (<TypeScript.PullTypeSymbol>symbol).getFunctionSymbol();
+
+                        if (functionSymbol) {
+                            docComments = functionSymbol.docComments || "";
                             getSymbolComments = false;
+                        }
+                        else {
+                            var declarationList = symbol.getDeclarations();
+                            if (declarationList.length > 0) {
+                                docComments = declarationList[0].getSymbol().docComments || "";
+                                getSymbolComments = false;
+                            }
                         }
                     }
                     if (getSymbolComments) {
                         docComments = TypeScript.Comment.getDocCommentText(this.getDocCommentArray(symbol));
                         if (docComments == "") {
-                            if (symbol.getKind() == TypeScript.PullElementKind.CallSignature) {
-                                var callList = symbol.findIncomingLinks(link => link.kind == TypeScript.SymbolLinkKind.CallSignature);
-                                if (callList.length == 1) {
-                                    var callTypeSymbol = <TypeScript.PullTypeSymbol>callList[0].start;
-                                    if (callTypeSymbol.getCallSignatures().length == 1) {
-                                        docComments = this.getDocComments(callTypeSymbol);
-                                    }
+                            if (symbol.kind == TypeScript.PullElementKind.CallSignature) {
+                                var callTypeSymbol = (<TypeScript.PullSignatureSymbol>symbol).functionType;
+                                if (callTypeSymbol && callTypeSymbol.getCallSignatures().length == 1) {
+                                    docComments = this.getDocComments(callTypeSymbol);
                                 }
+
                             }
                         }
                     }

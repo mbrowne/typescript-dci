@@ -2,14 +2,13 @@
     "isDeclaration": false,
     "languageVersion": "EcmaScript5",
     "parseOptions": {
-        "allowAutomaticSemicolonInsertion": true,
-        "allowModuleKeywordInExternalModuleReference": true
+        "allowAutomaticSemicolonInsertion": true
     },
     "diagnostics": [
         {
             "start": 35,
             "length": 5,
-            "diagnosticCode": "Identifier_expected__0__is_a_keyword",
+            "diagnosticCode": "Identifier expected; '{0}' is a keyword.",
             "arguments": [
                 "break"
             ]
@@ -17,7 +16,7 @@
         {
             "start": 40,
             "length": 1,
-            "diagnosticCode": "_0_expected",
+            "diagnosticCode": "'{0}' expected.",
             "arguments": [
                 ";"
             ]
@@ -25,7 +24,7 @@
         {
             "start": 47,
             "length": 1,
-            "diagnosticCode": "Unexpected_token__0_expected",
+            "diagnosticCode": "Unexpected token; '{0}' expected.",
             "arguments": [
                 "module, class, interface, enum, import or statement"
             ]

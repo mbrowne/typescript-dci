@@ -50,7 +50,7 @@ module TypeScript {
             }
             if (this.options.goChildren) {
                 // Call the "walkChildren" function corresponding to "nodeType".
-                this.childrenWalkers[ast.nodeType](ast, parent, this);
+                this.childrenWalkers[ast.nodeType()](ast, parent, this);
             }
             else {
                 // no go only applies to children of node issuing it
@@ -78,7 +78,7 @@ module TypeScript {
         }
 
         public walk(ast: AST, pre: IAstWalkCallback, post?: IAstWalkCallback, options?: AstWalkOptions, state?: any): AST {
-            return this.getWalker(pre, post, options, state).walk(ast, null)
+            return this.getWalker(pre, post, options, state).walk(ast, null);
         }
 
         public getWalker(pre: IAstWalkCallback, post?: IAstWalkCallback, options?: AstWalkOptions, state?: any): IAstWalker {
@@ -120,9 +120,10 @@ module TypeScript {
             this.childrenWalkers[NodeType.TypeParameter] = ChildrenWalkers.walkTypeParameterChildren;
             this.childrenWalkers[NodeType.GenericType] = ChildrenWalkers.walkGenericTypeChildren;
             this.childrenWalkers[NodeType.TypeRef] = ChildrenWalkers.walkTypeReferenceChildren;
+            this.childrenWalkers[NodeType.TypeQuery] = ChildrenWalkers.walkTypeQueryChildren;
             this.childrenWalkers[NodeType.ElementAccessExpression] = ChildrenWalkers.walkBinaryExpressionChildren;
-            this.childrenWalkers[NodeType.InvocationExpression] = ChildrenWalkers.walkCallExpressionChildren;
-            this.childrenWalkers[NodeType.ObjectCreationExpression] = ChildrenWalkers.walkCallExpressionChildren;
+            this.childrenWalkers[NodeType.InvocationExpression] = ChildrenWalkers.walkInvocationExpressionChildren;
+            this.childrenWalkers[NodeType.ObjectCreationExpression] = ChildrenWalkers.walkObjectCreationExpressionChildren;
             this.childrenWalkers[NodeType.AssignmentExpression] = ChildrenWalkers.walkBinaryExpressionChildren;
             this.childrenWalkers[NodeType.AddAssignmentExpression] = ChildrenWalkers.walkBinaryExpressionChildren;
             this.childrenWalkers[NodeType.SubtractAssignmentExpression] = ChildrenWalkers.walkBinaryExpressionChildren;
@@ -201,9 +202,7 @@ module TypeScript {
             // Verify the code is up to date with the enum
             for (var e in NodeType) {
                 if (NodeType.hasOwnProperty(e) && StringUtilities.isString(NodeType[e])) {
-                    if (this.childrenWalkers[e] === undefined) {
-                        throw new Error("initWalkers function is not up to date with enum content!");
-                    }
+                    CompilerDiagnostics.assert(this.childrenWalkers[e] !== undefined, "initWalkers function is not up to date with enum content!");
                 }
             }
         }
@@ -287,7 +286,25 @@ module TypeScript {
             }
         }
 
-        export function walkCallExpressionChildren(preAst: CallExpression, parent: AST, walker: IAstWalker): void {
+        export function walkTypeQueryChildren(preAst: TypeQuery, parent: AST, walker: IAstWalker): void {
+            if (preAst.name) {
+                preAst.name = walker.walk(preAst.name, preAst);
+            }
+        }
+
+        export function walkInvocationExpressionChildren(preAst: InvocationExpression, parent: AST, walker: IAstWalker): void {
+            preAst.target = walker.walk(preAst.target, preAst);
+
+            if (preAst.typeArguments) {
+                preAst.typeArguments = <ASTList> walker.walk(preAst.typeArguments, preAst);
+            }
+
+            if (preAst.arguments) {
+                preAst.arguments = <ASTList> walker.walk(preAst.arguments, preAst);
+            }
+        }
+
+        export function walkObjectCreationExpressionChildren(preAst: ObjectCreationExpression, parent: AST, walker: IAstWalker): void {
             preAst.target = walker.walk(preAst.target, preAst);
 
             if (preAst.typeArguments) {
@@ -452,19 +469,12 @@ module TypeScript {
             }
         }
 
-        export function walkRecordChildren(preAst: NamedDeclaration, parent: AST, walker: IAstWalker): void {
+        export function walkClassDeclChildren(preAst: ClassDeclaration, parent: AST, walker: IAstWalker): void {
             preAst.name = <Identifier>walker.walk(preAst.name, preAst);
+
             if (preAst.members) {
                 preAst.members = <ASTList>walker.walk(preAst.members, preAst);
             }
-        }
-
-        export function walkNamedTypeChildren(preAst: TypeDeclaration, parent: AST, walker: IAstWalker): void {
-            walkRecordChildren(preAst, parent, walker);
-        }
-
-        export function walkClassDeclChildren(preAst: ClassDeclaration, parent: AST, walker: IAstWalker): void {
-            walkNamedTypeChildren(preAst, parent, walker);
 
             if (preAst.typeParameters) {
                 preAst.typeParameters = <ASTList>walker.walk(preAst.typeParameters, preAst);
@@ -486,7 +496,10 @@ module TypeScript {
         }
 
         export function walkTypeDeclChildren(preAst: InterfaceDeclaration, parent: AST, walker: IAstWalker): void {
-            walkNamedTypeChildren(preAst, parent, walker);
+            preAst.name = <Identifier>walker.walk(preAst.name, preAst);
+            if (preAst.members) {
+                preAst.members = <ASTList>walker.walk(preAst.members, preAst);
+            }
 
             if (preAst.typeParameters) {
                 preAst.typeParameters = <ASTList>walker.walk(preAst.typeParameters, preAst);
@@ -503,7 +516,10 @@ module TypeScript {
         }
 
         export function walkModuleDeclChildren(preAst: ModuleDeclaration, parent: AST, walker: IAstWalker): void {
-            walkRecordChildren(preAst, parent, walker);
+            preAst.name = <Identifier>walker.walk(preAst.name, preAst);
+            if (preAst.members) {
+                preAst.members = <ASTList>walker.walk(preAst.members, preAst);
+            }
         }
 
         export function walkImportDeclChildren(preAst: ImportDeclaration, parent: AST, walker: IAstWalker): void {

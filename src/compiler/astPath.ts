@@ -29,7 +29,7 @@ module TypeScript {
     // This is helpful as our tree don't have parents.
     //
     export class AstPath {
-        public asts: AST[] = [];
+        public asts = new Array<AST>();
         public top: number = -1;
 
         static reverseIndexOf(items: any[], index: number): any {
@@ -63,20 +63,20 @@ module TypeScript {
 
         public up() {
             if (this.top <= -1)
-                throw new Error("Invalid call to 'up'");
+                throw Errors.invalidOperation(getLocalizedText(DiagnosticCode.Invalid_call_to_up, null));
             this.top--;
         }
 
         public down() {
             if (this.top === this.ast.length - 1)
-                throw new Error("Invalid call to 'down'");
+                throw Errors.invalidOperation(getLocalizedText(DiagnosticCode.Invalid_call_to_down, null));
             this.top++;
         }
 
         public nodeType(): TypeScript.NodeType {
             if (this.ast() === null)
                 return TypeScript.NodeType.None;
-            return this.ast().nodeType;
+            return this.ast().nodeType();
         }
 
         public ast() {
@@ -99,8 +99,8 @@ module TypeScript {
             if (this.ast() === null || this.parent() === null)
                 return false;
 
-            return (this.ast().nodeType === TypeScript.NodeType.Name) &&
-                (this.parent().nodeType === TypeScript.NodeType.ClassDeclaration) &&
+            return (this.ast().nodeType() === TypeScript.NodeType.Name) &&
+                (this.parent().nodeType() === TypeScript.NodeType.ClassDeclaration) &&
                 ((<TypeScript.InterfaceDeclaration>this.parent()).name === this.ast());
         }
 
@@ -108,8 +108,8 @@ module TypeScript {
             if (this.ast() === null || this.parent() === null)
                 return false;
 
-            return (this.ast().nodeType === TypeScript.NodeType.Name) &&
-                (this.parent().nodeType === TypeScript.NodeType.InterfaceDeclaration) &&
+            return (this.ast().nodeType() === TypeScript.NodeType.Name) &&
+                (this.parent().nodeType() === TypeScript.NodeType.InterfaceDeclaration) &&
                 ((<TypeScript.InterfaceDeclaration>this.parent()).name === this.ast());
         }
 
@@ -117,8 +117,8 @@ module TypeScript {
             if (this.ast() === null || this.parent() === null)
                 return false;
 
-            return (this.ast().nodeType === TypeScript.NodeType.Name) &&
-                (this.parent().nodeType === TypeScript.NodeType.Parameter) &&
+            return (this.ast().nodeType() === TypeScript.NodeType.Name) &&
+                (this.parent().nodeType() === TypeScript.NodeType.Parameter) &&
                 ((<TypeScript.Parameter>this.parent()).id === this.ast());
         }
 
@@ -126,8 +126,8 @@ module TypeScript {
             if (this.ast() === null || this.parent() === null)
                 return false;
 
-            return (this.ast().nodeType === TypeScript.NodeType.Name) &&
-                (this.parent().nodeType === TypeScript.NodeType.VariableDeclarator) &&
+            return (this.ast().nodeType() === TypeScript.NodeType.Name) &&
+                (this.parent().nodeType() === TypeScript.NodeType.VariableDeclarator) &&
                 ((<TypeScript.VariableDeclarator>this.parent()).id === this.ast());
         }
 
@@ -135,8 +135,8 @@ module TypeScript {
             if (this.ast() === null || this.parent() === null)
                 return false;
 
-            return (this.ast().nodeType === TypeScript.NodeType.Name) &&
-                (this.parent().nodeType === TypeScript.NodeType.ModuleDeclaration) &&
+            return (this.ast().nodeType() === TypeScript.NodeType.Name) &&
+                (this.parent().nodeType() === TypeScript.NodeType.ModuleDeclaration) &&
                 ((<TypeScript.ModuleDeclaration>this.parent()).name === this.ast());
         }
 
@@ -144,41 +144,41 @@ module TypeScript {
             if (this.ast() === null || this.parent() === null)
                 return false;
 
-            return (this.ast().nodeType === TypeScript.NodeType.Name) &&
-                (this.parent().nodeType === TypeScript.NodeType.FunctionDeclaration) &&
+            return (this.ast().nodeType() === TypeScript.NodeType.Name) &&
+                (this.parent().nodeType() === TypeScript.NodeType.FunctionDeclaration) &&
                 ((<TypeScript.FunctionDeclaration>this.parent()).name === this.ast());
         }
 
         public isBodyOfFunction(): boolean {
             return this.count() >= 2 &&
-                this.asts[this.top - 1].nodeType === TypeScript.NodeType.FunctionDeclaration &&
+                this.asts[this.top - 1].nodeType() === TypeScript.NodeType.FunctionDeclaration &&
                  (<TypeScript.FunctionDeclaration>this.asts[this.top - 1]).block === this.asts[this.top - 0];
         }
 
         public isArgumentListOfFunction(): boolean {
             return this.count() >= 2 &&
-                this.asts[this.top - 0].nodeType === TypeScript.NodeType.List &&
-                this.asts[this.top - 1].nodeType === TypeScript.NodeType.FunctionDeclaration &&
+                this.asts[this.top - 0].nodeType() === TypeScript.NodeType.List &&
+                this.asts[this.top - 1].nodeType() === TypeScript.NodeType.FunctionDeclaration &&
                 (<TypeScript.FunctionDeclaration>this.asts[this.top - 1]).arguments === this.asts[this.top - 0];
         }
         
         public isTargetOfCall(): boolean {
             return this.count() >= 2 &&
-                this.asts[this.top - 1].nodeType === TypeScript.NodeType.InvocationExpression &&
-                (<TypeScript.CallExpression>this.asts[this.top - 1]).target === this.asts[this.top];
+                this.asts[this.top - 1].nodeType() === TypeScript.NodeType.InvocationExpression &&
+                (<TypeScript.InvocationExpression>this.asts[this.top - 1]).target === this.asts[this.top];
         }
         
         public isTargetOfNew(): boolean {
             return this.count() >= 2 &&
-                this.asts[this.top - 1].nodeType === TypeScript.NodeType.ObjectCreationExpression &&
-                (<TypeScript.CallExpression>this.asts[this.top - 1]).target === this.asts[this.top];
+                this.asts[this.top - 1].nodeType() === TypeScript.NodeType.ObjectCreationExpression &&
+                (<TypeScript.ObjectCreationExpression>this.asts[this.top - 1]).target === this.asts[this.top];
         }
 
         public isInClassImplementsList(): boolean {
             if (this.ast() === null || this.parent() === null)
                 return false;
 
-            return (this.parent().nodeType === TypeScript.NodeType.ClassDeclaration) &&
+            return (this.parent().nodeType() === TypeScript.NodeType.ClassDeclaration) &&
                 (this.isMemberOfList((<TypeScript.ClassDeclaration>this.parent()).implementsList, this.ast()));
         }
 
@@ -186,13 +186,13 @@ module TypeScript {
             if (this.ast() === null || this.parent() === null)
                 return false;
 
-            return (this.parent().nodeType === TypeScript.NodeType.InterfaceDeclaration) &&
+            return (this.parent().nodeType() === TypeScript.NodeType.InterfaceDeclaration) &&
                 (this.isMemberOfList((<TypeScript.InterfaceDeclaration>this.parent()).extendsList, this.ast()));
         }
 
         public isMemberOfMemberAccessExpression() {
             if (this.count() > 1 &&
-                this.parent().nodeType === NodeType.MemberAccessExpression &&
+                this.parent().nodeType() === NodeType.MemberAccessExpression &&
                 (<BinaryExpression>this.parent()).operand2 === this.asts[this.top]) {
                 return true;
             }
@@ -202,7 +202,7 @@ module TypeScript {
         
         public isCallExpression(): boolean {
             return this.count() >= 1 &&
-            (this.asts[this.top - 0].nodeType === TypeScript.NodeType.InvocationExpression || this.asts[this.top - 0].nodeType === TypeScript.NodeType.ObjectCreationExpression);
+            (this.asts[this.top - 0].nodeType() === TypeScript.NodeType.InvocationExpression || this.asts[this.top - 0].nodeType() === TypeScript.NodeType.ObjectCreationExpression);
         }
 
         public isCallExpressionTarget(): boolean {
@@ -212,14 +212,14 @@ module TypeScript {
 
             var current = this.top;
             
-            var nodeType = this.asts[current].nodeType;
+            var nodeType = this.asts[current].nodeType();
             if (nodeType === TypeScript.NodeType.ThisExpression || nodeType === TypeScript.NodeType.SuperExpression || nodeType === TypeScript.NodeType.Name) {
                 current--;
             }
 
             while (current >= 0) {
                 // if this is a dot, then skip to find the outter most qualifed name
-                if (current < this.top && this.asts[current].nodeType === TypeScript.NodeType.MemberAccessExpression &&
+                if (current < this.top && this.asts[current].nodeType() === TypeScript.NodeType.MemberAccessExpression &&
                     (<TypeScript.BinaryExpression>this.asts[current]).operand2 === this.asts[current + 1]) {
                     current--;
                     continue;
@@ -229,14 +229,14 @@ module TypeScript {
             }
 
             return current < this.top &&
-                (this.asts[current].nodeType === TypeScript.NodeType.InvocationExpression || this.asts[current].nodeType === TypeScript.NodeType.ObjectCreationExpression) &&
-                this.asts[current + 1] === (<TypeScript.CallExpression>this.asts[current]).target;
+                (this.asts[current].nodeType() === TypeScript.NodeType.InvocationExpression || this.asts[current].nodeType() === TypeScript.NodeType.ObjectCreationExpression) &&
+                this.asts[current + 1] === (<TypeScript.InvocationExpression>this.asts[current]).target;
         }
 
 
         public isDeclaration(): boolean {
             if (this.ast() !== null) {
-                switch (this.ast().nodeType) {
+                switch (this.ast().nodeType()) {
                     case TypeScript.NodeType.ClassDeclaration:
                     case TypeScript.NodeType.InterfaceDeclaration:
                     case TypeScript.NodeType.ModuleDeclaration:
@@ -276,23 +276,10 @@ module TypeScript {
         public path = new TypeScript.AstPath();
     }
 
-    export enum GetAstPathOptions {
-        Default = 0,
-        EdgeInclusive = 1,
-        //We need this options dealing with an AST coming from an incomplete AST. For example:
-        //     class foo { // r
-        // If we ask for the AST at the position after the "r" character, we won't see we are 
-        // inside a comment, because the "class" AST node has a limChar corresponding to the position of 
-        // the "{" character, meaning we don't traverse the tree down to the stmt list of the class, meaning
-        // we don't find the "precomment" attached to the errorneous empty stmt.
-        //TODO: It would be nice to be able to get rid of this.
-        DontPruneSearchBasedOnPosition = 1 << 1,
-    }
-
     ///
     /// Return the stack of AST nodes containing "position"
     ///
-    export function getAstPathToPosition(script: TypeScript.AST, pos: number, useTrailingTriviaAsLimChar = true, options = GetAstPathOptions.Default): TypeScript.AstPath {
+    export function getAstPathToPosition(script: TypeScript.AST, pos: number, useTrailingTriviaAsLimChar = true): TypeScript.AstPath {
         var lookInComments = (comments: TypeScript.Comment[]) => {
             if (comments && comments.length > 0) {
                 for (var i = 0; i < comments.length; i++) {
@@ -306,56 +293,63 @@ module TypeScript {
                     }
                 }
             }
-        }
+        };
 
         var pre = function (cur: TypeScript.AST, parent: TypeScript.AST, walker: IAstWalker) {
             if (isValidAstNode(cur)) {
+                var isInvalid1 = cur.nodeType() === NodeType.ExpressionStatement && cur.getLength() === 0;
 
-                // Add "cur" to the stack if it contains our position
-                // For "identifier" nodes, we need a special case: A position equal to "limChar" is
-                // valid, since the position corresponds to a caret position (in between characters)
-                // For example:
-                //  bar
-                //  0123
-                // If "position === 3", the caret is at the "right" of the "r" character, which should be considered valid
-                var inclusive =
-                    hasFlag(options, GetAstPathOptions.EdgeInclusive) ||
-                    cur.nodeType === TypeScript.NodeType.Name ||
-                    cur.nodeType === TypeScript.NodeType.MemberAccessExpression ||
-                    cur.nodeType === TypeScript.NodeType.TypeRef ||
-                    pos === script.limChar + script.trailingTriviaWidth; // Special "EOF" case
+                if (isInvalid1) {
+                    walker.options.goChildren = false;
+                }
+                else {
+                    // Add "cur" to the stack if it contains our position
+                    // For "identifier" nodes, we need a special case: A position equal to "limChar" is
+                    // valid, since the position corresponds to a caret position (in between characters)
+                    // For example:
+                    //  bar
+                    //  0123
+                    // If "position === 3", the caret is at the "right" of the "r" character, which should be considered valid
+                    var inclusive =
+                        cur.nodeType() === TypeScript.NodeType.Name ||
+                        cur.nodeType() === TypeScript.NodeType.MemberAccessExpression ||
+                        cur.nodeType() === TypeScript.NodeType.TypeRef ||
+                        cur.nodeType() === TypeScript.NodeType.VariableDeclaration ||
+                        cur.nodeType() === TypeScript.NodeType.VariableDeclarator ||
+                        cur.nodeType() === TypeScript.NodeType.InvocationExpression ||
+                        pos === script.limChar + script.trailingTriviaWidth; // Special "EOF" case
 
-                var minChar = cur.minChar;
-                var limChar = cur.limChar + (useTrailingTriviaAsLimChar ? cur.trailingTriviaWidth : 0) + (inclusive ? 1 : 0);
-                if (pos >= minChar && pos < limChar) {
+                    var minChar = cur.minChar;
+                    var limChar = cur.limChar + (useTrailingTriviaAsLimChar ? cur.trailingTriviaWidth : 0) + (inclusive ? 1 : 0);
+                    if (pos >= minChar && pos < limChar) {
 
-                    // TODO: Since AST is sometimes not correct wrt to position, only add "cur" if it's better
-                    //       than top of the stack.
-                    var previous = ctx.path.ast();
-                    if (previous === null || (cur.minChar >= previous.minChar &&
-                        (cur.limChar + (useTrailingTriviaAsLimChar ? cur.trailingTriviaWidth : 0)) <= (previous.limChar + (useTrailingTriviaAsLimChar ? previous.trailingTriviaWidth : 0)))) {
-                        ctx.path.push(cur);
+                        // TODO: Since AST is sometimes not correct wrt to position, only add "cur" if it's better
+                        //       than top of the stack.
+                        var previous = ctx.path.ast();
+                        if (previous === null || (cur.minChar >= previous.minChar &&
+                            (cur.limChar + (useTrailingTriviaAsLimChar ? cur.trailingTriviaWidth : 0)) <= (previous.limChar + (useTrailingTriviaAsLimChar ? previous.trailingTriviaWidth : 0)))) {
+                            ctx.path.push(cur);
+                        }
+                        else {
+                            //logger.log("TODO: Ignoring node because minChar, limChar not better than previous node in stack");
+                        }
                     }
-                    else {
-                        //logger.log("TODO: Ignoring node because minChar, limChar not better than previous node in stack");
+
+                    // The AST walker skips comments, but we might be in one, so check the pre/post comments for this node manually
+                    if (pos < limChar) {
+                        lookInComments(cur.preComments());
                     }
-                }
+                    if (pos >= minChar) {
+                        lookInComments(cur.postComments());
+                    }
 
-                // The AST walker skips comments, but we might be in one, so check the pre/post comments for this node manually
-                if (pos < limChar) {
-                    lookInComments(cur.preComments);
-                }
-                if (pos >= minChar) {
-                    lookInComments(cur.postComments);
-                }
-
-                if (!hasFlag(options, GetAstPathOptions.DontPruneSearchBasedOnPosition)) {
                     // Don't go further down the tree if pos is outside of [minChar, limChar]
                     walker.options.goChildren = (minChar <= pos && pos <= limChar);
                 }
             }
+
             return cur;
-        }
+        };
 
         var ctx = new AstPathContext();
         TypeScript.getAstWalkerFactory().walk(script, pre, null, null, ctx);
@@ -371,12 +365,12 @@ module TypeScript {
             path.push(cur);
             callback(path, walker);
             return cur;
-        }
+        };
         var post = function (cur: TypeScript.AST, parent: TypeScript.AST, walker: TypeScript.IAstWalker) {
             var path: TypeScript.AstPath = walker.state;
             path.pop();
             return cur;
-        }
+        };
 
         var path = new AstPath();
         TypeScript.getAstWalkerFactory().walk(ast, pre, post, null, path);

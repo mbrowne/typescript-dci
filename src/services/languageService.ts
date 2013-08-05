@@ -21,14 +21,16 @@ module Services {
     //
     // Public interface of the host of a language service instance.
     //
-    export interface ILanguageServiceHost extends TypeScript.ILogger {
+    export interface ILanguageServiceHost extends TypeScript.ILogger, TypeScript.IReferenceResolverHost {
         getCompilationSettings(): TypeScript.CompilationSettings;
 
         getScriptFileNames(): string[];
         getScriptVersion(fileName: string): number;
         getScriptIsOpen(fileName: string): boolean;
+        getScriptByteOrderMark(fileName: string): ByteOrderMark;
         getScriptSnapshot(fileName: string): TypeScript.IScriptSnapshot;
         getDiagnosticsObject(): Services.ILanguageServicesDiagnostics;
+        getLocalizedDiagnosticMessages(): any;
     }
 
     //
@@ -40,8 +42,8 @@ module Services {
         // language service.
         refresh(): void;
 
-        getSyntacticDiagnostics(fileName: string): TypeScript.IDiagnostic[];
-        getSemanticDiagnostics(fileName: string): TypeScript.IDiagnostic[];
+        getSyntacticDiagnostics(fileName: string): TypeScript.Diagnostic[];
+        getSemanticDiagnostics(fileName: string): TypeScript.Diagnostic[];
 
         getCompletionsAtPosition(fileName: string, position: number, isMemberCompletion: boolean): CompletionInfo;
         getCompletionEntryDetails(fileName: string, position: number, entryName: string): CompletionEntryDetails;
@@ -357,12 +359,11 @@ module Services {
 
     export class EmitOutput {
         public outputFiles: IOutputFile[] = [];
-        public diagnostics: TypeScript.IDiagnostic[] = [];
+        public diagnostics: TypeScript.Diagnostic[] = [];
     }
 
     export interface IOutputFile {
         name: string;
-        useUTF8encoding: boolean;
         writeByteOrderMark: boolean;
         text: string;
     }

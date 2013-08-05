@@ -2,8 +2,7 @@
     "isDeclaration": false,
     "languageVersion": "EcmaScript5",
     "parseOptions": {
-        "allowAutomaticSemicolonInsertion": true,
-        "allowModuleKeywordInExternalModuleReference": true
+        "allowAutomaticSemicolonInsertion": true
     },
     "sourceUnit": {
         "kind": "SourceUnit",
@@ -453,8 +452,8 @@
                                     "kind": "NumericLiteral",
                                     "width": 4,
                                     "text": "0xC2",
-                                    "value": 0,
-                                    "valueText": "0"
+                                    "value": 194,
+                                    "valueText": "194"
                                 }
                             }
                         }
@@ -512,8 +511,8 @@
                         "kind": "NumericLiteral",
                         "width": 4,
                         "text": "0xDF",
-                        "value": 0,
-                        "valueText": "0"
+                        "value": 223,
+                        "valueText": "223"
                     }
                 },
                 "secondSemicolonToken": {
@@ -804,8 +803,8 @@
                                                 "kind": "NumericLiteral",
                                                 "width": 4,
                                                 "text": "0x80",
-                                                "value": 0,
-                                                "valueText": "0"
+                                                "value": 128,
+                                                "valueText": "128"
                                             }
                                         }
                                     }
@@ -863,8 +862,8 @@
                                     "kind": "NumericLiteral",
                                     "width": 4,
                                     "text": "0xBF",
-                                    "value": 0,
-                                    "valueText": "0"
+                                    "value": 191,
+                                    "valueText": "191"
                                 }
                             },
                             "secondSemicolonToken": {
@@ -1225,8 +1224,8 @@
                                                                             "kind": "NumericLiteral",
                                                                             "width": 4,
                                                                             "text": "0x1F",
-                                                                            "value": 0,
-                                                                            "valueText": "0"
+                                                                            "value": 31,
+                                                                            "valueText": "31"
                                                                         }
                                                                     },
                                                                     "closeParenToken": {
@@ -1265,8 +1264,8 @@
                                                                     "width": 4,
                                                                     "fullWidth": 5,
                                                                     "text": "0x40",
-                                                                    "value": 0,
-                                                                    "valueText": "0",
+                                                                    "value": 64,
+                                                                    "valueText": "64",
                                                                     "hasTrailingTrivia": true,
                                                                     "trailingTrivia": [
                                                                         {
@@ -1338,8 +1337,8 @@
                                                                         "kind": "NumericLiteral",
                                                                         "width": 4,
                                                                         "text": "0x3F",
-                                                                        "value": 0,
-                                                                        "valueText": "0"
+                                                                        "value": 63,
+                                                                        "valueText": "63"
                                                                     }
                                                                 },
                                                                 "closeParenToken": {

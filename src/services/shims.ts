@@ -46,8 +46,14 @@ module Services {
         getScriptFileNames(): string;
         getScriptVersion(fileName: string): number;
         getScriptIsOpen(fileName: string): boolean;
+        getScriptByteOrderMark(fileName: string): number;
         getScriptSnapshot(fileName: string): IScriptSnapshotShim;
+        resolveRelativePath(path: string, directory: string): string;
+        fileExists(path: string): boolean;
+        directoryExists(path: string): boolean;
+        getParentDirectory(path: string): string;
         getDiagnosticsObject(): Services.ILanguageServicesDiagnostics;
+        getLocalizedDiagnosticMessages(): string;
     }
 
     //
@@ -81,8 +87,8 @@ module Services {
         getSyntacticDiagnostics(fileName: string): string;
         getSemanticDiagnostics(fileName: string): string;
 
-        getCompletionsAtPosition(fileName: string, position: number, isMemberCompletion: boolean);
-        getCompletionEntryDetails(fileName: string, position: number, entryName: string);
+        getCompletionsAtPosition(fileName: string, position: number, isMemberCompletion: boolean): string;
+        getCompletionEntryDetails(fileName: string, position: number, entryName: string): string;
 
         getTypeAtPosition(fileName: string, position: number): string;
         getNameOrDottedNameSpan(fileName: string, startPos: number, endPos: number): string;
@@ -218,8 +224,43 @@ module Services {
             return this.shimHost.getScriptIsOpen(fileName);
         }
 
+        public getScriptByteOrderMark(fileName: string): ByteOrderMark {
+            return this.shimHost.getScriptByteOrderMark(fileName);
+        }
+
         public getDiagnosticsObject(): ILanguageServicesDiagnostics {
             return this.shimHost.getDiagnosticsObject();
+        }
+
+        public getLocalizedDiagnosticMessages(): any {
+            var diagnosticMessagesJson = this.shimHost.getLocalizedDiagnosticMessages();
+            if (diagnosticMessagesJson == null || diagnosticMessagesJson == "") {
+                return null;
+            }
+            try {
+                return JSON.parse(diagnosticMessagesJson);
+            }
+            catch (e) {
+                this.log(e.description || "diagnosticMessages.generated.json has invalid JSON format");
+                return null;
+            }
+        }
+
+        // IReferenceResolverHost methods
+        public resolveRelativePath(path: string, directory: string): string {
+            return this.shimHost.resolveRelativePath(path, directory);
+        }
+
+        public fileExists(path: string): boolean {
+            return this.shimHost.fileExists(path);
+        }
+
+        public directoryExists(path: string): boolean {
+            return this.shimHost.directoryExists(path);
+        }
+
+        public getParentDirectory(path: string): string {
+            return this.shimHost.getParentDirectory(path);
         }
     }
 
@@ -269,8 +310,15 @@ module Services {
         // Ensure (almost) determinstic release of internal Javascript resources when 
         // some external native objects holds onto us (e.g. Com/Interop).
         public dispose(dummy: any): void {
-            this.logger.log("dispose()")
+            this.logger.log("dispose()");
             this.languageService = null;
+
+            // force a GC
+            if (debugObjectHost && debugObjectHost.CollectGarbage) {
+                debugObjectHost.CollectGarbage();
+                this.logger.log("CollectGarbage()");
+            }
+
             this.logger = null;
 
             super.dispose(dummy);
@@ -283,7 +331,7 @@ module Services {
                 "refresh(" + throwOnError + ")",
                 () => {
                     this.languageService.refresh();
-                    return null;
+                    return <any>null;
                 });
         }
 
@@ -303,12 +351,12 @@ module Services {
             }
         }
 
-        private static realizeDiagnostic(diagnostic: TypeScript.IDiagnostic): { message: string; start: number; length: number; category: string; } {
+        private static realizeDiagnostic(diagnostic: TypeScript.Diagnostic): { message: string; start: number; length: number; category: string; } {
             return {
                 message: diagnostic.text(),
                 start: diagnostic.start(),
                 length: diagnostic.length(),
-                category: LanguageServiceShim.realizeDiagnosticCategory(TypeScript.getDiagnosticInfoFromCode(diagnostic.diagnosticCode()).category)
+                category: LanguageServiceShim.realizeDiagnosticCategory(TypeScript.getDiagnosticInfoFromKey(diagnostic.diagnosticKey()).category)
             };
         }
 

@@ -2,14 +2,13 @@
     "isDeclaration": false,
     "languageVersion": "EcmaScript5",
     "parseOptions": {
-        "allowAutomaticSemicolonInsertion": true,
-        "allowModuleKeywordInExternalModuleReference": true
+        "allowAutomaticSemicolonInsertion": true
     },
     "diagnostics": [
         {
             "start": 18,
             "length": 4,
-            "diagnosticCode": "Index_signatures_cannot_have_rest_parameters"
+            "diagnosticCode": "Index signatures cannot have rest parameters."
         }
     ],
     "sourceUnit": {

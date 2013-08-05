@@ -16,13 +16,14 @@ foo(function (x) {
     return x;
 });
 var y = x, number;
-function (__missing) {
+(function (__missing) {
     return x * x;
-};
+});
 false ? (function () {
     return null;
 }) : null;
 
+// missing fatarrow
 var x1 = function () {
 };
 var x2 = function (a) {

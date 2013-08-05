@@ -9,45 +9,123 @@ var servicesDirectory = "src/services/";
 var harnessDirectory = "src/harness/";
 var runnersDirectory = "tests/runners/";
 var libraryDirectory = "typings/";
+
 var builtDirectory = "built/";
 var builtLocalDirectory = "built/local/";
 var builtTestDirectory = "built/localtest/";
 var LKGDirectory = "bin/";
+
 var copyright = "CopyrightNotice.txt";
 var thirdParty = "ThirdPartyNoticeText.txt";
 var compilerSources = [
-	"diagnostics.ts",
-	"flags.ts",
-	"nodeTypes.ts",
-	"hashTable.ts",
 	"ast.ts",
-	"astWalker.ts",
-	"astWalkerCallback.ts",
 	"astPath.ts",
-	"types.ts",
+	"astWalker.ts",
 	"base64.ts",
-	"sourceMapping.ts",
-	"emitter.ts",
+	"bloomFilter.ts",
 	"declarationEmitter.ts",
-	"precompile.ts",
+	"diagnostics.ts",
+	"emitter.ts",
+	"enumerator.ts",
+	"flags.ts",
+	"hashTable.ts",
+	"identifierWalker.ts",
+	"nodeTypes.ts",
 	"pathUtils.ts",
+	"precompile.ts",
+	"process.ts",
 	"referenceResolution.ts",
-	"typecheck/dataMap.ts",
-	"typecheck/pullFlags.ts",
-	"typecheck/pullDecls.ts",
-	"typecheck/pullSymbols.ts",
-	"typecheck/pullSymbolBindingContext.ts",
-	"typecheck/pullTypeResolutionContext.ts",
-	"typecheck/pullTypeResolution.ts",
-	"typecheck/pullTypeChecker.ts",
-	"typecheck/pullDeclDiffer.ts",
-	"typecheck/pullSemanticInfo.ts",
-	"typecheck/pullDeclCollection.ts",
-	"typecheck/pullSymbolBinder.ts",
-	"typecheck/pullSymbolGraph.ts",
-	"typecheck/SemanticDiagnostic.ts",
-	"typecheck/pullHelpers.ts",	
+	"referenceResolver.ts",
+	"sourceMapping.ts",
 	"syntaxTreeToAstVisitor.ts",
+	"types.ts",
+	"core/arrayUtilities.ts",
+	"core/constants.ts",
+	"core/debug.ts",
+	"core/diagnostic.ts",
+	"core/diagnosticCategory.ts",
+	"core/diagnosticInfo.ts",
+	"core/environment.ts",
+	"core/errors.ts",
+	"core/hash.ts",
+	"core/hashTable.ts",
+	"core/integerUtilities.ts",
+	"core/mathPrototype.ts",
+	"core/references.ts",
+	"core/require.ts",
+	"core/stringTable.ts",
+	"core/stringUtilities.ts",
+	"core/timer.ts",
+	"resources/diagnosticCode.generated.ts",
+	"resources/diagnosticInformationMap.generated.ts",
+	"resources/references.ts",
+	"syntax/characterInfo.ts",
+	"syntax/constants.ts",
+	"syntax/depthLimitedWalker.ts",
+	"syntax/formattingOptions.ts",
+	"syntax/indentation.ts",
+	"syntax/languageVersion.ts",
+	"syntax/parseOptions.ts",
+	"syntax/parser.ts",
+	"syntax/positionedElement.ts",
+	"syntax/positionTrackingWalker.ts",
+	"syntax/references.ts",
+	"syntax/scanner.ts",
+	"syntax/scannerUtilities.generated.ts",
+	"syntax/separatedSyntaxList.ts",
+	"syntax/slidingWindow.ts",
+	"syntax/strings.ts",
+	"syntax/syntax.ts",
+	"syntax/syntaxDedenter.ts",
+	"syntax/syntaxElement.ts",
+	"syntax/syntaxFactory.generated.ts",
+	"syntax/syntaxFacts.ts",
+	"syntax/syntaxFacts2.ts",
+	"syntax/syntaxIndenter.ts",
+	"syntax/syntaxInformationMap.ts",
+	"syntax/syntaxIndenter.ts",
+	"syntax/syntaxKind.ts",
+	"syntax/syntaxList.ts",
+	"syntax/syntaxNode.ts",
+	"syntax/syntaxNodeInvariantsChecker.ts",
+	"syntax/syntaxNodeOrToken.ts",
+	"syntax/syntaxNodes.generated.ts",
+	"syntax/syntaxRewriter.generated.ts",
+	"syntax/syntaxToken.generated.ts",
+	"syntax/syntaxToken.ts",
+	"syntax/syntaxTokenReplacer.ts",
+	"syntax/syntaxTree.ts",
+	"syntax/syntaxTrivia.ts",
+	"syntax/syntaxTriviaList.ts",
+	"syntax/syntaxUtilities.ts",
+	"syntax/syntaxVisitor.generated.ts",
+	"syntax/syntaxWalker.generated.ts",
+	"syntax/textSpanWalker.ts",
+	"syntax/unicode.ts",
+	"text/characterCodes.ts",
+	"text/lineAndCharacter.ts",
+	"text/lineMap.ts",
+	"text/linePosition.ts",
+	"text/references.ts",
+	"text/scriptSnapshot.ts",
+	"text/text.ts",
+	"text/textChangeRange.ts",
+	"text/textFactory.ts",
+	"text/textLine.ts",
+	"text/textSpan.ts",
+	"text/textUtilities.ts",
+	"typecheck/dataMap.ts",
+	"typecheck/pullDeclCollection.ts",
+	"typecheck/pullDecls.ts",
+	"typecheck/pullFlags.ts",
+	"typecheck/pullHelpers.ts",	
+	"typecheck/pullSemanticInfo.ts",
+	"typecheck/pullSymbolBinder.ts",
+	"typecheck/pullSymbolBindingContext.ts",
+	"typecheck/pullSymbols.ts",
+	"typecheck/pullTypeResolution.ts",
+	"typecheck/pullTypeResolutionContext.ts",
+	"typecheck/SemanticDiagnostic.ts",
 	"typescript.ts"
 ].map(function (f) {
 	return path.join(compilerDirectory, f);
@@ -62,13 +140,33 @@ var tscSources = [
 });
 
 var servicesSources = [
+	"braceMatcher.ts",
+	"breakpoints.ts",
+	"classifier.ts",
+	"compilerState.ts",
+	"completionHelpers.ts",
+	"completionSession.ts",
+	"coreServices.ts",
+	"getScriptLexicalStructureWalker.ts",
+	"diagnosticServices.ts",
 	"es5compat.ts",
-	"formatting/textSnapshot.ts",
-	"formatting/textSnapshotLine.ts",
-	"formatting/snapshotPoint.ts",
+	"findReferenceHelpers.ts",
+	"indenter.ts",
+	"keywordCompletions.ts",
+	"languageService.ts",
+	"outliningElementsCollector.ts",
+	"pullLanguageService.ts",
+	"shims.ts",
+	"signatureInfoHelpers.ts",
+	"formatting/formatter.ts", 
+	"formatting/formatting.ts", 
 	"formatting/formattingContext.ts",
 	"formatting/formattingManager.ts",
 	"formatting/formattingRequestKind.ts",
+	"formatting/indentationNodeContext.ts", 
+	"formatting/indentationNodeContextPool.ts", 
+	"formatting/indentationTrackingWalker.ts", 
+	"formatting/multipleTokenIndenter.ts", 
 	"formatting/rule.ts",
 	"formatting/ruleAction.ts",
 	"formatting/ruleDescriptor.ts",
@@ -78,31 +176,13 @@ var servicesSources = [
 	"formatting/rules.ts",
 	"formatting/rulesMap.ts",
 	"formatting/rulesProvider.ts",
+	"formatting/singleTokenIndenter.ts", 
+	"formatting/snapshotPoint.ts",
 	"formatting/textEditInfo.ts",
+	"formatting/textSnapshot.ts",
+	"formatting/textSnapshotLine.ts",
 	"formatting/tokenRange.ts",
 	"formatting/tokenSpan.ts", 
-	"formatting/indentationNodeContext.ts", 
-	"formatting/indentationNodeContextPool.ts", 
-	"formatting/indentationTrackingWalker.ts", 
-	"formatting/multipleTokenIndenter.ts", 
-	"formatting/singleTokenIndenter.ts", 
-	"formatting/formatter.ts", 
-	"classifier.ts",
-	"coreServices.ts",
-	"emitOutputTextWriter.ts",
-	"compilerState.ts",
-	"languageService.ts",
-	"completionHelpers.ts",
-	"keywordCompletions.ts",
-	"signatureInfoHelpers.ts",
-	"completionSession.ts",
-	"pullLanguageService.ts",
-	"shims.ts",
-	"outliningElementsCollector.ts",
-	"braceMatcher.ts",
-	"indenter.ts",
-	"breakpoints.ts",
-	"findReferenceHelpers.ts",
 	"typescriptServices.ts"
 ].map(function (f) {
 	return path.join(servicesDirectory, f);
@@ -118,7 +198,6 @@ var harnessSources = [
 	path.join(harnessDirectory, "baselining.ts"),
 	path.join(harnessDirectory, "fourslash.ts"),
 	path.join(harnessDirectory, "dumpAST-baselining.ts"),
-	path.join(harnessDirectory, "external/json2.ts"),
 	path.join(harnessDirectory, "runner.ts"),
 
 	path.join(runnersDirectory, "runnerbase.ts"),
@@ -168,9 +247,9 @@ var useDebugMode = false;
 function compileFile(outFile, sources, prereqs, prefixes, useBuiltCompiler) {
 	file(outFile, prereqs, function() {
 		var dir = useBuiltCompiler ? builtLocalDirectory : LKGDirectory;
-		var cmd = (process.env.host || process.env.TYPESCRIPT_HOST || "node") + " " + dir + "tsc.js -const -declaration -disallowbool -disallowimportmodule " + sources.join(" ") + " -out " + outFile;
+		var cmd = (process.env.host || process.env.TYPESCRIPT_HOST || "node") + " " + dir + "tsc.js -removeComments -propagateEnumConstants -declaration -noImplicitAny --module commonjs " + sources.join(" ") + " -out " + outFile;
 		if (useDebugMode) {
-			cmd = cmd + " -sourcemap -fullSourceMapPath";
+			cmd = cmd + " -sourcemap -mapRoot file:///" + path.resolve(path.dirname(outFile));
 		}
 		console.log(cmd + "\n");
 		var ex = jake.createExec([cmd]);
@@ -267,12 +346,18 @@ directory(builtTestDirectory);
 
 // Task to build the tests infrastructure using the built compiler
 var run = path.join(builtTestDirectory, "run.js");
-compileFile(run, harnessSources, [builtTestDirectory, tscFile].concat(libraryTargets).concat(harnessSources), [], true);
+var json2 = path.join(harnessDirectory, "external/json2.js")
+compileFile(run, harnessSources, [builtTestDirectory, tscFile].concat(libraryTargets).concat(harnessSources), [json2], true);
 
 // Webharness
 var frontEndPath = "tests/cases/webharness/frontEnd.ts";
 var perfCompilerPath = "tests/cases/webharness/perfCompiler.js";
 compileFile(perfCompilerPath, [frontEndPath], [tscFile], [], true);
+
+// Fidelity Tests
+var fidelityTestsOutFile = "tests/Fidelity/program.js";
+var fidelityTestsInFile = "tests/Fidelity/Program.ts";
+compileFile(fidelityTestsOutFile, [fidelityTestsInFile], [tscFile], [], true);
 
 desc("Builds the web harness front end");
 task("test-harness", [perfCompilerPath]);
@@ -281,7 +366,7 @@ var localBaseline = "tests/baselines/local/";
 var refBaseline = "tests/baselines/reference/";
 
 desc("Builds the test infrastructure using the built compiler");
-task("tests", [run, serviceFile, perfCompilerPath].concat(libraryTargets), function() {	
+task("tests", [run, serviceFile, perfCompilerPath, fidelityTestsOutFile].concat(libraryTargets), function() {	
 	// Copy the language service over to the test directory
 	jake.cpR(serviceFile, builtTestDirectory);
 	jake.cpR(path.join(libraryDirectory, "lib.d.ts"), builtTestDirectory);	
@@ -322,11 +407,6 @@ task("baseline-accept", function() {
 	jake.rmRf(refBaseline);
 	fs.renameSync(localBaseline, refBaseline);
 });
-
-// Fidelity Tests
-var fidelityTestsOutFile = "tests/Fidelity/program.js";
-var fidelityTestsInFile = "tests/Fidelity/Program.ts";
-compileFile(fidelityTestsOutFile, [fidelityTestsInFile], [tscFile], [], true);
 
 // Syntax Generator
 var syntaxGeneratorOutFile = compilerDirectory + "syntax/SyntaxGenerator.js";

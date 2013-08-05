@@ -2,8 +2,7 @@
     "isDeclaration": false,
     "languageVersion": "EcmaScript5",
     "parseOptions": {
-        "allowAutomaticSemicolonInsertion": true,
-        "allowModuleKeywordInExternalModuleReference": true
+        "allowAutomaticSemicolonInsertion": true
     },
     "sourceUnit": {
         "kind": "SourceUnit",
@@ -193,8 +192,8 @@
                                             "kind": "StringLiteral",
                                             "width": 17,
                                             "text": "\"\\u2028abc\\u2028\"",
-                                            "value": "\u2028abc\u2028",
-                                            "valueText": "\u2028abc\u2028"
+                                            "value": " abc ",
+                                            "valueText": " abc "
                                         },
                                         "dotToken": {
                                             "kind": "DotToken",

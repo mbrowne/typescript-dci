@@ -19,34 +19,31 @@ module TypeScript {
 
     /// Compiler settings
     export class CompilationSettings {
-        public propagateConstants = false;
-        public minWhitespace = false;
-        public emitComments = false;
+        public propagateEnumConstants = false;
+        public removeComments = false;
         public watch = false;
-        public exec = false;
-        public resolve = true;
-        public disallowBool = false;
+        public noResolve = false;
         public allowAutomaticSemicolonInsertion = true;
-        public allowModuleKeywordInExternalModuleReference = true;
+        public noImplicitAny = false;
 
-        public useDefaultLib = true;
+        public noLib = false;
 
         public codeGenTarget = LanguageVersion.EcmaScript3;
-        public moduleGenTarget = ModuleGenTarget.Synchronous;
+        public moduleGenTarget = ModuleGenTarget.Unspecified;
 
         // --out option passed. 
         // Default is the "" which leads to multiple files generated next to the.ts files
-        public outputOption: string = "";
+        public outFileOption: string = "";
+        public outDirOption: string = "";
         public mapSourceFiles = false;
-        public emitFullSourceMapPath = false; // By default emit relative path of the soucemap
+        public mapRoot: string = ""; 
+        public sourceRoot: string = "";
         public generateDeclarationFiles = false;
 
         public useCaseSensitiveFileResolution = false;
         public gatherDiagnostics = false;
 
         public updateTC = false;
-
-        public implicitAny = false;
     }
 
     ///
@@ -106,7 +103,7 @@ module TypeScript {
     }
 
     var scannerWindow = ArrayUtilities.createArray(2048, 0);
-    var scannerDiagnostics = [];
+    var scannerDiagnostics: any[] = [];
 
     function processImports(lineMap: LineMap, scanner: Scanner, token: ISyntaxToken, importedFiles: IFileReference[]): void {
         var position = 0;
@@ -198,6 +195,7 @@ module TypeScript {
 
     export function preProcessFile(fileName: string, sourceText: IScriptSnapshot, settings?: CompilationSettings, readImportFiles = true): IPreProcessedFileInfo {
         settings = settings || new CompilationSettings();
+        
         var text = SimpleText.fromScriptSnapshot(sourceText);
         var scanner = new Scanner(fileName, text, settings.codeGenTarget, scannerWindow);
 
@@ -220,7 +218,7 @@ module TypeScript {
     }
 
     export function getParseOptions(settings: CompilationSettings): ParseOptions {
-        return new ParseOptions(settings.allowAutomaticSemicolonInsertion, settings.allowModuleKeywordInExternalModuleReference);
+        return new ParseOptions(settings.codeGenTarget, settings.allowAutomaticSemicolonInsertion);
     }
 
 } // Tools

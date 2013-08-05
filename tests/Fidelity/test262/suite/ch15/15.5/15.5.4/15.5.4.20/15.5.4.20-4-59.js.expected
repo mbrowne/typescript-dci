@@ -2,8 +2,7 @@
     "isDeclaration": false,
     "languageVersion": "EcmaScript5",
     "parseOptions": {
-        "allowAutomaticSemicolonInsertion": true,
-        "allowModuleKeywordInExternalModuleReference": true
+        "allowAutomaticSemicolonInsertion": true
     },
     "sourceUnit": {
         "kind": "SourceUnit",
@@ -218,8 +217,8 @@
                                                 "kind": "StringLiteral",
                                                 "width": 25,
                                                 "text": "\"\\u2029\\\r\n           abc\"",
-                                                "value": "\u2029\r\n           abc",
-                                                "valueText": "\u2029\r\n           abc"
+                                                "value": " \r\n           abc",
+                                                "valueText": " \r\n           abc"
                                             }
                                         }
                                     }

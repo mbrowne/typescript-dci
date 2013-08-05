@@ -16,8 +16,9 @@
 ///<reference path='typescript.ts' />
 
 module TypeScript {
+    var quoteRegEx = /["']/g;
     export function stripQuotes(str: string) {
-        return str.replace(/"/g, "").replace(/'/g, "");
+        return str.replace(quoteRegEx, "");
     }
 
     export function isSingleQuoted(str: string) {
@@ -46,8 +47,9 @@ module TypeScript {
         return str;
     }
 
+    var switchToForwardSlashesRegEx = /\\/g;
     export function switchToForwardSlashes(path: string) {
-        return path.replace(/\\/g, "/");
+        return path.replace(switchToForwardSlashesRegEx, "/");
     }
 
     export function trimModName(modName: string) {
@@ -89,7 +91,7 @@ module TypeScript {
         return isFileOfExtension(fname, ".d.ts");
     }
 
-    export function getPrettyName(modPath: string, quote=true, treatAsFileName=false) { 
+    export function getPrettyName(modPath: string, quote=true, treatAsFileName=false): any { 
         var modName = treatAsFileName ? switchToForwardSlashes(modPath) : trimModName(stripQuotes(modPath));
         var components = this.getPathComponents(modName);
         return components.length ? (quote ? quoteStr(components[components.length - 1]) : components[components.length - 1]) : modPath;
@@ -99,7 +101,7 @@ module TypeScript {
         return path.split("/");
     }
 
-    export function getRelativePathToFixedPath(fixedModFilePath: string, absoluteModPath: string) {
+    export function getRelativePathToFixedPath(fixedModFilePath: string, absoluteModPath: string, isAbsoultePathURL = true) {
         absoluteModPath = switchToForwardSlashes(absoluteModPath);
 
         var modComponents = this.getPathComponents(absoluteModPath);
@@ -126,6 +128,10 @@ module TypeScript {
             return relativePath + relativePathComponents.join("/");
         }
 
+        if (isAbsoultePathURL && absoluteModPath.indexOf("://") === -1) {
+            absoluteModPath = "file:///" + absoluteModPath;
+        }
+
         return absoluteModPath;
     }
 
@@ -147,10 +153,10 @@ module TypeScript {
     }
 
     export function isRelative(path: string) {
-        return path.charAt(0) === ".";
+        return path.length > 0 && path.charAt(0) === ".";
     }
     export function isRooted(path: string) {
-        return path.charAt(0) === "\\" || path.charAt(0) === "/" || (path.indexOf(":\\") !== -1) || (path.indexOf(":/") !== -1);
+        return path.length > 0 && (path.charAt(0) === "\\" || path.charAt(0) === "/" || (path.indexOf(":\\") !== -1) || (path.indexOf(":/") !== -1));
     }
 
     export function getRootFilePath(outFname: string) {
@@ -174,9 +180,10 @@ module TypeScript {
         return path.join("/") + "/";
     }
 
+    var normalizePathRegEx = /^\\\\[^\\]/;
     export function normalizePath(path: string): string {
         // If it's a UNC style path (i.e. \\server\share), convert to a URI style (i.e. file://server/share)
-        if(/^\\\\[^\\]/.test(path)) {
+        if (normalizePathRegEx.test(path)) {
             path = "file:" + path;
         }
         var parts = this.getPathComponents(switchToForwardSlashes(path));

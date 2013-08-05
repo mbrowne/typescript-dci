@@ -2,8 +2,7 @@
     "isDeclaration": false,
     "languageVersion": "EcmaScript5",
     "parseOptions": {
-        "allowAutomaticSemicolonInsertion": true,
-        "allowModuleKeywordInExternalModuleReference": true
+        "allowAutomaticSemicolonInsertion": true
     },
     "sourceUnit": {
         "kind": "SourceUnit",
@@ -588,8 +587,8 @@
                                             "kind": "StringLiteral",
                                             "width": 8,
                                             "text": "\"\\u202F\"",
-                                            "value": "\u202f",
-                                            "valueText": "\u202f"
+                                            "value": " ",
+                                            "valueText": " "
                                         },
                                         {
                                             "kind": "CommaToken",

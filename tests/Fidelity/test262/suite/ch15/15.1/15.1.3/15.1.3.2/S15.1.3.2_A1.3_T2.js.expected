@@ -2,8 +2,7 @@
     "isDeclaration": false,
     "languageVersion": "EcmaScript5",
     "parseOptions": {
-        "allowAutomaticSemicolonInsertion": true,
-        "allowModuleKeywordInExternalModuleReference": true
+        "allowAutomaticSemicolonInsertion": true
     },
     "sourceUnit": {
         "kind": "SourceUnit",
@@ -379,8 +378,8 @@
                         "kind": "NumericLiteral",
                         "width": 4,
                         "text": "0xF8",
-                        "value": 0,
-                        "valueText": "0"
+                        "value": 248,
+                        "valueText": "248"
                     }
                 },
                 "firstSemicolonToken": {
@@ -435,8 +434,8 @@
                         "kind": "NumericLiteral",
                         "width": 4,
                         "text": "0xFF",
-                        "value": 0,
-                        "valueText": "0"
+                        "value": 255,
+                        "valueText": "255"
                     }
                 },
                 "secondSemicolonToken": {

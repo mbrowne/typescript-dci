@@ -101,12 +101,12 @@ verify.quickInfoIs("m1", "Module comment", "m1", "module");
 
 goTo.marker('2');
 verify.completionListContains("b", "number", "b's comment", "m1.b", "var");
-verify.completionListContains("foo", "(): number", "foo's comment", "m1.foo", "function");
+verify.completionListContains("foo", "(): number", "foo's comment", "foo", "function");
 
 goTo.marker('3');
 verify.currentSignatureHelpDocCommentIs("foo's comment");
 goTo.marker('3q');
-verify.quickInfoIs("(): number", "foo's comment", "m1.foo", "function");
+verify.quickInfoIs("(): number", "foo's comment", "foo", "function");
 
 goTo.marker('4');
 verify.completionListContains("m1", "m1", "Module comment", "m1", "module");
@@ -130,7 +130,7 @@ verify.memberListContains("i", "m1.m2.c", "i", "m1.m2.i", "var");
 
 goTo.marker('9');
 verify.completionListContains("m2", "m2", "", "m2", "module");
-verify.quickInfoIs("m2", "", "m2", "var");
+verify.quickInfoIs("m2", "", "m2", "module");
 
 goTo.marker('10');
 verify.memberListContains("m3", "m2.m3");
@@ -142,11 +142,12 @@ verify.memberListContains("c", undefined, "Exported class comment", "m2.m3.c", "
 
 goTo.marker('12');
 verify.completionListContains("m3", "m3", "", "m3", "module");
-verify.quickInfoIs("m3", "", "m3", "var");
+verify.quickInfoIs("m3", "", "m3", "module");
 
 goTo.marker('13');
 verify.memberListContains("m4", "m3.m4", "", "m3.m4", "module");
-verify.quickInfoIs("m3.m4", "", "m3.m4", "var");
+
+verify.quickInfoIs("m3.m4", "", "m3.m4", "module");
 
 goTo.marker('14');
 verify.memberListContains("m5", "m3.m4.m5");

@@ -2,14 +2,21 @@
     "isDeclaration": false,
     "languageVersion": "EcmaScript5",
     "parseOptions": {
-        "allowAutomaticSemicolonInsertion": true,
-        "allowModuleKeywordInExternalModuleReference": true
+        "allowAutomaticSemicolonInsertion": true
     },
     "diagnostics": [
         {
+            "start": 228,
+            "length": 1,
+            "diagnosticCode": "'{0}' expected.",
+            "arguments": [
+                ";"
+            ]
+        },
+        {
             "start": 5180,
             "length": 8,
-            "diagnosticCode": "Identifier_expected__0__is_a_keyword",
+            "diagnosticCode": "Identifier expected; '{0}' is a keyword.",
             "arguments": [
                 "continue"
             ]
@@ -17,7 +24,7 @@
         {
             "start": 5189,
             "length": 1,
-            "diagnosticCode": "_0_expected",
+            "diagnosticCode": "'{0}' expected.",
             "arguments": [
                 ";"
             ]
@@ -25,7 +32,7 @@
         {
             "start": 5191,
             "length": 2,
-            "diagnosticCode": "Unexpected_token__0_expected",
+            "diagnosticCode": "Unexpected token; '{0}' expected.",
             "arguments": [
                 "statement"
             ]
@@ -33,7 +40,7 @@
         {
             "start": 6013,
             "length": 1,
-            "diagnosticCode": "Unexpected_token__0_expected",
+            "diagnosticCode": "Unexpected token; '{0}' expected.",
             "arguments": [
                 "type parameter"
             ]
@@ -41,12 +48,12 @@
         {
             "start": 6017,
             "length": 1,
-            "diagnosticCode": "Identifier_expected"
+            "diagnosticCode": "Identifier expected."
         },
         {
             "start": 6018,
             "length": 1,
-            "diagnosticCode": "Unexpected_token__0_expected",
+            "diagnosticCode": "Unexpected token; '{0}' expected.",
             "arguments": [
                 "module, class, interface, enum, import or statement"
             ]
@@ -54,12 +61,12 @@
         {
             "start": 6115,
             "length": 1,
-            "diagnosticCode": "Missing_closing_quote_character"
+            "diagnosticCode": "Missing close quote character."
         },
         {
             "start": 7067,
             "length": 1,
-            "diagnosticCode": "Unexpected_token__0_expected",
+            "diagnosticCode": "Unexpected token; '{0}' expected.",
             "arguments": [
                 "module, class, interface, enum, import or statement"
             ]
@@ -658,7 +665,9 @@
             },
             {
                 "kind": "ImportDeclaration",
-                "fullWidth": 29,
+                "fullWidth": 20,
+                "isIncrementallyUnusable": true,
+                "modifiers": [],
                 "importKeyword": {
                     "kind": "ImportKeyword",
                     "width": 6,
@@ -713,15 +722,29 @@
                     ]
                 },
                 "moduleReference": {
-                    "kind": "ExternalModuleReference",
-                    "fullWidth": 12,
-                    "moduleOrRequireKeyword": {
-                        "kind": "ModuleKeyword",
+                    "kind": "ModuleNameModuleReference",
+                    "fullWidth": 6,
+                    "isIncrementallyUnusable": true,
+                    "moduleName": {
+                        "kind": "IdentifierName",
                         "width": 6,
                         "text": "module",
                         "value": "module",
                         "valueText": "module"
-                    },
+                    }
+                },
+                "semicolonToken": {
+                    "kind": "SemicolonToken",
+                    "width": 0,
+                    "text": ""
+                }
+            },
+            {
+                "kind": "ExpressionStatement",
+                "fullWidth": 9,
+                "expression": {
+                    "kind": "ParenthesizedExpression",
+                    "fullWidth": 6,
                     "openParenToken": {
                         "kind": "OpenParenToken",
                         "width": 1,
@@ -729,7 +752,7 @@
                         "value": "(",
                         "valueText": "("
                     },
-                    "stringLiteral": {
+                    "expression": {
                         "kind": "StringLiteral",
                         "width": 4,
                         "text": "\"fs\"",
@@ -4372,8 +4395,8 @@
                                                                 "kind": "NumericLiteral",
                                                                 "width": 9,
                                                                 "text": "0xBADC0DE",
-                                                                "value": 0,
-                                                                "valueText": "0"
+                                                                "value": 195936478,
+                                                                "valueText": "195936478"
                                                             }
                                                         }
                                                     },
@@ -4432,8 +4455,8 @@
                                                                 "kind": "NumericLiteral",
                                                                 "width": 10,
                                                                 "text": "0XDEADBEEF",
-                                                                "value": 0,
-                                                                "valueText": "0"
+                                                                "value": 3735928559,
+                                                                "valueText": "3735928559"
                                                             }
                                                         }
                                                     }

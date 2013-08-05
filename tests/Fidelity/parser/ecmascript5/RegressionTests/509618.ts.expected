@@ -2,14 +2,13 @@
     "isDeclaration": false,
     "languageVersion": "EcmaScript5",
     "parseOptions": {
-        "allowAutomaticSemicolonInsertion": true,
-        "allowModuleKeywordInExternalModuleReference": true
+        "allowAutomaticSemicolonInsertion": true
     },
     "diagnostics": [
         {
             "start": 48,
             "length": 1,
-            "diagnosticCode": "Statements_are_not_allowed_in_ambient_contexts"
+            "diagnosticCode": "Statements are not allowed in ambient contexts."
         }
     ],
     "sourceUnit": {

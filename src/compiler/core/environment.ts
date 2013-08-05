@@ -2,28 +2,25 @@
 ///<reference path='..\enumerator.ts' />
 ///<reference path='..\process.ts' />
 
+declare var Buffer: {
+    new (str: string, encoding?: string): any;
+}
+
+module TypeScript {
+    export var nodeMakeDirectoryTime = 0;
+    export var nodeCreateBufferTime = 0;
+    export var nodeWriteFileSyncTime = 0;
+}
+
 enum ByteOrderMark {
-    None,
-    Utf8,
-    Utf16BigEndian,
-    Utf16LittleEndian,
+    None = 0,
+    Utf8 = 1,
+    Utf16BigEndian = 2,
+    Utf16LittleEndian = 3,
 }
 
 class FileInformation {
-    private _contents: string;
-    private _byteOrderMark: ByteOrderMark;
-
-    constructor(contents: string, byteOrderMark: ByteOrderMark) {
-        this._contents = contents;
-        this._byteOrderMark = byteOrderMark;
-    }
-
-    public contents(): string {
-        return this._contents;
-    }
-
-    public byteOrderMark(): ByteOrderMark {
-        return this._byteOrderMark;
+    constructor(public contents: string, public byteOrderMark: ByteOrderMark) {
     }
 }
 
@@ -39,6 +36,7 @@ interface IEnvironment {
     standardOut: ITextWriter;
 
     currentDirectory(): string;
+    newLine: string;
 }
 
 var Environment = (function () {
@@ -51,7 +49,7 @@ var Environment = (function () {
             return null;
         }
 
-        var streamObjectPool = [];
+        var streamObjectPool: any[] = [];
 
         function getStreamObject(): any {
             if (streamObjectPool.length > 0) {
@@ -65,17 +63,20 @@ var Environment = (function () {
             streamObjectPool.push(obj);
         }
 
-        var args = [];
+        var args: string[] = [];
         for (var i = 0; i < WScript.Arguments.length; i++) {
             args[i] = WScript.Arguments.Item(i);
         }
 
         return {
+            // On windows, the newline sequence is always "\r\n";
+            newLine: "\r\n",
+
             currentDirectory: (): string => {
                 return (<any>WScript).CreateObject("WScript.Shell").CurrentDirectory;
             },
 
-            readFile: function (path): FileInformation {
+            readFile: function (path: string): FileInformation {
                 try {
                     // Initially just read the first two bytes of the file to see if there's a bom.
                     var streamObj = getStreamObject();
@@ -117,19 +118,21 @@ var Environment = (function () {
                     return new FileInformation(contents, byteOrderMark);
                 }
                 catch (err) {
-                    var error: any = new Error(err.message);
                     // -2147024809 is the javascript value for 0x80070057 which is the HRESULT for 
                     // "the parameter is incorrect".
                     var message: string;
                     if (err.number === -2147024809) {
-                        error.isUnsupportedEncoding = true;
+                        message = TypeScript.getDiagnosticMessage(TypeScript.DiagnosticCode.Unsupported_file_encoding, null);
+                    }
+                    else {
+                        message = TypeScript.getDiagnosticMessage(TypeScript.DiagnosticCode.Cannot_read_file_0_1, [path, err.message]);
                     }
 
-                    throw error;
+                    throw new Error(message);
                 }
             },
 
-            writeFile: function (path, contents, writeByteOrderMark: boolean) {
+            writeFile: function (path: string, contents: string, writeByteOrderMark: boolean) {
                 // First, convert the text contents passed in to binary in UTF8 format.
                 var textStream = getStreamObject();
                 textStream.Charset = 'utf-8';
@@ -177,8 +180,8 @@ var Environment = (function () {
 
             listFiles: function (path, spec?, options?) {
                 options = options || <{ recursive?: boolean; }>{};
-                function filesInFolder(folder, root): string[] {
-                    var paths = [];
+                function filesInFolder(folder: any, root: string): string[] {
+                    var paths: string[] = [];
                     var fc: Enumerator;
 
                     if (options.recursive) {
@@ -200,8 +203,8 @@ var Environment = (function () {
                     return paths;
                 }
 
-                var folder = fso.GetFolder(path);
-                var paths = [];
+                var folder: any = fso.GetFolder(path);
+                var paths: string[] = [];
 
                 return filesInFolder(folder, path);
             },
@@ -216,8 +219,12 @@ var Environment = (function () {
         var _fs = require('fs');
         var _path = require('path');
         var _module = require('module');
+        var _os = require('os');
 
         return {
+            // On node pick up the newline character from the OS
+            newLine: _os.EOL,
+
             currentDirectory: (): string => {
                 return (<any>process).cwd();
             },
@@ -257,7 +264,7 @@ var Environment = (function () {
             },
 
             writeFile: function (path: string, contents: string, writeByteOrderMark: boolean) {
-                function mkdirRecursiveSync(path) {
+                function mkdirRecursiveSync(path: string) {
                     var stats = _fs.statSync(path);
                     if (stats.isFile()) {
                         throw "\"" + path + "\" exists but isn't a directory.";
@@ -268,15 +275,35 @@ var Environment = (function () {
                         _fs.mkdirSync(path, 0775);
                     }
                 }
+                var start = new Date().getTime();
                 mkdirRecursiveSync(_path.dirname(path));
+                TypeScript.nodeMakeDirectoryTime += new Date().getTime() - start;
 
                 if (writeByteOrderMark) {
                     contents = '\uFEFF' + contents;
                 }
-                _fs.writeFileSync(path, contents, "utf8");
+
+                var start = new Date().getTime();
+
+                var chunkLength = 4 * 1024;
+                var fileDescriptor = _fs.openSync(path, "w");
+                try {
+                    for (var index = 0; index < contents.length; index += chunkLength) {
+                        var bufferStart = new Date().getTime();
+                        var buffer = new Buffer(contents.substr(index, chunkLength), "utf8");
+                        TypeScript.nodeCreateBufferTime += new Date().getTime() - bufferStart;
+
+                        _fs.writeSync(fileDescriptor, buffer, 0, buffer.length, null);
+                    }
+                }
+                finally {
+                    _fs.closeSync(fileDescriptor);
+                }
+
+                TypeScript.nodeWriteFileSyncTime += new Date().getTime() - start;
             },
 
-            fileExists: function (path): boolean {
+            fileExists: function (path: string): boolean {
                 return _fs.existsSync(path);
             },
 
@@ -295,7 +322,7 @@ var Environment = (function () {
                 options = options || <{ recursive?: boolean; }>{};
 
                 function filesInFolder(folder: string): string[] {
-                    var paths = [];
+                    var paths: string[] = [];
 
                     var files = _fs.readdirSync(folder);
                     for (var i = 0; i < files.length; i++) {

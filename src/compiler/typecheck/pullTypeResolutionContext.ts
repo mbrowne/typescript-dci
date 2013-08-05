@@ -22,7 +22,7 @@ module TypeScript {
 
 
         public alreadyRelatingTypes(objectType: PullTypeSymbol, parameterType: PullTypeSymbol) {
-            var comboID = objectType.getSymbolID().toString() + "#" + parameterType.getSymbolID().toString();
+            var comboID = objectType.pullSymbolIDString + "#" + parameterType.pullSymbolIDString;
 
             if (this.inferenceCache[comboID]) {
                 return true;
@@ -38,17 +38,17 @@ module TypeScript {
         }
 
         public addInferenceRoot(param: PullTypeParameterSymbol) {
-            var info = <CandidateInferenceInfo>this.candidateCache[param.getSymbolID().toString()];
+            var info = <CandidateInferenceInfo>this.candidateCache[param.pullSymbolIDString];
 
             if (!info) {
                 info = new CandidateInferenceInfo();
                 info.typeParameter = param;
-                this.candidateCache[param.getSymbolID().toString()] = info;
+                this.candidateCache[param.pullSymbolIDString] = info;
             }        
         }
 
         public getInferenceInfo(param: PullTypeParameterSymbol) {
-            return <CandidateInferenceInfo>this.candidateCache[param.getSymbolID().toString()];
+            return <CandidateInferenceInfo>this.candidateCache[param.pullSymbolIDString];
         }
 
         public addCandidateForInference(param: PullTypeParameterSymbol, candidate: PullTypeSymbol, fix: boolean) {
@@ -69,14 +69,14 @@ module TypeScript {
         public getInferenceCandidates(): any[] {
             var inferenceCandidates: any[] = [];
             var info: CandidateInferenceInfo;
-            var val;
+            var val: any;
 
             for (var infoKey in this.candidateCache) {
                 info = <CandidateInferenceInfo>this.candidateCache[infoKey];
 
                 for (var i = 0; i < info.inferenceCandidates.length; i++) {
                     val = {};
-                    val[info.typeParameter.getSymbolID().toString()] = info.inferenceCandidates[i];
+                    val[info.typeParameter.pullSymbolIDString] = info.inferenceCandidates[i];
                     inferenceCandidates[inferenceCandidates.length] = val;
                 }
             }
@@ -107,9 +107,9 @@ module TypeScript {
                     getLength: () => { return info.inferenceCandidates.length; },
                     setTypeAtIndex: (index: number, type: PullTypeSymbol) => { },
                     getTypeAtIndex: (index: number) => {
-                        return info.inferenceCandidates[index].getType();
+                        return info.inferenceCandidates[index].type;
                     }
-                }
+                };
 
                 bestCommonType = resolver.widenType(resolver.findBestCommonType(info.inferenceCandidates[0], null, collection, context, new TypeComparisonInfo()));
 
@@ -134,7 +134,7 @@ module TypeScript {
 
     export class PullContextualTypeContext {
         public provisionallyTypedSymbols: PullSymbol[] = [];
-        public provisionalDiagnostic: SemanticDiagnostic[] = [];
+        public provisionalDiagnostic: Diagnostic[] = [];
 
         constructor(public contextualType: PullTypeSymbol,
                      public provisional: boolean,
@@ -150,7 +150,7 @@ module TypeScript {
             }
         }
 
-        public postDiagnostic(error: SemanticDiagnostic) {
+        public postDiagnostic(error: Diagnostic) {
             this.provisionalDiagnostic[this.provisionalDiagnostic.length] = error;
         }
 
@@ -177,8 +177,14 @@ module TypeScript {
         public isSpecializingSignatureAtCallSite = false;
         public isSpecializingConstructorMethod = false;
         public isComparingSpecializedSignatures = false;
+        public isResolvingSuperConstructorTarget = false;
+        public inConstructorArguments = false;
+        public inImportDeclaration = false;
+        public isInStaticInitializer = false;
+        public isInInvocationExpression = false;
+        public resolvingTypeNameAsNameExpression = false;
 
-        constructor() {}
+        constructor(public inTypeCheck = false) { }
 
         public pushContextualType(type: PullTypeSymbol, provisional: boolean, substitutions: any) {
             this.contextStack.push(new PullContextualTypeContext(type, provisional, substitutions));
@@ -198,7 +204,7 @@ module TypeScript {
             if (this.contextStack.length) {
                 for (var i = this.contextStack.length - 1; i >= 0; i--) {
                     if (this.contextStack[i].substitutions) {
-                        substitution = this.contextStack[i].substitutions[type.getSymbolID().toString()];
+                        substitution = this.contextStack[i].substitutions[type.pullSymbolIDString];
 
                         if (substitution) {
                             break;
@@ -256,14 +262,14 @@ module TypeScript {
         public setTypeInContext(symbol: PullSymbol, type: PullTypeSymbol) {
             var substitution: PullTypeSymbol = this.findSubstitution(type);
 
-            symbol.setType(substitution ? substitution : type);
+            symbol.type = substitution ? substitution : type;
 
             if (this.contextStack.length && this.inProvisionalResolution()) {
                 this.contextStack[this.contextStack.length - 1].recordProvisionallyTypedSymbol(symbol);
             }
         }
 
-        public pushTypeSpecializationCache(cache) {
+        public pushTypeSpecializationCache(cache: any) {
             this.typeSpecializationStack[this.typeSpecializationStack.length] = cache;
         }
 
@@ -277,7 +283,7 @@ module TypeScript {
             var specialization: PullTypeSymbol = null;
 
             for (var i = this.typeSpecializationStack.length - 1; i >= 0; i--) {
-                specialization = (this.typeSpecializationStack[i])[type.getSymbolID().toString()];
+                specialization = (this.typeSpecializationStack[i])[type.pullSymbolIDString];
 
                 if (specialization) {
                     return specialization;
@@ -287,20 +293,27 @@ module TypeScript {
             return type;
         }
 
-        public postError(fileName: string, offset: number, length: number, diagnosticCode: DiagnosticCode, arguments: any[] = null, enclosingDecl: PullDecl = null, addToDecl = false): Diagnostic {
-            var diagnostic = new SemanticDiagnostic(fileName, offset, length, diagnosticCode, arguments);
-            this.postDiagnostic(diagnostic, enclosingDecl, addToDecl);
+        public postError(fileName: string, offset: number, length: number, diagnosticKey: string, arguments: any[], enclosingDecl: PullDecl, post=true): Diagnostic {
+            var diagnostic = new Diagnostic(fileName, offset, length, diagnosticKey, arguments);
+
+            if (post) {
+                this.postDiagnostic(diagnostic, enclosingDecl);
+            }
 
             return diagnostic;
         }
 
-        public postDiagnostic(diagnostic: Diagnostic, enclosingDecl: PullDecl, addToDecl: boolean): void {
+        public postDiagnostic(diagnostic: Diagnostic, enclosingDecl: PullDecl): void {
             if (this.inProvisionalResolution()) {
                 (this.contextStack[this.contextStack.length - 1]).postDiagnostic(diagnostic);
             }
-            else if (!this.suppressErrors && enclosingDecl && addToDecl) {
+            else if (this.inTypeCheck && !this.suppressErrors && enclosingDecl) {
                 enclosingDecl.addDiagnostic(diagnostic);
             }
+        }
+
+        public typeCheck() {
+            return this.inTypeCheck && !this.inSpecialization;
         }
 
         public startResolvingTypeArguments(ast: AST) {
@@ -309,7 +322,7 @@ module TypeScript {
 
         public isResolvingTypeArguments(ast: AST): boolean {
             for (var i = 0; i < this.genericASTResolutionStack.length; i++) {
-                if (this.genericASTResolutionStack[i].getID() === ast.getID()) {
+                if (this.genericASTResolutionStack[i].astID === ast.astID) {
                     return true;
                 }
             }

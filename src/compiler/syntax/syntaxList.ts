@@ -19,7 +19,7 @@ module TypeScript.Syntax {
         public isList(): boolean { return true; }
         public isSeparatedList(): boolean { return false; }
 
-        public toJSON(key) {
+        public toJSON(key: any) {
             return [];
         }
 
@@ -108,7 +108,7 @@ module TypeScript.Syntax {
         public isList(): boolean { return true; }
         public isSeparatedList(): boolean { return false; }
 
-        public toJSON(key) {
+        public toJSON(key: any) {
             return [this.item];
         }
 
@@ -202,7 +202,7 @@ module TypeScript.Syntax {
         public isList(): boolean { return true; }
         public isSeparatedList(): boolean { return false; }
 
-        public toJSON(key) {
+        public toJSON(key: any) {
             return this.nodeOrTokens;
         }
 
@@ -252,7 +252,7 @@ module TypeScript.Syntax {
         }
 
         public fullText(): string {
-            var elements: string[] = [];
+            var elements = new Array<string>();
             this.collectTextElements(elements);
             return elements.join("");
         }

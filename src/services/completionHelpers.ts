@@ -28,8 +28,8 @@ module Services {
         }
 
         public static isRightOfDot(path: TypeScript.AstPath, position: number): boolean {
-            return (path.count() >= 1 && path.asts[path.top].nodeType === TypeScript.NodeType.MemberAccessExpression && (<TypeScript.BinaryExpression>path.asts[path.top]).operand1.limChar < position) ||
-                (path.count() >= 2 && path.asts[path.top].nodeType === TypeScript.NodeType.Name && path.asts[path.top - 1].nodeType === TypeScript.NodeType.MemberAccessExpression && (<TypeScript.BinaryExpression>path.asts[path.top - 1]).operand2 === path.asts[path.top]);
+            return (path.count() >= 1 && path.asts[path.top].nodeType() === TypeScript.NodeType.MemberAccessExpression && (<TypeScript.BinaryExpression>path.asts[path.top]).operand1.limChar < position) ||
+                (path.count() >= 2 && path.asts[path.top].nodeType() === TypeScript.NodeType.Name && path.asts[path.top - 1].nodeType() === TypeScript.NodeType.MemberAccessExpression && (<TypeScript.BinaryExpression>path.asts[path.top - 1]).operand2 === path.asts[path.top]);
         }
 
         public static isCompletionListBlocker(sourceUnit: TypeScript.SourceUnitSyntax, position: number): boolean {
@@ -40,7 +40,7 @@ module Services {
                 CompletionHelpers.isRightOfIllegalDot(sourceUnit, position);
         }
 
-        public static getContaingingObjectLiteralApplicableForCompletion(sourceUnit: TypeScript.SourceUnitSyntax, position: number): TypeScript.PositionedElement {
+        public static getContainingObjectLiteralApplicableForCompletion(sourceUnit: TypeScript.SourceUnitSyntax, position: number): TypeScript.PositionedElement {
             // The locations in an object literal expression that are applicable for completion are property name definition locations.
             var previousToken = CompletionHelpers.getNonIdentifierCompleteTokenOnLeft(sourceUnit, position);
 
@@ -73,11 +73,15 @@ module Services {
                 switch (positionedToken.kind()) {
                     case TypeScript.SyntaxKind.CommaToken:
                         return containingNodeKind === TypeScript.SyntaxKind.ParameterList ||
-                            containingNodeKind === TypeScript.SyntaxKind.VariableDeclaration;
+                            containingNodeKind === TypeScript.SyntaxKind.VariableDeclaration ||
+                            containingNodeKind === TypeScript.SyntaxKind.EnumDeclaration;           // enum { foo, |
 
                     case TypeScript.SyntaxKind.OpenParenToken:
                         return containingNodeKind === TypeScript.SyntaxKind.ParameterList ||
                             containingNodeKind === TypeScript.SyntaxKind.CatchClause;
+
+                    case TypeScript.SyntaxKind.OpenBraceToken:
+                        return containingNodeKind === TypeScript.SyntaxKind.EnumDeclaration;        // enum { |
 
                     case TypeScript.SyntaxKind.PublicKeyword:
                     case TypeScript.SyntaxKind.PrivateKeyword:

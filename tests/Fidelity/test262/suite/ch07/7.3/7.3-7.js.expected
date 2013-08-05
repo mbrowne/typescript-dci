@@ -2,8 +2,7 @@
     "isDeclaration": false,
     "languageVersion": "EcmaScript5",
     "parseOptions": {
-        "allowAutomaticSemicolonInsertion": true,
-        "allowModuleKeywordInExternalModuleReference": true
+        "allowAutomaticSemicolonInsertion": true
     },
     "sourceUnit": {
         "kind": "SourceUnit",
@@ -229,8 +228,8 @@
                                                         "kind": "StringLiteral",
                                                         "width": 26,
                                                         "text": "\"var regExp =  /[\\u2028]/\"",
-                                                        "value": "var regExp =  /[\u2028]/",
-                                                        "valueText": "var regExp =  /[\u2028]/"
+                                                        "value": "var regExp =  /[ ]/",
+                                                        "valueText": "var regExp =  /[ ]/"
                                                     }
                                                 ],
                                                 "closeParenToken": {

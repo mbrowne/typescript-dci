@@ -2,8 +2,7 @@
     "isDeclaration": false,
     "languageVersion": "EcmaScript5",
     "parseOptions": {
-        "allowAutomaticSemicolonInsertion": true,
-        "allowModuleKeywordInExternalModuleReference": true
+        "allowAutomaticSemicolonInsertion": true
     },
     "sourceUnit": {
         "kind": "SourceUnit",
@@ -436,8 +435,8 @@
                                     "kind": "NumericLiteral",
                                     "width": 4,
                                     "text": "0x25",
-                                    "value": 0,
-                                    "valueText": "0"
+                                    "value": 37,
+                                    "valueText": "37"
                                 }
                             },
                             "closeParenToken": {

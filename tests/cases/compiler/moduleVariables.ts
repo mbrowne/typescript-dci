@@ -1,3 +1,4 @@
+declare var console: any;
  
 var x = 1;
 module M {

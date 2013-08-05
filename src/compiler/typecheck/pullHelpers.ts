@@ -24,10 +24,10 @@ module TypeScript {
             if (funcSymbol.isSignature()) {
                 functionSignature = <PullSignatureSymbol>funcSymbol;
                 var parent = functionDecl.getParentDecl();
-                typeSymbolWithAllSignatures = parent.getSymbol().getType();                
+                typeSymbolWithAllSignatures = parent.getSymbol().type;                
             } else {
                 functionSignature = functionDecl.getSignatureSymbol();
-                typeSymbolWithAllSignatures = funcSymbol.getType();
+                typeSymbolWithAllSignatures = funcSymbol.type;
             }
             var signatures: PullSignatureSymbol[];
             if (funcDecl.isConstructor || funcDecl.isConstructMember()) {
@@ -70,18 +70,18 @@ module TypeScript {
             return result;
         }
 
-        export function symbolIsEnum(source: PullSymbol) {
-            return source && ((source.getKind() & (PullElementKind.Enum | PullElementKind.EnumMember)) || source.hasFlag(PullElementFlags.InitializedEnum));
+        export function symbolIsEnum(source: PullSymbol): boolean {
+            return source && ((source.kind & (PullElementKind.Enum | PullElementKind.EnumMember)) || source.hasFlag(PullElementFlags.InitializedEnum));
         }
 
         export function symbolIsModule(symbol: PullSymbol) {
-            return symbol.getKind() == PullElementKind.Container || isOneDeclarationOfKind(symbol, PullElementKind.Container);
+            return symbol && (symbol.kind == PullElementKind.Container || isOneDeclarationOfKind(symbol, PullElementKind.Container));
         }
 
         function isOneDeclarationOfKind(symbol: PullSymbol, kind: TypeScript.PullElementKind): boolean {
             var decls = symbol.getDeclarations();
             for (var i = 0; i < decls.length; i++) {
-                if (decls[i].getKind() === kind) {
+                if (decls[i].kind === kind) {
                     return true;
                 }
             }

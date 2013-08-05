@@ -1,5 +1,4 @@
-// bug 701971: retyper: adding var with unresolved type causes LS crash
-/// <reference path="../fourslash.ts" />
+/// <reference path="fourslash.ts" />
 
 //// 
 //// //_modes. // produces an internal error - please implement in derived class
@@ -22,4 +21,4 @@ edit.disableFormatting();
 
 goTo.marker(1);
 
-//edit.insert("         var x:modes.Mode;\n");
+edit.insert("         var x:modes.Mode;\n");

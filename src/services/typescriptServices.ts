@@ -17,7 +17,6 @@
 ///<reference path='..\compiler\typescript.ts' />
 ///<reference path='coreServices.ts' />
 ///<reference path='classifier.ts' />
-///<reference path='emitOutputTextWriter.ts' />
 ///<reference path='compilerState.ts' />
 ///<reference path='languageService.ts' />
 ///<reference path='completionHelpers.ts' />
@@ -32,6 +31,7 @@
 ///<reference path='braceMatcher.ts' />
 ///<reference path='indenter.ts' />
 ///<reference path='breakpoints.ts' />
+///<reference path='getScriptLexicalStructureWalker.ts' />
 
 module Services {
     export function copyDataObject(dst: any, src: any): any {

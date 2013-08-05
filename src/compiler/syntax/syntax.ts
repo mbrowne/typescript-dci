@@ -5,8 +5,7 @@ module TypeScript.Syntax {
         return Syntax.normalModeFactory.sourceUnit(Syntax.emptyList, Syntax.token(SyntaxKind.EndOfFileToken, { text: "" }));
     }
 
-    export function getStandaloneExpression(positionedToken: PositionedToken): PositionedNodeOrToken
-    {
+    export function getStandaloneExpression(positionedToken: PositionedToken): PositionedNodeOrToken {
         var token = positionedToken.token();
         if (positionedToken !== null && positionedToken.kind() === SyntaxKind.IdentifierName) {
             var parentPositionedNode = positionedToken.containingNode();
@@ -422,6 +421,35 @@ module TypeScript.Syntax {
         return null;
     }
 
+    function findSkippedTokenOnLeftInTriviaList(positionedToken: PositionedToken, position: number, lookInLeadingTriviaList: boolean): PositionedSkippedToken {
+        var triviaList: TypeScript.ISyntaxTriviaList = null;
+        var fullEnd: number;
+
+        if (lookInLeadingTriviaList) {
+            triviaList = positionedToken.token().leadingTrivia();
+            fullEnd = positionedToken.fullStart() + triviaList.fullWidth();
+        }
+        else {
+            triviaList = positionedToken.token().trailingTrivia();
+            fullEnd = positionedToken.fullEnd();
+        }
+
+        if (triviaList && triviaList.hasSkippedToken()) {
+            for (var i = triviaList.count() - 1; i >= 0; i--) {
+                var trivia = triviaList.syntaxTriviaAt(i);
+                var triviaWidth = trivia.fullWidth();
+
+                if (trivia.isSkippedToken() && position >= fullEnd) {
+                    return new PositionedSkippedToken(positionedToken, trivia.skippedToken(), fullEnd - triviaWidth);
+                }
+
+                fullEnd -= triviaWidth;
+            }
+        }
+
+        return null;
+    }
+
     export function findSkippedTokenInLeadingTriviaList(positionedToken: PositionedToken, position: number): PositionedSkippedToken {
         return findSkippedTokenInTriviaList(positionedToken, position, /*lookInLeadingTriviaList*/ true);
     }
@@ -433,6 +461,11 @@ module TypeScript.Syntax {
     export function findSkippedTokenInPositionedToken(positionedToken: PositionedToken, position: number): PositionedSkippedToken {
         var positionInLeadingTriviaList = (position < positionedToken.start());
         return findSkippedTokenInTriviaList(positionedToken, position, /*lookInLeadingTriviaList*/ positionInLeadingTriviaList);
+    }
+
+    export function findSkippedTokenOnLeft(positionedToken: PositionedToken, position: number): PositionedSkippedToken {
+        var positionInLeadingTriviaList = (position < positionedToken.start());
+        return findSkippedTokenOnLeftInTriviaList(positionedToken, position, /*lookInLeadingTriviaList*/ positionInLeadingTriviaList);
     }
 
     export function getAncestorOfKind(positionedToken: PositionedElement, kind: SyntaxKind): PositionedElement {
@@ -449,5 +482,35 @@ module TypeScript.Syntax {
 
     export function hasAncestorOfKind(positionedToken: PositionedElement, kind: SyntaxKind): boolean {
         return Syntax.getAncestorOfKind(positionedToken, kind) !== null;
+    }
+
+    export function isIntegerLiteral(expression: IExpressionSyntax): boolean {
+        if (expression) {
+            switch (expression.kind()) {
+                case SyntaxKind.PlusExpression:
+                case SyntaxKind.NegateExpression:
+                    // Note: if there is a + or - sign, we can only allow a normal integer following
+                    // (and not a hex integer).  i.e. -0xA is a legal expression, but it is not a 
+                    // *literal*.
+                    expression = (<PrefixUnaryExpressionSyntax>expression).operand;
+                    return isInteger((<ISyntaxToken>expression).text());
+
+                case SyntaxKind.NumericLiteral:
+                    // If it doesn't have a + or -, then either an integer literal or a hex literal
+                    // is acceptable.
+                    var text = (<ISyntaxToken> expression).text();
+                    return isInteger(text) || isHexInteger(text);
+            }
+        }
+
+        return false;
+    }
+
+    function isInteger(text: string): boolean {
+        return /^[0-9]+$/.test(text);
+    }
+
+    export function isHexInteger(text: string): boolean {
+        return /^0(x|X)[0-9a-fA-F]+$/.test(text);
     }
 }

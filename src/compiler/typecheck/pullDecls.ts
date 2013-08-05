@@ -6,11 +6,12 @@
 module TypeScript {
     export var pullDeclID = 0;
     export var lastBoundPullDeclId = 0;
+    var sentinelEmptyPullDeclArray: any[] = [];
 
     export class PullDecl {
-        private declType: PullElementKind;
+        public kind: PullElementKind;
 
-        private declName: string;
+        public name: string;
 
         private declDisplayName: string;
 
@@ -22,8 +23,8 @@ module TypeScript {
         private signatureSymbol: PullSignatureSymbol = null;
         private specializingSignatureSymbol: PullSignatureSymbol = null;
 
-        private childDecls: PullDecl[] = [];
-        private typeParameters: PullDecl[] = [];
+        private childDecls: PullDecl[] = null;
+        private typeParameters: PullDecl[] = null;
 
         // Mappings from names to decls.  Public only for diffing purposes.
         public childDeclTypeCache: any = new BlockIntrinsics();
@@ -31,15 +32,16 @@ module TypeScript {
         public childDeclNamespaceCache: any = new BlockIntrinsics();
         public childDeclTypeParameterCache: any = new BlockIntrinsics();
 
-        private declID = pullDeclID++;
+        public declID = pullDeclID++;
+        public declIDString: string = null;
 
-        private declFlags: PullElementFlags = PullElementFlags.None;
+        public flags: PullElementFlags = PullElementFlags.None;
 
         private span: TextSpan;
 
         private scriptName: string;
 
-        private diagnostics: IDiagnostic[] = null;
+        private diagnostics: Diagnostic[] = null;
 
         private parentDecl: PullDecl = null;
         private _parentPath: PullDecl[] = null;
@@ -50,35 +52,40 @@ module TypeScript {
         // edits and updates we don't leak the val decl or symbol
         private synthesizedValDecl: PullDecl = null;
 
-        constructor(declName: string, displayName: string, declType: PullElementKind, declFlags: PullElementFlags, span: TextSpan, scriptName: string) {
-            this.declName = declName;
-            this.declType = declType;
-            this.declFlags = declFlags;
+        public hashCode = -1;
+
+        // This is used to store the AST directly on the decl, rather than in a data map,
+        // if the useDirectTypeStorage flag is set
+        public ast: AST = null;
+
+        constructor(declName: string, displayName: string, kind: PullElementKind, declFlags: PullElementFlags, span: TextSpan, scriptName: string) {
+            this.name = declName;
+            this.kind = kind;
+            this.flags = declFlags;
             this.span = span;
             this.scriptName = scriptName;
 
-            if (displayName !== this.declName) {
+            if (displayName !== this.name) {
                 this.declDisplayName = displayName;
             }
-        }
 
-        public getDeclID() { return this.declID; }
+            this.hashCode = this.declID ^ this.kind;
+            this.declIDString = this.declID.toString();
+        }
 
         /** Use getName for type checking purposes, and getDisplayName to report an error or display info to the user.
          * They will differ when the identifier is an escaped unicode character or the identifier "__proto__".
          */
-        public getName() { return this.declName; }
-        public getKind() { return this.declType }
 
         public getDisplayName() {
-            return this.declDisplayName === undefined ? this.declName : this.declDisplayName;
+            return this.declDisplayName === undefined ? this.name : this.declDisplayName;
         }
 
         public setSymbol(symbol: PullSymbol) { this.symbol = symbol; }
 
         public ensureSymbolIsBound(bindSignatureSymbol=false) {
 
-            if (!((bindSignatureSymbol && this.signatureSymbol) || this.symbol) && !this._isBound && this.declType != PullElementKind.Script) {
+            if (!((bindSignatureSymbol && this.signatureSymbol) || this.symbol) && !this._isBound && this.kind != PullElementKind.Script) {
                 //var binder = new PullSymbolBinder(globalSemanticInfoChain);
                 var prevUnit = globalBinder.semanticInfo;
                 globalBinder.setUnit(this.scriptName);
@@ -91,7 +98,7 @@ module TypeScript {
 
         public getSymbol(): PullSymbol {
 
-            if (this.declType == PullElementKind.Script) {
+            if (this.kind == PullElementKind.Script) {
                 return null;
             }
 
@@ -124,8 +131,8 @@ module TypeScript {
             return this.signatureSymbol;
         }
 
-        public getFlags(): PullElementFlags { return this.declFlags; }
-        public setFlags(flags: PullElementFlags) { this.declFlags = flags; }
+        public setFlags(flags: PullElementFlags) { this.flags = flags; }
+        public setFlag(flags: PullElementFlags) { this.flags |= flags; }
 
         public getSpan(): TextSpan { return this.span; }
         public setSpan(span: TextSpan) { this.span = span; }
@@ -136,9 +143,9 @@ module TypeScript {
         public getValueDecl() { return this.synthesizedValDecl; }
 
         public isEqual(other: PullDecl) {
-            return  (this.declName === other.declName) &&
-                    (this.declType === other.declType) &&
-                    (this.declFlags === other.declFlags) &&
+            return  (this.name === other.name) &&
+                    (this.kind === other.kind) &&
+                    (this.flags === other.flags) &&
                     (this.scriptName === other.scriptName) &&
                     (this.span.start() === other.span.start()) &&
                     (this.span.end() === other.span.end());
@@ -152,7 +159,7 @@ module TypeScript {
             this.parentDecl = parentDecl;
         }
 
-        public addDiagnostic(diagnostic: IDiagnostic) {
+        public addDiagnostic(diagnostic: Diagnostic) {
             if (diagnostic) {
                 if (!this.diagnostics) {
                     this.diagnostics = [];
@@ -164,24 +171,12 @@ module TypeScript {
             }
         }
 
-        public getDiagnostics(): IDiagnostic[] {
-            return this.diagnostics;
-        }
-
-        public setErrors(diagnostics: SemanticDiagnostic[]) {
-            if (diagnostics) {
-                this.diagnostics = [];
-
-                // adjust the spans as we parent the errors to the new decl
-                for (var i = 0; i < diagnostics.length; i++) {
-                    diagnostics[i].adjustOffset(this.span.start());
-                    this.diagnostics[this.diagnostics.length] = diagnostics[i];
-                }
-            }
+        public getDiagnostics(): Diagnostic[] {
+            return this.diagnostics ? this.diagnostics : sentinelEmptyPullDeclArray;
         }
 
         public resetErrors() {
-            this.diagnostics = [];
+            this.diagnostics = null;
         }
 
         private getChildDeclCache(declKind: PullElementKind): any {
@@ -200,16 +195,22 @@ module TypeScript {
             // check if decl exists
             // merge if necessary
 
-            if (childDecl.getKind() === PullElementKind.TypeParameter) {
+            if (childDecl.kind === PullElementKind.TypeParameter) {
+                if (!this.typeParameters) {
+                    this.typeParameters = [];
+                }
                 this.typeParameters[this.typeParameters.length] = childDecl;
             }
             else {
+                if (!this.childDecls) {
+                    this.childDecls = [];
+                }
                 this.childDecls[this.childDecls.length] = childDecl;
             }
 
             // add to the appropriate cache
-            var declName = childDecl.getName();
-            var cache = this.getChildDeclCache(childDecl.getKind());
+            var declName = childDecl.name;
+            var cache = this.getChildDeclCache(childDecl.kind);
             var childrenOfName = <PullDecl[]>cache[declName];
             if (!childrenOfName) {
                 childrenOfName = [];
@@ -235,11 +236,18 @@ module TypeScript {
             // find the decl with the optional type
             // if necessary, cache the decl
             // may be wise to return a chain of decls, or take a parent decl as a parameter
-            var cache = (searchKind & PullElementKind.SomeType) ? this.childDeclTypeCache :
-                (searchKind & PullElementKind.SomeContainer) ? this.childDeclNamespaceCache :
-                this.childDeclValueCache;
-            
-            var cacheVal = <PullDecl[]>cache[declName];
+
+            var cacheVal: PullDecl[] = null;
+
+            if (searchKind & PullElementKind.SomeType) {
+                cacheVal = <PullDecl[]>this.childDeclTypeCache[declName];
+            }
+            else if (searchKind & PullElementKind.SomeContainer) {
+                cacheVal = <PullDecl[]>this.childDeclNamespaceCache[declName];
+            }
+            else {
+                cacheVal = <PullDecl[]>this.childDeclValueCache[declName];
+            }
 
             if (cacheVal) {
                 return cacheVal;
@@ -255,35 +263,39 @@ module TypeScript {
                     }
                 }
 
-                return [];
+                return sentinelEmptyPullDeclArray;
             }
          }
 
-        public getChildDecls() { return this.childDecls; }
-        public getTypeParameters() { return this.typeParameters; }
+        public getChildDecls() : PullDecl[] { return this.childDecls ? this.childDecls : sentinelEmptyPullDeclArray; }
+        public getTypeParameters() { return this.typeParameters ? this.typeParameters : sentinelEmptyPullDeclArray; }
 
         public addVariableDeclToGroup(decl: PullDecl) {
-            var declGroup = this.declGroups[decl.getName()];
+            var declGroup = this.declGroups[decl.name];
             if (declGroup) {
                 declGroup.addDecl(decl);
             }
             else {
-                declGroup = new PullDeclGroup(decl.getName());
+                declGroup = new PullDeclGroup(decl.name);
                 declGroup.addDecl(decl);
-                this.declGroups[decl.getName()] = declGroup;
+                this.declGroups[decl.name] = declGroup;
             }
         }
 
         public getVariableDeclGroups(): PullDecl[][] {
-            var declGroups: PullDecl[][] = [];
+            var declGroups: PullDecl[][] = null;
 
             for (var declName in this.declGroups) {
                 if (this.declGroups[declName]) {
+                    if (!declGroups) {
+                        declGroups = [];
+                    }
+
                     declGroups[declGroups.length] = this.declGroups[declName].getDecls();
                 }
             }
 
-            return declGroups;
+            return declGroups ? declGroups : sentinelEmptyPullDeclArray;
         }
 
         public getParentPath() {
@@ -294,7 +306,7 @@ module TypeScript {
             this._parentPath = path;
         }
 
-        public setIsBound(isBinding) {
+        public setIsBound(isBinding: boolean) {
             this._isBound = isBinding;
         }
 
@@ -324,7 +336,7 @@ module TypeScript {
         }
 
         public addDecl(decl: PullDecl) {
-            if (decl.getName() === this.name) {
+            if (decl.name === this.name) {
                 this._decls[this._decls.length] = decl;
             }
         }

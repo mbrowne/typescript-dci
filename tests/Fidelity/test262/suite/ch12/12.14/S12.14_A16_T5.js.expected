@@ -2,19 +2,18 @@
     "isDeclaration": false,
     "languageVersion": "EcmaScript5",
     "parseOptions": {
-        "allowAutomaticSemicolonInsertion": true,
-        "allowModuleKeywordInExternalModuleReference": true
+        "allowAutomaticSemicolonInsertion": true
     },
     "diagnostics": [
         {
             "start": 410,
             "length": 1,
-            "diagnosticCode": "Identifier_expected"
+            "diagnosticCode": "Identifier expected."
         },
         {
             "start": 413,
             "length": 0,
-            "diagnosticCode": "_0_expected",
+            "diagnosticCode": "'{0}' expected.",
             "arguments": [
                 "{"
             ]

@@ -1,39 +1,38 @@
 ///<reference path='references.ts' />
 
 module TypeScript {
-    export interface IDiagnostic {
-        fileName(): string;
-        start(): number;
-        length(): number;
-        diagnosticCode(): DiagnosticCode;
-        text(): string;
-        message(): string;
+    export var LocalizedDiagnosticMessages: any = null;
+
+    export function newLine(): string {
+        // TODO: We need to expose an extensibility point on our hosts to have them tell us what 
+        // they want the newline string to be.  That way we can get the correct result regardless
+        // of which host we use
+        return Environment ? Environment.newLine : "\r\n";
     }
 
-    export class Diagnostic implements IDiagnostic {
+    export class Diagnostic {
         private _fileName: string;
         private _start: number;
-        private _originalStart: number;
         private _length: number;
-        private _diagnosticCode: DiagnosticCode;
+        private _diagnosticKey: string;
         private _arguments: any[];
 
-        constructor(fileName: string, start: number, length: number, diagnosticCode: DiagnosticCode, arguments: any[] = null) {
-            this._diagnosticCode = diagnosticCode;
+        constructor(fileName: string, start: number, length: number, diagnosticKey: string, arguments: any[] = null) {
+            this._diagnosticKey = diagnosticKey;
             this._arguments = (arguments && arguments.length > 0) ? arguments : null;
             this._fileName = fileName;
-            this._originalStart = this._start = start;
+            this._start = start;
             this._length = length;
         }
 
-        public toJSON(key) {
+        public toJSON(key: any): any {
             var result: any = {};
             result.start = this.start();
             result.length = this.length();
 
-            result.diagnosticCode = DiagnosticCode[this.diagnosticCode()];
+            result.diagnosticCode = this._diagnosticKey;
 
-            var arguments = (<any>this).arguments();
+            var arguments: any[] = (<any>this).arguments();
             if (arguments && arguments.length > 0) {
                 result.arguments = arguments;
             }
@@ -53,37 +52,33 @@ module TypeScript {
             return this._length;
         }
 
-        public diagnosticCode(): DiagnosticCode {
-            return this._diagnosticCode;
+        public diagnosticKey(): string {
+            return this._diagnosticKey;
         }
 
         public arguments(): any[] {
             return this._arguments;
         }
 
-        /// <summary>
-        /// Get the text of the message in the given language.
-        /// </summary>
+        /**
+         * Get the text of the message in the given language.
+         */
         public text(): string {
-            return TypeScript.getDiagnosticText(this._diagnosticCode, this._arguments);
+            return TypeScript.getLocalizedText(this._diagnosticKey, this._arguments);
         }
 
-        /// <summary>
-        /// Get the text of the message including the error code in the given language.
-        /// </summary>
+        /**
+         * Get the text of the message including the error code in the given language.
+         */
         public message(): string {
-            return TypeScript.getDiagnosticMessage(this._diagnosticCode, this._arguments);
+            return TypeScript.getDiagnosticMessage(this._diagnosticKey, this._arguments);
         }
 
-        public adjustOffset(pos: number) {
-            this._start = this._originalStart + pos;
-        }
-
-        /// <summary>
-        /// If a derived class has additional information about other referenced symbols, it can
-        /// expose the locations of those symbols in a general way, so they can be reported along
-        /// with the error.
-        /// </summary>
+        /**
+         * If a derived class has additional information about other referenced symbols, it can
+         * expose the locations of those symbols in a general way, so they can be reported along
+         * with the error.
+         */
         public additionalLocations(): Location[] {
             return [];
         }
@@ -92,17 +87,18 @@ module TypeScript {
             return diagnostic1._fileName === diagnostic2._fileName &&
                 diagnostic1._start === diagnostic2._start &&
                 diagnostic1._length === diagnostic2._length &&
-                diagnostic1._diagnosticCode === diagnostic2._diagnosticCode &&
+                diagnostic1._diagnosticKey === diagnostic2._diagnosticKey &&
                 ArrayUtilities.sequenceEquals(diagnostic1._arguments, diagnostic2._arguments, (v1, v2) => v1 === v2);
         }
     }
 
     function getLargestIndex(diagnostic: string): number {
         var largest = -1;
-        var stringComponents = diagnostic.split("_");
+        var regex = /\{(\d+)\}/g;
 
-        for (var i = 0; i < stringComponents.length; i++) {
-            var val = parseInt(stringComponents[i]);
+        var match: RegExpExecArray;
+        while ((match = regex.exec(diagnostic)) != null) {
+            var val = parseInt(match[1]);
             if (!isNaN(val) && val > largest) {
                 largest = val;
             }
@@ -111,65 +107,57 @@ module TypeScript {
         return largest;
     }
 
-    export function getDiagnosticInfoFromCode(diagnosticCode: DiagnosticCode): DiagnosticInfo {
-        var diagnosticName: string = DiagnosticCode[diagnosticCode];
-        return <DiagnosticInfo>diagnosticMessages[diagnosticName];
+    export function getDiagnosticInfoFromKey(diagnosticKey: string): DiagnosticInfo {
+        var result: DiagnosticInfo = diagnosticInformationMap[diagnosticKey];
+        Debug.assert(result !== undefined && result !== null);
+        return result;
     }
 
-    export function getDiagnosticText(diagnosticCode: DiagnosticCode, args: any[]): string {
-        var diagnosticName: string = DiagnosticCode[diagnosticCode];
+    export function getLocalizedText(diagnosticKey: string, args: any[]): string {
+        if (LocalizedDiagnosticMessages) {
+            Debug.assert(LocalizedDiagnosticMessages.hasOwnProperty(diagnosticKey));
+        }
 
-        var diagnostic = <DiagnosticInfo>diagnosticMessages[diagnosticName];
+        var diagnosticMessageText: string = LocalizedDiagnosticMessages ? LocalizedDiagnosticMessages[diagnosticKey] : diagnosticKey;
+        Debug.assert(diagnosticMessageText !== undefined && diagnosticMessageText !== null);
 
         var actualCount = args ? args.length : 0;
-        if (!diagnostic) {
-            throw new Error("Invalid diagnostic");
-        }
-        else {
-            // We have a string like "foo_0_bar_1".  We want to find the largest integer there.
-            // (i.e.'1').  We then need one more arg than that to be correct.
-            var expectedCount = 1 + getLargestIndex(diagnosticName);
+        // We have a string like "foo_0_bar_1".  We want to find the largest integer there.
+        // (i.e.'1').  We then need one more arg than that to be correct.
+        var expectedCount = 1 + getLargestIndex(diagnosticKey);
 
-            if (expectedCount !== actualCount) {
-                throw new Error("Expected " + expectedCount + " arguments to diagnostic, got " + actualCount + " instead");
-            }
+        if (expectedCount !== actualCount) {
+            throw new Error(getLocalizedText(DiagnosticCode.Expected_0_arguments_to_message_got_1_instead, [expectedCount, actualCount]));
         }
 
-        var diagnosticMessageText = diagnostic.message.replace(/{({(\d+)})?TB}/g, function (match, p1, num) {
-            var tabChar = "\t";
-            var result = tabChar;
-            if (num && args[num]) {
-                for (var i = 1; i < <number>args[num]; i++) {
-                    result += tabChar;
-                }
-            }
-
-            return result;
-        } );
-
+        // This should also be the same number of arguments as the message text
+        var valueCount = 1 + getLargestIndex(diagnosticMessageText);
+        if (valueCount !== expectedCount) {
+            throw new Error(getLocalizedText(DiagnosticCode.Expected_the_message_0_to_have_1_arguments_but_it_had_2, [diagnosticMessageText, expectedCount, valueCount]));
+        }
 
         diagnosticMessageText = diagnosticMessageText.replace(/{(\d+)}/g, function (match, num) {
             return typeof args[num] !== 'undefined'
                 ? args[num]
                 : match;
-        } );
+        });
 
         diagnosticMessageText = diagnosticMessageText.replace(/{(NL)}/g, function (match) {
-            return "\r\n";
-        } );
+            return TypeScript.newLine();
+        });
 
         return diagnosticMessageText;
     }
 
-    export function getDiagnosticMessage(diagnosticCode: DiagnosticCode, args: any[]): string {
-        var diagnostic = getDiagnosticInfoFromCode(diagnosticCode);
-        var diagnosticMessageText = getDiagnosticText(diagnosticCode, args);
+    export function getDiagnosticMessage(diagnosticKey: string, args: any[]): string {
+        var diagnostic = getDiagnosticInfoFromKey(diagnosticKey);
+        var diagnosticMessageText = getLocalizedText(diagnosticKey, args);
 
         var message: string;
         if (diagnostic.category === DiagnosticCategory.Error) {
-            message = getDiagnosticText(DiagnosticCode.error_TS_0__1, [diagnostic.code, diagnosticMessageText]);
+            message = getLocalizedText(DiagnosticCode.error_TS_0_1, [diagnostic.code, diagnosticMessageText]);
         } else if (diagnostic.category === DiagnosticCategory.Warning) {
-            message = getDiagnosticText(DiagnosticCode.warning_TS_0__1, [diagnostic.code, diagnosticMessageText]);
+            message = getLocalizedText(DiagnosticCode.warning_TS_0_1, [diagnostic.code, diagnosticMessageText]);
         } else {
             message = diagnosticMessageText;
         }

@@ -3,9 +3,9 @@
 module TypeScript.Syntax {
     export interface IFactory {
         sourceUnit(moduleElements: ISyntaxList, endOfFileToken: ISyntaxToken): SourceUnitSyntax;
-        externalModuleReference(moduleOrRequireKeyword: ISyntaxToken, openParenToken: ISyntaxToken, stringLiteral: ISyntaxToken, closeParenToken: ISyntaxToken): ExternalModuleReferenceSyntax;
+        externalModuleReference(requireKeyword: ISyntaxToken, openParenToken: ISyntaxToken, stringLiteral: ISyntaxToken, closeParenToken: ISyntaxToken): ExternalModuleReferenceSyntax;
         moduleNameModuleReference(moduleName: INameSyntax): ModuleNameModuleReferenceSyntax;
-        importDeclaration(importKeyword: ISyntaxToken, identifier: ISyntaxToken, equalsToken: ISyntaxToken, moduleReference: ModuleReferenceSyntax, semicolonToken: ISyntaxToken): ImportDeclarationSyntax;
+        importDeclaration(modifiers: ISyntaxList, importKeyword: ISyntaxToken, identifier: ISyntaxToken, equalsToken: ISyntaxToken, moduleReference: ModuleReferenceSyntax, semicolonToken: ISyntaxToken): ImportDeclarationSyntax;
         exportAssignment(exportKeyword: ISyntaxToken, equalsToken: ISyntaxToken, identifier: ISyntaxToken, semicolonToken: ISyntaxToken): ExportAssignmentSyntax;
         classDeclaration(modifiers: ISyntaxList, classKeyword: ISyntaxToken, identifier: ISyntaxToken, typeParameterList: TypeParameterListSyntax, heritageClauses: ISyntaxList, openBraceToken: ISyntaxToken, classElements: ISyntaxList, closeBraceToken: ISyntaxToken): ClassDeclarationSyntax;
         interfaceDeclaration(modifiers: ISyntaxList, interfaceKeyword: ISyntaxToken, identifier: ISyntaxToken, typeParameterList: TypeParameterListSyntax, heritageClauses: ISyntaxList, body: ObjectTypeSyntax): InterfaceDeclarationSyntax;
@@ -29,6 +29,7 @@ module TypeScript.Syntax {
         objectType(openBraceToken: ISyntaxToken, typeMembers: ISeparatedSyntaxList, closeBraceToken: ISyntaxToken): ObjectTypeSyntax;
         arrayType(type: ITypeSyntax, openBracketToken: ISyntaxToken, closeBracketToken: ISyntaxToken): ArrayTypeSyntax;
         genericType(name: INameSyntax, typeArgumentList: TypeArgumentListSyntax): GenericTypeSyntax;
+        typeQuery(typeOfKeyword: ISyntaxToken, name: INameSyntax): TypeQuerySyntax;
         typeAnnotation(colonToken: ISyntaxToken, type: ITypeSyntax): TypeAnnotationSyntax;
         block(openBraceToken: ISyntaxToken, statements: ISyntaxList, closeBraceToken: ISyntaxToken): BlockSyntax;
         parameter(dotDotDotToken: ISyntaxToken, publicOrPrivateKeyword: ISyntaxToken, identifier: ISyntaxToken, questionToken: ISyntaxToken, typeAnnotation: TypeAnnotationSyntax, equalsValueClause: EqualsValueClauseSyntax): ParameterSyntax;
@@ -93,14 +94,14 @@ module TypeScript.Syntax {
         sourceUnit(moduleElements: ISyntaxList, endOfFileToken: ISyntaxToken): SourceUnitSyntax {
             return new SourceUnitSyntax(moduleElements, endOfFileToken, /*parsedInStrictMode:*/ false);
         }
-        externalModuleReference(moduleOrRequireKeyword: ISyntaxToken, openParenToken: ISyntaxToken, stringLiteral: ISyntaxToken, closeParenToken: ISyntaxToken): ExternalModuleReferenceSyntax {
-            return new ExternalModuleReferenceSyntax(moduleOrRequireKeyword, openParenToken, stringLiteral, closeParenToken, /*parsedInStrictMode:*/ false);
+        externalModuleReference(requireKeyword: ISyntaxToken, openParenToken: ISyntaxToken, stringLiteral: ISyntaxToken, closeParenToken: ISyntaxToken): ExternalModuleReferenceSyntax {
+            return new ExternalModuleReferenceSyntax(requireKeyword, openParenToken, stringLiteral, closeParenToken, /*parsedInStrictMode:*/ false);
         }
         moduleNameModuleReference(moduleName: INameSyntax): ModuleNameModuleReferenceSyntax {
             return new ModuleNameModuleReferenceSyntax(moduleName, /*parsedInStrictMode:*/ false);
         }
-        importDeclaration(importKeyword: ISyntaxToken, identifier: ISyntaxToken, equalsToken: ISyntaxToken, moduleReference: ModuleReferenceSyntax, semicolonToken: ISyntaxToken): ImportDeclarationSyntax {
-            return new ImportDeclarationSyntax(importKeyword, identifier, equalsToken, moduleReference, semicolonToken, /*parsedInStrictMode:*/ false);
+        importDeclaration(modifiers: ISyntaxList, importKeyword: ISyntaxToken, identifier: ISyntaxToken, equalsToken: ISyntaxToken, moduleReference: ModuleReferenceSyntax, semicolonToken: ISyntaxToken): ImportDeclarationSyntax {
+            return new ImportDeclarationSyntax(modifiers, importKeyword, identifier, equalsToken, moduleReference, semicolonToken, /*parsedInStrictMode:*/ false);
         }
         exportAssignment(exportKeyword: ISyntaxToken, equalsToken: ISyntaxToken, identifier: ISyntaxToken, semicolonToken: ISyntaxToken): ExportAssignmentSyntax {
             return new ExportAssignmentSyntax(exportKeyword, equalsToken, identifier, semicolonToken, /*parsedInStrictMode:*/ false);
@@ -170,6 +171,9 @@ module TypeScript.Syntax {
         }
         genericType(name: INameSyntax, typeArgumentList: TypeArgumentListSyntax): GenericTypeSyntax {
             return new GenericTypeSyntax(name, typeArgumentList, /*parsedInStrictMode:*/ false);
+        }
+        typeQuery(typeOfKeyword: ISyntaxToken, name: INameSyntax): TypeQuerySyntax {
+            return new TypeQuerySyntax(typeOfKeyword, name, /*parsedInStrictMode:*/ false);
         }
         typeAnnotation(colonToken: ISyntaxToken, type: ITypeSyntax): TypeAnnotationSyntax {
             return new TypeAnnotationSyntax(colonToken, type, /*parsedInStrictMode:*/ false);
@@ -351,14 +355,14 @@ module TypeScript.Syntax {
         sourceUnit(moduleElements: ISyntaxList, endOfFileToken: ISyntaxToken): SourceUnitSyntax {
             return new SourceUnitSyntax(moduleElements, endOfFileToken, /*parsedInStrictMode:*/ true);
         }
-        externalModuleReference(moduleOrRequireKeyword: ISyntaxToken, openParenToken: ISyntaxToken, stringLiteral: ISyntaxToken, closeParenToken: ISyntaxToken): ExternalModuleReferenceSyntax {
-            return new ExternalModuleReferenceSyntax(moduleOrRequireKeyword, openParenToken, stringLiteral, closeParenToken, /*parsedInStrictMode:*/ true);
+        externalModuleReference(requireKeyword: ISyntaxToken, openParenToken: ISyntaxToken, stringLiteral: ISyntaxToken, closeParenToken: ISyntaxToken): ExternalModuleReferenceSyntax {
+            return new ExternalModuleReferenceSyntax(requireKeyword, openParenToken, stringLiteral, closeParenToken, /*parsedInStrictMode:*/ true);
         }
         moduleNameModuleReference(moduleName: INameSyntax): ModuleNameModuleReferenceSyntax {
             return new ModuleNameModuleReferenceSyntax(moduleName, /*parsedInStrictMode:*/ true);
         }
-        importDeclaration(importKeyword: ISyntaxToken, identifier: ISyntaxToken, equalsToken: ISyntaxToken, moduleReference: ModuleReferenceSyntax, semicolonToken: ISyntaxToken): ImportDeclarationSyntax {
-            return new ImportDeclarationSyntax(importKeyword, identifier, equalsToken, moduleReference, semicolonToken, /*parsedInStrictMode:*/ true);
+        importDeclaration(modifiers: ISyntaxList, importKeyword: ISyntaxToken, identifier: ISyntaxToken, equalsToken: ISyntaxToken, moduleReference: ModuleReferenceSyntax, semicolonToken: ISyntaxToken): ImportDeclarationSyntax {
+            return new ImportDeclarationSyntax(modifiers, importKeyword, identifier, equalsToken, moduleReference, semicolonToken, /*parsedInStrictMode:*/ true);
         }
         exportAssignment(exportKeyword: ISyntaxToken, equalsToken: ISyntaxToken, identifier: ISyntaxToken, semicolonToken: ISyntaxToken): ExportAssignmentSyntax {
             return new ExportAssignmentSyntax(exportKeyword, equalsToken, identifier, semicolonToken, /*parsedInStrictMode:*/ true);
@@ -428,6 +432,9 @@ module TypeScript.Syntax {
         }
         genericType(name: INameSyntax, typeArgumentList: TypeArgumentListSyntax): GenericTypeSyntax {
             return new GenericTypeSyntax(name, typeArgumentList, /*parsedInStrictMode:*/ true);
+        }
+        typeQuery(typeOfKeyword: ISyntaxToken, name: INameSyntax): TypeQuerySyntax {
+            return new TypeQuerySyntax(typeOfKeyword, name, /*parsedInStrictMode:*/ true);
         }
         typeAnnotation(colonToken: ISyntaxToken, type: ITypeSyntax): TypeAnnotationSyntax {
             return new TypeAnnotationSyntax(colonToken, type, /*parsedInStrictMode:*/ true);

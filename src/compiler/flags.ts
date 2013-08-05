@@ -31,7 +31,6 @@ module TypeScript {
         OptionalName = 1 << 2,
         TypeReference = 1 << 3,
         EnumElement = 1 << 4,
-        EnumMapElement = 1 << 5,
     }
 
     export enum DeclFlags {
@@ -64,8 +63,8 @@ module TypeScript {
         Static = 1 << 4,
         Property = 1 << 8,
         ClassProperty = 1 << 11,
-        Constant = 1 << 12,
-        EnumElement = 1 << 13
+        EnumElement = 1 << 13,
+        ForInVariable = 1 << 14,
     }
 
     export enum FunctionFlags {
@@ -106,7 +105,8 @@ module TypeScript {
     }
 
     export enum ModuleGenTarget {
-        Synchronous = 0,
-        Asynchronous = 1,
+        Unspecified = 0,
+        Synchronous = 1,
+        Asynchronous = 2,
     }
 }

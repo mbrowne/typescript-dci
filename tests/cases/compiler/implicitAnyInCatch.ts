@@ -1,3 +1,14 @@
-///<style implicitAny="off" />
-try { } catch (error) { } // Shouldn't be an error
-for (var key in this) { } // Shouldn't be an error
+// @noimplicitany: true
+// this should not be an error
+try { } catch (error) {
+    if (error.number === -2147024809) { }
+}
+for (var key in this) { }
+
+class C {
+    public temp() {
+        for (var x in this) {
+        }
+    }
+}
+

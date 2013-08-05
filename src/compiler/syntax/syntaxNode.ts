@@ -84,7 +84,7 @@ module TypeScript {
             return this.lastToken().trailingTrivia();
         }
 
-        public toJSON(key) {
+        public toJSON(key: any): any {
             var result: any = {
                 kind: SyntaxKind[this.kind()],
                 fullWidth: this.fullWidth()
@@ -129,7 +129,7 @@ module TypeScript {
                 var element = this.childAt(i);
 
                 if (element !== null) {
-                    element.collectTextElements(elements)
+                    element.collectTextElements(elements);
                 }
             }
         }
@@ -214,19 +214,19 @@ module TypeScript {
             return this._data;
         }
 
-        /// <summary>
-        /// Finds a token according to the following rules:
-        /// 1) If position matches the End of the node/s FullSpan and the node is SourceUnit,
-        ///    then the EOF token is returned. 
-        /// 
-        ///  2) If node.FullSpan.Contains(position) then the token that contains given position is
-        ///     returned.
-        /// 
-        ///  3) Otherwise an ArgumentOutOfRangeException is thrown
-        ///
-        /// Note: findToken will always return a non-missing token with width greater than or equal to
-        /// 1 (except for EOF).  Empty tokens synthesized by the parser are never returned.
-        /// </summary>
+        /**
+         * Finds a token according to the following rules:
+         * 1) If position matches the End of the node/s FullSpan and the node is SourceUnit,
+         *    then the EOF token is returned. 
+         * 
+         *  2) If node.FullSpan.Contains(position) then the token that contains given position is
+         *     returned.
+         * 
+         *  3) Otherwise an ArgumentOutOfRangeException is thrown
+         *
+         * Note: findToken will always return a non-missing token with width greater than or equal to
+         * 1 (except for EOF).  Empty tokens synthesized by the parser are never returned.
+         */
         public findToken(position: number, includeSkippedTokens: boolean = false): PositionedToken {
             var endOfFileToken = this.tryGetEndOfFileAt(position);
             if (endOfFileToken !== null) {
@@ -282,12 +282,16 @@ module TypeScript {
         }
 
         public findTokenOnLeft(position: number, includeSkippedTokens: boolean = false): PositionedToken {
-            var positionedToken = this.findToken(position, includeSkippedTokens);
+            var positionedToken = this.findToken(position, /*includeSkippedTokens*/ false);
             var start = positionedToken.start();
-
+            
             // Position better fall within this token.
             // Debug.assert(position >= positionedToken.fullStart());
             // Debug.assert(position < positionedToken.fullEnd() || positionedToken.token().tokenKind === SyntaxKind.EndOfFileToken);
+
+            if (includeSkippedTokens) {
+                positionedToken = Syntax.findSkippedTokenOnLeft(positionedToken, position) || positionedToken;
+            }
 
             // if position is after the start of the token, then this token is the token on the left.
             if (position > start) {
@@ -304,11 +308,15 @@ module TypeScript {
         }
 
         public findCompleteTokenOnLeft(position: number, includeSkippedTokens: boolean = false): PositionedToken {
-            var positionedToken = this.findToken(position, includeSkippedTokens);
+            var positionedToken = this.findToken(position, /*includeSkippedTokens*/ false);
 
             // Position better fall within this token.
             // Debug.assert(position >= positionedToken.fullStart());
             // Debug.assert(position < positionedToken.fullEnd() || positionedToken.token().tokenKind === SyntaxKind.EndOfFileToken);
+
+            if (includeSkippedTokens) {
+                positionedToken = Syntax.findSkippedTokenOnLeft(positionedToken, position) || positionedToken;
+            }
 
             // if position is after the end of the token, then this token is the token on the left.
             if (positionedToken.token().width() > 0 && position >= positionedToken.end()) {
@@ -327,7 +335,7 @@ module TypeScript {
         }
 
         public isTypeMember(): boolean {
-            return false
+            return false;
         }
 
         public isStatement(): boolean {

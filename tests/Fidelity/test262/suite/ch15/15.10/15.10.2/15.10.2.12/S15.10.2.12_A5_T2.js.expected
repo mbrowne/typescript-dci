@@ -2,8 +2,7 @@
     "isDeclaration": false,
     "languageVersion": "EcmaScript5",
     "parseOptions": {
-        "allowAutomaticSemicolonInsertion": true,
-        "allowModuleKeywordInExternalModuleReference": true
+        "allowAutomaticSemicolonInsertion": true
     },
     "sourceUnit": {
         "kind": "SourceUnit",
@@ -308,8 +307,8 @@
                         "kind": "NumericLiteral",
                         "width": 6,
                         "text": "0x0041",
-                        "value": 0,
-                        "valueText": "0"
+                        "value": 65,
+                        "valueText": "65"
                     }
                 },
                 "firstSemicolonToken": {
@@ -364,8 +363,8 @@
                         "kind": "NumericLiteral",
                         "width": 6,
                         "text": "0x005A",
-                        "value": 0,
-                        "valueText": "0"
+                        "value": 90,
+                        "valueText": "90"
                     }
                 },
                 "secondSemicolonToken": {
@@ -1121,8 +1120,8 @@
                         "kind": "NumericLiteral",
                         "width": 6,
                         "text": "0x0061",
-                        "value": 0,
-                        "valueText": "0"
+                        "value": 97,
+                        "valueText": "97"
                     }
                 },
                 "firstSemicolonToken": {
@@ -1177,8 +1176,8 @@
                         "kind": "NumericLiteral",
                         "width": 6,
                         "text": "0x007A",
-                        "value": 0,
-                        "valueText": "0"
+                        "value": 122,
+                        "valueText": "122"
                     }
                 },
                 "secondSemicolonToken": {

@@ -2,14 +2,13 @@
     "isDeclaration": false,
     "languageVersion": "EcmaScript5",
     "parseOptions": {
-        "allowAutomaticSemicolonInsertion": true,
-        "allowModuleKeywordInExternalModuleReference": true
+        "allowAutomaticSemicolonInsertion": true
     },
     "diagnostics": [
         {
             "start": 12,
             "length": 12,
-            "diagnosticCode": "Interface_declaration_cannot_have__implements__clause"
+            "diagnosticCode": "Interface declaration cannot have 'implements' clause."
         }
     ],
     "sourceUnit": {

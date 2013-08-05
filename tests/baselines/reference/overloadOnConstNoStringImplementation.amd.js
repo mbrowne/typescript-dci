@@ -10,7 +10,6 @@ function x2(a, cb) {
 var cb = function (x) {
     return 1;
 };
-
 x2(1, cb);
 x2(1, function (x) {
     return 1;

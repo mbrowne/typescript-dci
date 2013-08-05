@@ -58,81 +58,34 @@ module TypeScript {
             return Math.round(temp);
         }
 
-        /* Modification of the murmurhash2 algorithm.  Code is simpler because it operates over
-        * strings instead of byte arrays.  Because each string character is two bytes, it is known
-        * that the input will be an even number of bytes (though not necessarily a multiple of 4).
-        * 
-        * This is needed over the normal 'string.GetHashCode()' because we need to be able to generate
-        * 'k' different well distributed hashes for any given string s.  Also, we want to be able to
-        * generate these hashes without allocating any memory.  My ideal solution would be to use an
-        * MD5 hash.  However, there appears to be no way to do MD5 in .Net where you can:
-        * 
-        * a) feed it individual values instead of a byte[]
-        * 
-        * b) have the hash computed into a byte[] you provide instead of a newly allocated one
-        * 
-        * Generating 'k' pieces of garbage on each insert and lookup seems very wasteful.  So,
-        * instead, we use murmur hash since it provides well distributed values, allows for a
-        * seed, and allocates no memory.
-        * 
-        * Murmur hash is public domain.  Actual code is included below as reference.
-        * </summary>
-        */
+        /** Modification of the murmurhash2 algorithm.  Code is simpler because it operates over
+         * strings instead of byte arrays.  Because each string character is two bytes, it is known
+         * that the input will be an even number of bytes (though not necessarily a multiple of 4).
+         * 
+         * This is needed over the normal 'string.GetHashCode()' because we need to be able to generate
+         * 'k' different well distributed hashes for any given string s.  Also, we want to be able to
+         * generate these hashes without allocating any memory.  My ideal solution would be to use an
+         * MD5 hash.  However, there appears to be no way to do MD5 in .Net where you can:
+         * 
+         * a) feed it individual values instead of a byte[]
+         * 
+         * b) have the hash computed into a byte[] you provide instead of a newly allocated one
+         * 
+         * Generating 'k' pieces of garbage on each insert and lookup seems very wasteful.  So,
+         * instead, we use murmur hash since it provides well distributed values, allows for a
+         * seed, and allocates no memory.
+         * 
+         * Murmur hash is public domain.  Actual code is included below as reference.
+         */
         private computeHash(key: string, seed: number): number {
-            // 'm' and 'r' are mixing constants generated offline.
-            // They're not really 'magic', they just happen to work well.
-
-            var m: number = 0x5bd1e995;
-            var r: number = 24;
-
-            // Initialize the hash to a 'random' value
-
-            var numberOfCharsLeft = key.length;
-            var h = Math.abs(seed ^ numberOfCharsLeft);
-
-            // Mix 4 bytes at a time into the hash.  NOTE: 4 bytes is two chars, so we iterate
-            // through the string two chars at a time.
-            var index = 0;
-            while (numberOfCharsLeft >= 2) {
-                var c1 = this.getCharacter(key, index);
-                var c2 = this.getCharacter(key, index + 1);
-
-                var k = Math.abs(c1 | (c2 << 16));
-
-                k = IntegerUtilities.integerMultiplyLow32Bits(k, m);
-                k ^= k >> r;
-                k = IntegerUtilities.integerMultiplyLow32Bits(k, m);
-
-                h = IntegerUtilities.integerMultiplyLow32Bits(h, m);
-                h ^= k;
-
-                index += 2;
-                numberOfCharsLeft -= 2;
-            }
-
-            // Handle the last char (or 2 bytes) if they exist.  This happens if the original string had
-            // odd length.
-            if (numberOfCharsLeft == 1) {
-                h ^= this.getCharacter(key, index);
-                h = IntegerUtilities.integerMultiplyLow32Bits(h, m);
-            }
-
-            // Do a few final mixes of the hash to ensure the last few bytes are well-incorporated.
-
-            h ^= h >> 13;
-            h = IntegerUtilities.integerMultiplyLow32Bits(h, m);
-            h ^= h >> 15;
-
-            return Math.round(h);
-        }
-
-        private getCharacter(key: string, index: number): number {
-            return key.charCodeAt(index);
+            return Hash.computeMurmur2StringHashCode(key, seed);
         }
 
         public addKeys(keys: BlockIntrinsics) {
             for (var name in keys) {
-                this.add(name);
+                if (keys[name]) {
+                    this.add(name);
+                }
             }
         }
 

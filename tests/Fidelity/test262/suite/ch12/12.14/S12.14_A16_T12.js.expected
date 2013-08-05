@@ -2,14 +2,13 @@
     "isDeclaration": false,
     "languageVersion": "EcmaScript5",
     "parseOptions": {
-        "allowAutomaticSemicolonInsertion": true,
-        "allowModuleKeywordInExternalModuleReference": true
+        "allowAutomaticSemicolonInsertion": true
     },
     "diagnostics": [
         {
             "start": 391,
             "length": 1,
-            "diagnosticCode": "_0_expected",
+            "diagnosticCode": "'{0}' expected.",
             "arguments": [
                 "finally"
             ]
@@ -17,7 +16,7 @@
         {
             "start": 393,
             "length": 5,
-            "diagnosticCode": "Unexpected_token__0_expected",
+            "diagnosticCode": "Unexpected token; '{0}' expected.",
             "arguments": [
                 "statement"
             ]
@@ -25,7 +24,7 @@
         {
             "start": 405,
             "length": 5,
-            "diagnosticCode": "Unexpected_token__0_expected",
+            "diagnosticCode": "Unexpected token; '{0}' expected.",
             "arguments": [
                 "module, class, interface, enum, import or statement"
             ]
@@ -33,7 +32,7 @@
         {
             "start": 414,
             "length": 1,
-            "diagnosticCode": "_0_expected",
+            "diagnosticCode": "'{0}' expected.",
             "arguments": [
                 ";"
             ]

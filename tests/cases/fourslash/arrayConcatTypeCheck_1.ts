@@ -1,5 +1,4 @@
-//bug 702274: retyper: Full/Pull type checker disagreement after deletes
-/// <reference path="../fourslash.ts" />
+/// <reference path="fourslash.ts" />
 
 //// a.concat(/*2*/"hello"/*1*/, 'world');
 //// 
@@ -24,4 +23,5 @@ goTo.marker(2);
 edit.deleteAtCaret(7);
 
 goTo.marker(4);
-//diagnostics.validateTypesAtPositions(43);
+diagnostics.validateTypesAtPositions(43);
+

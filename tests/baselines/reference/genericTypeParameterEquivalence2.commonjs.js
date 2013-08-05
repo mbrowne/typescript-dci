@@ -1,15 +1,18 @@
+// compose :: (b->c) -> (a->b) -> (a->c)
 function compose(f, g) {
     return function (a) {
         return f(g.apply(null, a));
     };
 }
 
+// forEach :: [a] -> (a -> ()) -> ()
 function forEach(list, f) {
     for (var i = 0; i < list.length; ++i) {
         f(list[i], i);
     }
 }
 
+// filter :: (a->bool) -> [a] -> [a]
 function filter(f, ar) {
     var ret = [];
     forEach(ar, function (el) {
@@ -21,10 +24,12 @@ function filter(f, ar) {
     return ret;
 }
 
-function length(ar) {
+// length :: [a] -> Num
+function length2(ar) {
     return ar.length;
 }
 
+// curry1 :: ((a,b)->c) -> (a->(b->c))
 function curry1(f) {
     return function (ay) {
         return function (by) {
@@ -35,11 +40,16 @@ function curry1(f) {
 
 var cfilter = curry1(filter);
 
+// compose :: (b->c) -> (a->b) -> (a->c)
+// length :: [a] -> Num
+// cfilter :: (a -> Bool) -> [a] -> [a]
+// pred :: a -> Bool
+// countWhere :: (a -> Bool) -> [a] -> Num
 function countWhere_1(pred) {
-    return compose(length, cfilter(pred));
+    return compose(length2, cfilter(pred));
 }
 
 function countWhere_2(pred) {
     var where = cfilter(pred);
-    return compose(length, where);
+    return compose(length2, where);
 }

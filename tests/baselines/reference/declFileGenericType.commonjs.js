@@ -82,7 +82,7 @@ exports.h = h;
 exports.j = C.F6;
 
 
-////[0.d.ts]
+////[declFileGenericType.d.ts]
 export declare module C {
     class A<T> {
     }
@@ -91,9 +91,9 @@ export declare module C {
     function F<T>(x: T): A<B>;
     function F2<T>(x: T): A<B>;
     function F3<T>(x: T): A<B>[];
-    function F4<T extends C.A<C.B>>(x: T): A<B>[];
+    function F4<T extends A<B>>(x: T): A<B>[];
     function F5<T>(): T;
-    function F6<T extends C.A<C.B>>(x: T): T;
+    function F6<T extends A<B>>(x: T): T;
     class D<T> {
         public val: T;
         constructor(val: T);

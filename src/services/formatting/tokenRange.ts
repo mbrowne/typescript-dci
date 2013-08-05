@@ -53,7 +53,7 @@ module TypeScript.Formatting {
             private tokens: SyntaxKind[];
 
             constructor(tks: SyntaxKind[]) {
-                this.tokens = tks && tks.length ? tks : [];
+                this.tokens = tks && tks.length ? tks : <SyntaxKind[]>[];
             }
 
             public GetTokens(): SyntaxKind[] {
@@ -84,7 +84,7 @@ module TypeScript.Formatting {
 
         export class TokenAllAccess implements ITokenAccess {
             public GetTokens(): SyntaxKind[] {
-                var result = [];
+                var result: SyntaxKind[] = [];
                 for (var token = SyntaxKind.FirstToken; token <= SyntaxKind.LastToken; token++) {
                     result.push(token);
                 }
@@ -133,6 +133,7 @@ module TypeScript.Formatting {
             }
 
             static Any: TokenRange = TokenRange.AllTokens();
+            static AnyIncludingMultilineComments = TokenRange.FromTokens(TokenRange.Any.GetTokens().concat([SyntaxKind.MultiLineCommentTrivia]));
             static Keywords = TokenRange.FromRange(SyntaxKind.FirstKeyword, SyntaxKind.LastKeyword);
             static Operators = TokenRange.FromRange(SyntaxKind.SemicolonToken, SyntaxKind.SlashEqualsToken);
             static BinaryOperators = TokenRange.FromRange(SyntaxKind.LessThanToken, SyntaxKind.SlashEqualsToken);
@@ -145,7 +146,7 @@ module TypeScript.Formatting {
             static UnaryPredecrementExpressions = TokenRange.FromTokens([SyntaxKind.IdentifierName, SyntaxKind.OpenParenToken, SyntaxKind.ThisKeyword, SyntaxKind.NewKeyword]);
             static UnaryPostdecrementExpressions = TokenRange.FromTokens([SyntaxKind.IdentifierName, SyntaxKind.CloseParenToken, SyntaxKind.CloseBracketToken, SyntaxKind.NewKeyword]);
             static Comments = TokenRange.FromTokens([SyntaxKind.SingleLineCommentTrivia, SyntaxKind.MultiLineCommentTrivia]);
-            static TypeNames = TokenRange.FromTokens([SyntaxKind.IdentifierName, SyntaxKind.NumberKeyword, SyntaxKind.StringKeyword, SyntaxKind.BooleanKeyword, SyntaxKind.BoolKeyword, SyntaxKind.VoidKeyword, SyntaxKind.AnyKeyword]);
+            static TypeNames = TokenRange.FromTokens([SyntaxKind.IdentifierName, SyntaxKind.NumberKeyword, SyntaxKind.StringKeyword, SyntaxKind.BooleanKeyword, SyntaxKind.VoidKeyword, SyntaxKind.AnyKeyword]);
         }
     }
 }

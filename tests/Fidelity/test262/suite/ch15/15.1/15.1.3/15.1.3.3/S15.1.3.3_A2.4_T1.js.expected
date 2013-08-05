@@ -2,8 +2,7 @@
     "isDeclaration": false,
     "languageVersion": "EcmaScript5",
     "parseOptions": {
-        "allowAutomaticSemicolonInsertion": true,
-        "allowModuleKeywordInExternalModuleReference": true
+        "allowAutomaticSemicolonInsertion": true
     },
     "sourceUnit": {
         "kind": "SourceUnit",
@@ -50,7 +49,7 @@
                             },
                             {
                                 "kind": "MultiLineCommentTrivia",
-                                "text": "/**\n * If string.charAt(k) in [0xD800 - 0xDBFF] and string.charAt(k+1) in [0xDC00 \ufffd 0xDFFF], return 4 octets (000wwwxx xxxxyyyy yyzzzzzz -> 11110www 10xxxxxx 10yyyyyy 10zzzzzz)\n *\n * @path ch15/15.1/15.1.3/15.1.3.3/S15.1.3.3_A2.4_T1.js\n * @description Complex tests, use RFC 3629, string.charAt(k+1) in [0xDC00, 0xDDFF, 0xDFFF]\n */"
+                                "text": "/**\n * If string.charAt(k) in [0xD800 - 0xDBFF] and string.charAt(k+1) in [0xDC00 � 0xDFFF], return 4 octets (000wwwxx xxxxyyyy yyzzzzzz -> 11110www 10xxxxxx 10yyyyyy 10zzzzzz)\n *\n * @path ch15/15.1/15.1.3/15.1.3.3/S15.1.3.3_A2.4_T1.js\n * @description Complex tests, use RFC 3629, string.charAt(k+1) in [0xDC00, 0xDDFF, 0xDFFF]\n */"
                             },
                             {
                                 "kind": "NewLineTrivia",
@@ -98,8 +97,8 @@
                                 "kind": "NumericLiteral",
                                 "width": 6,
                                 "text": "0xDC00",
-                                "value": 0,
-                                "valueText": "0"
+                                "value": 56320,
+                                "valueText": "56320"
                             },
                             {
                                 "kind": "CommaToken",
@@ -120,8 +119,8 @@
                                 "kind": "NumericLiteral",
                                 "width": 6,
                                 "text": "0xDDFF",
-                                "value": 0,
-                                "valueText": "0"
+                                "value": 56831,
+                                "valueText": "56831"
                             },
                             {
                                 "kind": "CommaToken",
@@ -142,8 +141,8 @@
                                 "kind": "NumericLiteral",
                                 "width": 6,
                                 "text": "0xDFFF",
-                                "value": 0,
-                                "valueText": "0"
+                                "value": 57343,
+                                "valueText": "57343"
                             }
                         ],
                         "closeBracketToken": {
@@ -505,8 +504,8 @@
                         "kind": "NumericLiteral",
                         "width": 6,
                         "text": "0xD800",
-                        "value": 0,
-                        "valueText": "0"
+                        "value": 55296,
+                        "valueText": "55296"
                     }
                 },
                 "firstSemicolonToken": {
@@ -561,8 +560,8 @@
                         "kind": "NumericLiteral",
                         "width": 6,
                         "text": "0xDBFF",
-                        "value": 0,
-                        "valueText": "0"
+                        "value": 56319,
+                        "valueText": "56319"
                     }
                 },
                 "secondSemicolonToken": {
@@ -1018,8 +1017,8 @@
                                                                     "kind": "NumericLiteral",
                                                                     "width": 6,
                                                                     "text": "0xD800",
-                                                                    "value": 0,
-                                                                    "valueText": "0"
+                                                                    "value": 55296,
+                                                                    "valueText": "55296"
                                                                 }
                                                             },
                                                             "closeParenToken": {
@@ -1058,8 +1057,8 @@
                                                             "width": 5,
                                                             "fullWidth": 6,
                                                             "text": "0x400",
-                                                            "value": 0,
-                                                            "valueText": "0",
+                                                            "value": 1024,
+                                                            "valueText": "1024",
                                                             "hasTrailingTrivia": true,
                                                             "trailingTrivia": [
                                                                 {
@@ -1156,8 +1155,8 @@
                                                                 "kind": "NumericLiteral",
                                                                 "width": 6,
                                                                 "text": "0xDC00",
-                                                                "value": 0,
-                                                                "valueText": "0"
+                                                                "value": 56320,
+                                                                "valueText": "56320"
                                                             }
                                                         },
                                                         "closeParenToken": {
@@ -1196,8 +1195,8 @@
                                                     "kind": "NumericLiteral",
                                                     "width": 7,
                                                     "text": "0x10000",
-                                                    "value": 0,
-                                                    "valueText": "0"
+                                                    "value": 65536,
+                                                    "valueText": "65536"
                                                 }
                                             }
                                         },
@@ -1300,8 +1299,8 @@
                                                                         "width": 6,
                                                                         "fullWidth": 7,
                                                                         "text": "0x0080",
-                                                                        "value": 0,
-                                                                        "valueText": "0",
+                                                                        "value": 128,
+                                                                        "valueText": "128",
                                                                         "hasTrailingTrivia": true,
                                                                         "trailingTrivia": [
                                                                             {
@@ -1372,8 +1371,8 @@
                                                                                 "kind": "NumericLiteral",
                                                                                 "width": 6,
                                                                                 "text": "0x003F",
-                                                                                "value": 0,
-                                                                                "valueText": "0"
+                                                                                "value": 63,
+                                                                                "valueText": "63"
                                                                             }
                                                                         },
                                                                         "closeParenToken": {
@@ -1541,8 +1540,8 @@
                                                                         "width": 6,
                                                                         "fullWidth": 7,
                                                                         "text": "0x0080",
-                                                                        "value": 0,
-                                                                        "valueText": "0",
+                                                                        "value": 128,
+                                                                        "valueText": "128",
                                                                         "hasTrailingTrivia": true,
                                                                         "trailingTrivia": [
                                                                             {
@@ -1617,8 +1616,8 @@
                                                                                     "kind": "NumericLiteral",
                                                                                     "width": 6,
                                                                                     "text": "0x0FC0",
-                                                                                    "value": 0,
-                                                                                    "valueText": "0"
+                                                                                    "value": 4032,
+                                                                                    "valueText": "4032"
                                                                                 }
                                                                             },
                                                                             "closeParenToken": {
@@ -1656,8 +1655,8 @@
                                                                             "kind": "NumericLiteral",
                                                                             "width": 6,
                                                                             "text": "0x0040",
-                                                                            "value": 0,
-                                                                            "valueText": "0"
+                                                                            "value": 64,
+                                                                            "valueText": "64"
                                                                         }
                                                                     }
                                                                 }
@@ -1817,8 +1816,8 @@
                                                                         "width": 6,
                                                                         "fullWidth": 7,
                                                                         "text": "0x0080",
-                                                                        "value": 0,
-                                                                        "valueText": "0",
+                                                                        "value": 128,
+                                                                        "valueText": "128",
                                                                         "hasTrailingTrivia": true,
                                                                         "trailingTrivia": [
                                                                             {
@@ -1893,8 +1892,8 @@
                                                                                     "kind": "NumericLiteral",
                                                                                     "width": 7,
                                                                                     "text": "0x3F000",
-                                                                                    "value": 0,
-                                                                                    "valueText": "0"
+                                                                                    "value": 258048,
+                                                                                    "valueText": "258048"
                                                                                 }
                                                                             },
                                                                             "closeParenToken": {
@@ -1932,8 +1931,8 @@
                                                                             "kind": "NumericLiteral",
                                                                             "width": 6,
                                                                             "text": "0x1000",
-                                                                            "value": 0,
-                                                                            "valueText": "0"
+                                                                            "value": 4096,
+                                                                            "valueText": "4096"
                                                                         }
                                                                     }
                                                                 }
@@ -2093,8 +2092,8 @@
                                                                         "width": 6,
                                                                         "fullWidth": 7,
                                                                         "text": "0x00F0",
-                                                                        "value": 0,
-                                                                        "valueText": "0",
+                                                                        "value": 240,
+                                                                        "valueText": "240",
                                                                         "hasTrailingTrivia": true,
                                                                         "trailingTrivia": [
                                                                             {
@@ -2169,8 +2168,8 @@
                                                                                     "kind": "NumericLiteral",
                                                                                     "width": 8,
                                                                                     "text": "0x1C0000",
-                                                                                    "value": 0,
-                                                                                    "valueText": "0"
+                                                                                    "value": 1835008,
+                                                                                    "valueText": "1835008"
                                                                                 }
                                                                             },
                                                                             "closeParenToken": {
@@ -2208,8 +2207,8 @@
                                                                             "kind": "NumericLiteral",
                                                                             "width": 7,
                                                                             "text": "0x40000",
-                                                                            "value": 0,
-                                                                            "valueText": "0"
+                                                                            "value": 262144,
+                                                                            "valueText": "262144"
                                                                         }
                                                                     }
                                                                 }

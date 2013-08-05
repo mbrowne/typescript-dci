@@ -68,7 +68,7 @@ module TypeScript {
 
         public visitExternalModuleReference(node: ExternalModuleReferenceSyntax): any {
             return node.update(
-                this.visitToken(node.moduleOrRequireKeyword),
+                this.visitToken(node.requireKeyword),
                 this.visitToken(node.openParenToken),
                 this.visitToken(node.stringLiteral),
                 this.visitToken(node.closeParenToken));
@@ -81,6 +81,7 @@ module TypeScript {
 
         public visitImportDeclaration(node: ImportDeclarationSyntax): any {
             return node.update(
+                this.visitList(node.modifiers),
                 this.visitToken(node.importKeyword),
                 this.visitToken(node.identifier),
                 this.visitToken(node.equalsToken),
@@ -259,6 +260,12 @@ module TypeScript {
             return node.update(
                 <INameSyntax>this.visitNodeOrToken(node.name),
                 <TypeArgumentListSyntax>this.visitNode(node.typeArgumentList));
+        }
+
+        public visitTypeQuery(node: TypeQuerySyntax): any {
+            return node.update(
+                this.visitToken(node.typeOfKeyword),
+                <INameSyntax>this.visitNodeOrToken(node.name));
         }
 
         public visitTypeAnnotation(node: TypeAnnotationSyntax): any {

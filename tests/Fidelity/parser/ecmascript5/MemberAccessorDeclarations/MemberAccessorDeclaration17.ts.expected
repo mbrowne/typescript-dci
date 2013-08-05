@@ -2,14 +2,13 @@
     "isDeclaration": false,
     "languageVersion": "EcmaScript5",
     "parseOptions": {
-        "allowAutomaticSemicolonInsertion": true,
-        "allowModuleKeywordInExternalModuleReference": true
+        "allowAutomaticSemicolonInsertion": true
     },
     "diagnostics": [
         {
             "start": 21,
             "length": 10,
-            "diagnosticCode": "_set__accessor_parameter_cannot_be_optional"
+            "diagnosticCode": "'set' accessor parameter cannot be optional."
         }
     ],
     "sourceUnit": {

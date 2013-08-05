@@ -45,7 +45,7 @@ interface IIO {
     watchFile(fileName: string, callback: (x:string) => void ): IFileWatcher;
     run(source: string, fileName: string): void;
     getExecutingFilePath(): string;
-    quit(exitCode?: number);
+    quit(exitCode?: number): void;
 }
 
 module IOUtils {
@@ -63,11 +63,22 @@ module IOUtils {
     }
 
     // Creates a file including its directory structure if not already present
-    export function writeFileAndFolderStructure(ioHost: IIO, fileName: string, contents: string, writeByteOrderMark: boolean) {
+    export function writeFileAndFolderStructure(ioHost: IIO, fileName: string, contents: string, writeByteOrderMark: boolean): void {
+        var start = new Date().getTime();
         var path = ioHost.resolvePath(fileName);
+        TypeScript.ioHostResolvePathTime += new Date().getTime() - start;
+        
+        var start = new Date().getTime();
         var dirName = ioHost.dirName(path);
+        TypeScript.ioHostDirectoryNameTime += new Date().getTime() - start;
+
+        var start = new Date().getTime();
         createDirectoryStructure(ioHost, dirName);
-        return ioHost.writeFile(path, contents, writeByteOrderMark);
+        TypeScript.ioHostCreateDirectoryStructureTime += new Date().getTime() - start;
+
+        var start = new Date().getTime();
+        ioHost.writeFile(path, contents, writeByteOrderMark);
+        TypeScript.ioHostWriteFileTime += new Date().getTime() - start;
     }
 
     export function throwIOError(message: string, error: Error) {
@@ -78,18 +89,22 @@ module IOUtils {
         throw new Error(errorMessage);
     }
 
+    export function combine(prefix: string, suffix: string): string {
+        return prefix + "/" + suffix;
+    }
+
     export class BufferedTextWriter implements ITextWriter {
         public buffer = "";
         // Inner writer does not need a WriteLine method, since the BufferedTextWriter wraps it itself
         constructor(public writer: { Write: (str: string) => void; Close: () => void; }, public capacity = 1024) { }
-        Write(str) {
+        Write(str: string) {
             this.buffer += str;
             if (this.buffer.length >= this.capacity) {
                 this.writer.Write(this.buffer);
                 this.buffer = "";
             }
         }
-        WriteLine(str) {
+        WriteLine(str: string) {
             this.Write(str + '\r\n');
         }
         Close() {
@@ -101,7 +116,7 @@ module IOUtils {
 }
 
 // Declare dependencies needed for all supported hosts
-declare function setTimeout(callback: () =>void , ms?: number);
+declare function setTimeout(callback: () =>void , ms?: number): any;
 
 var IO = (function() {
 
@@ -109,7 +124,7 @@ var IO = (function() {
     // Depends on WSCript and FileSystemObject
     function getWindowsScriptHostIO(): IIO {
         var fso = new ActiveXObject("Scripting.FileSystemObject");        
-        var streamObjectPool = [];
+        var streamObjectPool: any[] = [];
 
         function getStreamObject(): any { 
             if (streamObjectPool.length > 0) {
@@ -123,13 +138,13 @@ var IO = (function() {
             streamObjectPool.push(obj);
         }
 
-        var args = [];
+        var args: any[] = [];
         for (var i = 0; i < WScript.Arguments.length; i++) {
             args[i] = WScript.Arguments.Item(i);
         }
 
         return {
-            readFile: function (path): FileInformation {
+            readFile: function (path: string): FileInformation {
                 return Environment.readFile(path);
             },
 
@@ -175,7 +190,7 @@ var IO = (function() {
                         fso.DeleteFile(path, true); // true: delete read-only files
                     }
                 } catch (e) {
-                    IOUtils.throwIOError("Couldn't delete file '" + path + "'.", e);
+                    IOUtils.throwIOError(TypeScript.getDiagnosticMessage(TypeScript.DiagnosticCode.Could_not_delete_file_0, [path]), e);
                 }
             },
 
@@ -189,14 +204,14 @@ var IO = (function() {
                         fso.CreateFolder(path);
                     }
                 } catch (e) {
-                    IOUtils.throwIOError("Couldn't create directory '" + path + "'.", e);
+                    IOUtils.throwIOError(TypeScript.getDiagnosticMessage(TypeScript.DiagnosticCode.Could_not_create_directory_0, [path]), e);
                 }
             },
 
             dir: function (path, spec?, options?) {
                 options = options || <{ recursive?: boolean; }>{};
-                function filesInFolder(folder, root): string[] {
-                    var paths = [];
+                function filesInFolder(folder: any, root: string): string[] {
+                    var paths: string[] = [];
                     var fc: Enumerator;
 
                     if (options.recursive) {
@@ -219,7 +234,7 @@ var IO = (function() {
                 }
 
                 var folder = fso.GetFolder(path);
-                var paths = [];
+                var paths: string[] = [];
 
                 return filesInFolder(folder, path);
             },
@@ -240,7 +255,7 @@ var IO = (function() {
                 try {
                     eval(source);
                 } catch (e) {
-                    IOUtils.throwIOError("Error while executing file '" + fileName + "'.", e);
+                    IOUtils.throwIOError(TypeScript.getDiagnosticMessage(TypeScript.DiagnosticCode.Error_while_executing_file_0, [fileName]), e);
                 }
             },
             getExecutingFilePath: function () {
@@ -265,7 +280,7 @@ var IO = (function() {
         var _module = require('module');
 
         return {
-            readFile: function (file): FileInformation {
+            readFile: function (file: string): FileInformation {
                 return Environment.readFile(file);
             },
 
@@ -277,10 +292,10 @@ var IO = (function() {
                 try {
                     _fs.unlinkSync(path);
                 } catch (e) {
-                    IOUtils.throwIOError("Couldn't delete file '" + path + "'.", e);
+                    IOUtils.throwIOError(TypeScript.getDiagnosticMessage(TypeScript.DiagnosticCode.Could_not_delete_file_0, [path]), e);
                 }
             },
-            fileExists: function(path): boolean {
+            fileExists: function(path: string): boolean {
                 return _fs.existsSync(path);
             },
 
@@ -288,7 +303,7 @@ var IO = (function() {
                 options = options || <{ recursive?: boolean; }>{};
 
                 function filesInFolder(folder: string): string[]{
-                    var paths = [];
+                    var paths: string[] = [];
 
                     try {
                         var files = _fs.readdirSync(folder);
@@ -317,7 +332,7 @@ var IO = (function() {
                         _fs.mkdirSync(path);
                     }
                 } catch (e) {
-                    IOUtils.throwIOError("Couldn't create directory '" + path + "'.", e);
+                    IOUtils.throwIOError(TypeScript.getDiagnosticMessage(TypeScript.DiagnosticCode.Could_not_create_directory_0, [path]), e);
                 }
             },
 
@@ -327,10 +342,17 @@ var IO = (function() {
             resolvePath: function(path: string): string {
                 return _path.resolve(path);
             },
-            dirName: function(path: string): string {
-                return _path.dirname(path);
+            dirName: function (path: string): string {
+                var dirPath = _path.dirname(path);
+
+                // Node will just continue to repeat the root path, rather than return null
+                if (dirPath === path) {
+                    dirPath = null;
+                }
+
+                return dirPath;
             },
-            findFile: function(rootPath: string, partialFilePath): IResolvedFile {
+            findFile: function(rootPath: string, partialFilePath: string): IResolvedFile {
                 var path = rootPath + "/" + partialFilePath;
 
                 while (true) {
@@ -368,7 +390,7 @@ var IO = (function() {
                 var firstRun = true;
                 var processingChange = false;
 
-                var fileChanged: any = function(curr, prev) {
+                var fileChanged: any = function(curr: any, prev: any) {
                     if (!firstRun) {
                         if (curr.mtime < prev.mtime) {
                             return;
@@ -401,11 +423,29 @@ var IO = (function() {
             getExecutingFilePath: function () {
                 return process.mainModule.filename;
             },
-            quit: process.exit
+            quit: function(code?: number) {
+                var stderrFlushed = process.stderr.write('');
+                var stdoutFlushed = process.stdout.write('');
+                process.stderr.on('drain', function() {
+                    stderrFlushed = true;
+                    if (stdoutFlushed) {
+                        process.exit(code);
+                    }
+                });
+                process.stdout.on('drain', function() {
+                    stdoutFlushed = true;
+                    if (stderrFlushed) {
+                        process.exit(code);
+                    }
+                });
+                setTimeout(function() {
+                    process.exit(code);
+                }, 5);
+            }
         }
     };
 
-    if (typeof ActiveXObject === "function")
+    if (typeof WScript !== "undefined" && typeof ActiveXObject === "function")
         return getWindowsScriptHostIO();
     else if (typeof module !== 'undefined' && module.exports)
         return getNodeIO();

@@ -52,14 +52,14 @@ var definitions:ITypeDefinition[] = [
         baseType: 'SyntaxNode',
         interfaces: ['IModuleReferenceSyntax'],
         isAbstract: true,
-        children: [],
+        children: <any>[],
         isTypeScriptSpecific: true
     },
     <any>{
         name: 'ExternalModuleReferenceSyntax',
         baseType: 'ModuleReferenceSyntax',
         children: [
-            <any>{ name: 'moduleOrRequireKeyword', isToken: true, tokenKinds: ['ModuleKeyword', 'RequireKeyword'] },
+            <any>{ name: 'requireKeyword', isToken: true, tokenKinds: ['RequireKeyword'] },
             <any>{ name: 'openParenToken', isToken: true },
             <any>{ name: 'stringLiteral', isToken: true },
             <any>{ name: 'closeParenToken', isToken: true }
@@ -79,6 +79,7 @@ var definitions:ITypeDefinition[] = [
         baseType: 'SyntaxNode',
         interfaces: ['IModuleElementSyntax'],
         children: [
+            <any>{ name: 'modifiers', isList: true, elementType: 'ISyntaxToken' },
             <any>{ name: 'importKeyword', isToken: true },
             <any>{ name: 'identifier', isToken: true, tokenKinds: ['IdentifierName'] },
             <any>{ name: 'equalsToken', isToken: true },
@@ -225,7 +226,7 @@ var definitions:ITypeDefinition[] = [
         name: 'OmittedExpressionSyntax',
         baseType: 'SyntaxNode',
         interfaces: ['IExpressionSyntax'],
-        children: []
+        children: <any>[]
     },
     <any>{
         name: 'ParenthesizedExpressionSyntax',
@@ -242,7 +243,7 @@ var definitions:ITypeDefinition[] = [
         baseType: 'SyntaxNode',
         interfaces: ['IUnaryExpressionSyntax'],
         isAbstract: true,
-        children: [],
+        children: <any>[],
         isTypeScriptSpecific: true
     },
     <any>{
@@ -342,6 +343,16 @@ var definitions:ITypeDefinition[] = [
         children: [
             <any>{ name: 'name', type: 'INameSyntax' },
             <any>{ name: 'typeArgumentList', type: 'TypeArgumentListSyntax' }
+        ],
+        isTypeScriptSpecific: true
+    },
+    <any> {
+        name: 'TypeQuerySyntax',
+        baseType: 'SyntaxNode',
+        interfaces: ['ITypeSyntax'],
+        children: [
+            <any>{ name: 'typeOfKeyword', isToken: true },
+            <any>{ name: 'name', type: 'INameSyntax' }
         ],
         isTypeScriptSpecific: true
     },
@@ -608,7 +619,7 @@ var definitions:ITypeDefinition[] = [
         baseType: 'SyntaxNode',
         interfaces: ['IMemberDeclarationSyntax'],
         isAbstract: true,
-        children: [],
+        children: <any>[],
         isTypeScriptSpecific: true
     },
     <any>{
@@ -696,7 +707,7 @@ var definitions:ITypeDefinition[] = [
         baseType: 'SyntaxNode',
         interfaces: ['ISwitchClauseSyntax'],
         isAbstract: true,
-        children: []
+        children: <any>[]
     },
     <any>{
         name: 'CaseSwitchClauseSyntax',
@@ -742,13 +753,13 @@ var definitions:ITypeDefinition[] = [
         baseType: 'SyntaxNode',
         interfaces: ['IStatementSyntax'],
         isAbstract: true,
-        children: []
+        children: <any>[]
     },
     <any>{
         name: 'BaseForStatementSyntax',
         baseType: 'IterationStatementSyntax',
         isAbstract: true,
-        children: []
+        children: <any>[]
     },
     <any>{
         name: 'ForStatementSyntax',
@@ -851,7 +862,7 @@ var definitions:ITypeDefinition[] = [
         name: 'PropertyAssignmentSyntax',
         baseType: 'SyntaxNode',
         isAbstract: true,
-        children: []
+        children: <any>[]
     },
     <any>{
         name: 'SimplePropertyAssignmentSyntax',
@@ -875,7 +886,7 @@ var definitions:ITypeDefinition[] = [
         name: 'AccessorPropertyAssignmentSyntax',
         baseType: 'PropertyAssignmentSyntax',
         isAbstract: true,
-        children: []
+        children: <any>[]
     },
     <any>{
         name: 'GetAccessorPropertyAssignmentSyntax',
@@ -1755,7 +1766,7 @@ function contains(definition: ITypeDefinition, child: IMemberDefinition) {
 }
 
 function childrenInAllSubclasses(definition: ITypeDefinition): IMemberDefinition[]{
-    var result = [];
+    var result: IMemberDefinition[] = [];
 
     if (definition !== null && definition.isAbstract) {
         var subclasses = TypeScript.ArrayUtilities.where(definitions, d => !d.isAbstract && derivesFrom(d, definition));
@@ -2434,7 +2445,7 @@ function generateToken(isFixedWidth: boolean, leading: boolean, trailing: boolea
     result += "        public hasSkippedToken(): boolean { return false; }\r\n";
 
     result +=
-"        public toJSON(key) { return tokenToJSON(this); }\r\n" +
+"        public toJSON(key: any): any { return tokenToJSON(this); }\r\n" +
 "        public firstToken(): ISyntaxToken { return this; }\r\n" +
 "        public lastToken(): ISyntaxToken { return this; }\r\n" +
 "        public isTypeScriptSpecific(): boolean { return false; }\r\n" +
@@ -2943,10 +2954,10 @@ var scannerUtilities = generateScannerUtilities();
 var visitor = generateVisitor();
 var factory = generateFactory();
 
-Environment.writeFile(Environment.currentDirectory() + "\\src\\compiler\\syntax\\syntaxNodes.generated.ts", syntaxNodes, true);
-Environment.writeFile(Environment.currentDirectory() + "\\src\\compiler\\syntax\\syntaxRewriter.generated.ts", rewriter, true);
-Environment.writeFile(Environment.currentDirectory() + "\\src\\compiler\\syntax\\syntaxToken.generated.ts", tokens, true);
-Environment.writeFile(Environment.currentDirectory() + "\\src\\compiler\\syntax\\syntaxWalker.generated.ts", walker, true);
-Environment.writeFile(Environment.currentDirectory() + "\\src\\compiler\\syntax\\scannerUtilities.generated.ts", scannerUtilities, true);
-Environment.writeFile(Environment.currentDirectory() + "\\src\\compiler\\syntax\\syntaxVisitor.generated.ts", visitor, true);
-Environment.writeFile(Environment.currentDirectory() + "\\src\\compiler\\syntax\\syntaxFactory.generated.ts", factory, true);
+Environment.writeFile(Environment.currentDirectory() + "\\src\\compiler\\syntax\\syntaxNodes.generated.ts", syntaxNodes, false);
+Environment.writeFile(Environment.currentDirectory() + "\\src\\compiler\\syntax\\syntaxRewriter.generated.ts", rewriter, false);
+Environment.writeFile(Environment.currentDirectory() + "\\src\\compiler\\syntax\\syntaxToken.generated.ts", tokens, false);
+Environment.writeFile(Environment.currentDirectory() + "\\src\\compiler\\syntax\\syntaxWalker.generated.ts", walker, false);
+Environment.writeFile(Environment.currentDirectory() + "\\src\\compiler\\syntax\\scannerUtilities.generated.ts", scannerUtilities, false);
+Environment.writeFile(Environment.currentDirectory() + "\\src\\compiler\\syntax\\syntaxVisitor.generated.ts", visitor, false);
+Environment.writeFile(Environment.currentDirectory() + "\\src\\compiler\\syntax\\syntaxFactory.generated.ts", factory, false);

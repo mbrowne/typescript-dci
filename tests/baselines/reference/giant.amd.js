@@ -1,4 +1,17 @@
 define(["require", "exports"], function(require, exports) {
+    /*
+    Prefixes
+    p -> public
+    r -> private
+    i -> import
+    e -> export
+    a -> ambient
+    t -> static
+    s -> set
+    g -> get
+    
+    MAX DEPTH 3 LEVELS
+    */
     var V;
     function F() {
     }
@@ -541,7 +554,7 @@ define(["require", "exports"], function(require, exports) {
     ;
 });
 
-////[0.d.ts]
+////[giant.d.ts]
 export declare var eV;
 export declare function eF(): void;
 export declare class eC {

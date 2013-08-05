@@ -2,19 +2,18 @@
     "isDeclaration": false,
     "languageVersion": "EcmaScript5",
     "parseOptions": {
-        "allowAutomaticSemicolonInsertion": true,
-        "allowModuleKeywordInExternalModuleReference": true
+        "allowAutomaticSemicolonInsertion": true
     },
     "diagnostics": [
         {
             "start": 339,
             "length": 1,
-            "diagnosticCode": "Identifier_expected"
+            "diagnosticCode": "Identifier expected."
         },
         {
             "start": 340,
             "length": 1,
-            "diagnosticCode": "Unexpected_character_0",
+            "diagnosticCode": "Unexpected character {0}.",
             "arguments": [
                 "\"\\\""
             ]
@@ -22,17 +21,17 @@
         {
             "start": 340,
             "length": 1,
-            "diagnosticCode": "Identifier_expected"
+            "diagnosticCode": "Identifier expected."
         },
         {
             "start": 342,
             "length": 1,
-            "diagnosticCode": "Identifier_expected"
+            "diagnosticCode": "Identifier expected."
         },
         {
             "start": 345,
             "length": 0,
-            "diagnosticCode": "Identifier_expected"
+            "diagnosticCode": "Identifier expected."
         }
     ],
     "sourceUnit": {
