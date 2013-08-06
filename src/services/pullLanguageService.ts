@@ -44,7 +44,7 @@ module Services {
 
             var document = this.compilerState.getDocument(fileName);
             var script = document.script;
-              
+
             /// TODO: this does not allow getting references on "constructor"
 
             var path = this.getAstPathToPosition(script, pos);
@@ -100,6 +100,7 @@ module Services {
             }
 
             var symbol = symbolInfoAtPosition.symbol;
+
             return this.getReferencesInFile(fileName, symbol);
         }
 
@@ -130,7 +131,7 @@ module Services {
 
             if (typeSymbol.isClass() || typeSymbol.isInterface()) {
                 typesToSearch = typeSymbol.getTypesThatExtendThisType();
-            } 
+            }
             else if (symbol.kind == TypeScript.PullElementKind.Property ||
                 symbol.kind == TypeScript.PullElementKind.Function ||
                 typeSymbol.isMethod() || typeSymbol.isProperty()) {
@@ -158,7 +159,7 @@ module Services {
             var fileNames = this.compilerState.getFileNames();
             for (var i = 0, len = fileNames.length; i < len; i++) {
                 var tempFileName = fileNames[i];
-                
+
                 var tempDocument = this.compilerState.getDocument(tempFileName);
                 var filter = tempDocument.bloomFilter();
 
@@ -172,7 +173,7 @@ module Services {
             return result;
         }
 
-        public getOverrides(container: TypeScript.PullTypeSymbol, memberSym: TypeScript.PullSymbol): TypeScript.PullTypeSymbol[]{
+        public getOverrides(container: TypeScript.PullTypeSymbol, memberSym: TypeScript.PullSymbol): TypeScript.PullTypeSymbol[] {
             var result: TypeScript.PullTypeSymbol[] = [];
             var members: TypeScript.PullSymbol[];
             if (container.isClass()) {
@@ -189,7 +190,7 @@ module Services {
                 if (typeMember.getName() === memberSym.getName()) {
                     // Not currently checking whether static-ness matches: typeMember.isStatic() === memberSym.isStatic() or whether
                     //  typeMember.isMethod() === memberSym.isMethod() && typeMember.isProperty() === memberSym.isProperty()
-                        result.push(typeMember);
+                    result.push(typeMember);
                 }
             });
 
@@ -213,7 +214,7 @@ module Services {
                     }
                     var searchSymbolInfoAtPosition = this.compilerState.getSymbolInformationFromPath(path, document);
                     if (searchSymbolInfoAtPosition !== null) {
-                        
+
                         var normalizedSymbol: TypeScript.PullSymbol;
                         if (symbol.kind === TypeScript.PullElementKind.Class || symbol.kind === TypeScript.PullElementKind.Interface) {
                             normalizedSymbol = searchSymbolInfoAtPosition.symbol.type;
@@ -319,7 +320,6 @@ module Services {
         }
 
         private getPossibleSymbolReferencePositions(fileName: string, symbolName: string): number []{
-
             var positions: number[] = [];
 
             /// TODO: Cache symbol existence for files to save text search
@@ -415,7 +415,7 @@ module Services {
             return result;
         }
 
-        private getTypeParameterSignatureFromPartiallyWrittenExpression(document: TypeScript.Document, position: number, genericTypeArgumentListInfo : IPartiallyWrittenTypeArgumentListInformation): SignatureInfo {
+        private getTypeParameterSignatureFromPartiallyWrittenExpression(document: TypeScript.Document, position: number, genericTypeArgumentListInfo: IPartiallyWrittenTypeArgumentListInformation): SignatureInfo {
             var script = document.script;
 
             // Get the identifier information
@@ -449,7 +449,7 @@ module Services {
 
                 return result;
             }
-            else if (typeSymbol.isGeneric()){
+            else if (typeSymbol.isGeneric()) {
                 // The symbol is a generic type
 
                 // Get the class symbol for constuctor symbol
@@ -527,7 +527,39 @@ module Services {
         }
 
         public getNavigateToItems(searchValue: string): NavigateToItem[] {
-            return null;
+            this.refresh();
+
+            // Split search value in terms array
+            var terms = searchValue.split(" ");
+            for (var i = 0; i < terms.length; i++) {
+                terms[i] = terms[i].trim().toLocaleLowerCase();
+            }
+
+            var items: NavigateToItem[] = [];
+
+            var fileNames = this.compilerState.getFileNames();
+            for (var i = 0, len = fileNames.length; i < len; i++) {
+                var fileName = this.compilerState.getHostFileName(fileNames[i]);
+                var document = this.compilerState.getDocument(fileName);
+                var syntaxTree = document.syntaxTree();
+                var visitor = new GetScriptLexicalStructureWalker(items, fileName, (name) => {
+                    name = name.toLocaleLowerCase();
+                    for (var i = 0; i < terms.length; i++) {
+                        var term = terms[i];
+                        if (name === term)
+                            return MatchKind.exact;
+                        if (name.indexOf(term) == 0)
+                            return MatchKind.prefix;
+                        if (name.indexOf(term) > 0)
+                            return MatchKind.subString;
+                    }
+
+                    return MatchKind.none;
+                });
+                syntaxTree.sourceUnit().accept(visitor);
+            }
+
+            return items;
         }
 
         public getSyntacticDiagnostics(fileName: string): TypeScript.Diagnostic[] {
@@ -640,7 +672,7 @@ module Services {
                 // Skip the name and get to the declaration
                 path.pop();
             }
-            
+
             if (path.isDeclaration()) {
                 var declarationInformation = this.compilerState.getDeclarationSymbolInformation(path, document);
 
@@ -704,7 +736,7 @@ module Services {
                 symbol = symbolInformation.symbol;
                 enclosingScopeSymbol = symbolInformation.enclosingScopeSymbol;
 
-               
+
                 if (symbol.kind === TypeScript.PullElementKind.Method || symbol.kind == TypeScript.PullElementKind.Function) {
                     typeSymbol = symbol.type;
                     if (typeSymbol) {
@@ -758,9 +790,9 @@ module Services {
                 path.push((<TypeScript.BinaryExpression>path.asts[path.top]).operand1);
             }
             else if (path.count() >= 2 &&
-                    path.asts[path.top].nodeType() === TypeScript.NodeType.Name &&
-                    path.asts[path.top - 1].nodeType() === TypeScript.NodeType.MemberAccessExpression &&
-                    (<TypeScript.BinaryExpression>path.asts[path.top - 1]).operand2 === path.asts[path.top]) {
+                path.asts[path.top].nodeType() === TypeScript.NodeType.Name &&
+                path.asts[path.top - 1].nodeType() === TypeScript.NodeType.MemberAccessExpression &&
+                (<TypeScript.BinaryExpression>path.asts[path.top - 1]).operand2 === path.asts[path.top]) {
                 isRightOfDot = true;
                 path.pop();
                 path.push((<TypeScript.BinaryExpression>path.asts[path.top]).operand1);
@@ -917,7 +949,7 @@ module Services {
         private getCompletionEntriesForKeywords(keywords: ResolvedCompletionEntry[], result: TypeScript.IdentiferNameHashTable<CompletionEntryDetails>): void {
             for (var i = 0, n = keywords.length; i < n; i++) {
                 var keyword = keywords[i];
-                result.addOrUpdate(keyword.name, keyword); 
+                result.addOrUpdate(keyword.name, keyword);
             }
         }
 
@@ -926,7 +958,7 @@ module Services {
             if (!this.activeCompletionSession ||
                 this.activeCompletionSession.fileName !== fileName ||
                 this.activeCompletionSession.position !== position) {
-                    return null;
+                return null;
             }
 
             var entry = this.activeCompletionSession.entries.lookup(entryName);
