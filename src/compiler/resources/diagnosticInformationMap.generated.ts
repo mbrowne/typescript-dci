@@ -1530,7 +1530,7 @@ module TypeScript {
     "code": 7008,
     "category": DiagnosticCategory.Error
   },
-  "'new' expression, which lacks a constructor signature, implicitly has an 'any' type.": {
+  "\"New\" expression, which lacks a constructor signature, implicitly has an 'any' type.": {
     "code": 7009,
     "category": DiagnosticCategory.Error
   },
@@ -1556,6 +1556,18 @@ module TypeScript {
   },
   "Array Literal implicitly has an 'any' type from widening.": {
     "code": 7014,
+    "category": DiagnosticCategory.Error
+  },
+  "UNREACHABLE DISCRIPTION PLACEHOLDER.": {
+    "code": 8000,
+    "category": DiagnosticCategory.Error
+  },
+  "Unreachable code detected.": {
+    "code": 8001,
+    "category": DiagnosticCategory.Error
+  },
+  "Break statement declared outside of loop control flow statement": {
+    "code": 8002,
     "category": DiagnosticCategory.Error
   }
 };

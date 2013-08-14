@@ -383,12 +383,15 @@ module TypeScript {
         Parameter_0_of_1_implicitly_has_an_any_type: "Parameter '{0}' of '{1}' implicitly has an 'any' type.",
         Parameter_0_of_function_type_implicitly_has_an_any_type: "Parameter '{0}' of function type implicitly has an 'any' type.",
         Member_0_of_object_type_implicitly_has_an_any_type: "Member '{0}' of object type implicitly has an 'any' type.",
-        new_expression_which_lacks_a_constructor_signature_implicitly_has_an_any_type: "'new' expression, which lacks a constructor signature, implicitly has an 'any' type.",
+        New_expression_which_lacks_a_constructor_signature_implicitly_has_an_any_type: "\"New\" expression, which lacks a constructor signature, implicitly has an 'any' type.",
         _0_which_lacks_return_type_annotation_implicitly_has_an_any_return_type: "'{0}', which lacks return-type annotation, implicitly has an 'any' return type.",
         Function_expression_which_lacks_return_type_annotation_implicitly_has_an_any_return_type: "Function expression, which lacks return-type annotation, implicitly has an 'any' return type.",
         Parameter_0_of_lambda_function_implicitly_has_an_any_type: "Parameter '{0}' of lambda function implicitly has an 'any' type.",
         Constructor_signature_which_lacks_return_type_annotation_implicitly_has_an_any_return_type: "Constructor signature, which lacks return-type annotation, implicitly has an 'any' return type.",
         Lambda_Function_which_lacks_return_type_annotation_implicitly_has_an_any_return_type: "Lambda Function, which lacks return-type annotation, implicitly has an 'any' return type.",
         Array_Literal_implicitly_has_an_any_type_from_widening: "Array Literal implicitly has an 'any' type from widening.",
+        UNREACHABLE_DISCRIPTION_PLACEHOLDER: "UNREACHABLE DISCRIPTION PLACEHOLDER.",
+        Unreachable_code_detected: "Unreachable code detected.",
+        Break_statement_declared_outside_of_loop_control_flow_statement: "Break statement declared outside of loop control flow statement",
     };
 }

@@ -6571,7 +6571,7 @@ module TypeScript {
                 // if noImplicitAny flag is set to be true, report an error
                 if (this.compilationSettings.noImplicitAny) {
                     context.postError(this.unitPath, callEx.minChar, callEx.getLength(),
-                        DiagnosticCode.new_expression_which_lacks_a_constructor_signature_implicitly_has_an_any_type, null);
+                        DiagnosticCode.New_expression_which_lacks_a_constructor_signature_implicitly_has_an_any_type, null);
                 }
             }
 

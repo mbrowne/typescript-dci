@@ -25,6 +25,7 @@ module TypeScript {
         public noResolve = false;
         public allowAutomaticSemicolonInsertion = true;
         public noImplicitAny = false;
+        public noUnreachableCode = false;
 
         public noLib = false;
 

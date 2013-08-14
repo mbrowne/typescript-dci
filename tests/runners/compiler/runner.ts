@@ -57,6 +57,12 @@ class CompilerBaselineRunner extends RunnerBase {
                     Harness.Compiler.recreate(Harness.Compiler.CompilerInstance.RunTime, true /*minimalDefaultLife */, tcSettings[i].flag == "noimplicitany" /*noImplicitAny*/);
                     harnessCompiler.setCompilerSettings(tcSettings);
                     createNewInstance = true;
+                    break;
+                }
+                else if (!createNewInstance && (tcSettings[i].flag === "nounreachablecode" || tcSettings[i].flag === 'target')) {
+                    Harness.Compiler.recreate(Harness.Compiler.CompilerInstance.RunTime, true /*minimalDefaultLife*/, false /*noImplicitAny*/, true /*noUnreachableCode*/);
+                    harnessCompiler.setCompilerSettings(tcSettings);
+                    createNewInstance = true;
                 }
 
                 if (tcSettings[i].flag == "sourcemap" && tcSettings[i].value.toLowerCase() === 'true') {

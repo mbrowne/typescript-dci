@@ -47,6 +47,7 @@
 ///<reference path='typecheck\pullSymbolBinder.ts' />
 ///<reference path='typecheck\pullHelpers.ts' />
 ///<reference path='syntaxTreeToAstVisitor.ts' />
+///<reference path='postcompilation\references.ts' />
 
 module TypeScript {
 
@@ -128,6 +129,7 @@ module TypeScript {
         private _diagnostics: Diagnostic[] = null;
         private _syntaxTree: SyntaxTree = null;
         private _bloomFilter: BloomFilter = null;
+        private _postCompilationDiagnostics: Diagnostic[] = null;
         public script: Script;
         public lineMap: LineMap;
 
@@ -162,6 +164,14 @@ module TypeScript {
             }
 
             return this._diagnostics;
+        }
+
+        public getPostCompilationDiagnostics(errors: Diagnostic[]): void{
+            if (this._postCompilationDiagnostics === null) {
+                var postProcessors = new PostCompilationProcessor(this, this.compilationSettings);
+                this._postCompilationDiagnostics = postProcessors.runPostCompilationProcesses();
+            }
+            errors.push.apply(errors, this._postCompilationDiagnostics);
         }
 
         public syntaxTree(): SyntaxTree {
@@ -738,13 +748,16 @@ module TypeScript {
 
                 if (script) {
                     var startTime = (new Date()).getTime();
-                    PullTypeResolver.typeCheck(this.settings, this.semanticInfoChain, fileName, script)
+                    PullTypeResolver.typeCheck(this.settings, this.semanticInfoChain, fileName, script);
                     var endTime = (new Date()).getTime();
 
                     typeCheckTime += endTime - startTime;
 
                     unit.getDiagnostics(errors);
                 }
+
+                // TODO<POSTCOMPILATION>
+                document.getPostCompilationDiagnostics(errors);
             }
 
             errors.sort((d1, d2) => {
@@ -774,7 +787,6 @@ module TypeScript {
 
                 return 0;
             });
-
             return errors;
         }
 

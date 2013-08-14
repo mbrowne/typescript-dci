@@ -772,7 +772,7 @@ module Harness {
             public stdout = new Harness.Compiler.EmitterIOHost();
             private sourcemapRecorder = new WriterAggregator();
             
-            constructor(useMinimalDefaultLib = true, noImplicitAny = false) {
+            constructor(useMinimalDefaultLib = true, noImplicitAny = false, noUnreachableCode = false) {
                 this.useMinimalDefaultLib = useMinimalDefaultLib;
                 this.compiler = new TypeScript.TypeScriptCompiler();
                 this.compiler.settings = makeDefaultCompilerSettings(useMinimalDefaultLib, noImplicitAny);
@@ -1141,7 +1141,8 @@ module Harness {
                 { flag: 'out', setFlag: (x: TypeScript.CompilationSettings, value: string) => { x.outFileOption = value; } },
                 { flag: 'outDir', setFlag: (x: TypeScript.CompilationSettings, value: string) => { x.outDirOption = value; } },
                 { flag: 'filename', setFlag: (x: TypeScript.CompilationSettings, value: string) => { /* used for multifile tests, doesn't change any compiler settings */; } },
-                { flag: 'noimplicitany', setFlag: (x: TypeScript.CompilationSettings, value: string) => { x.noImplicitAny = value.toLowerCase() === 'true' ? true : false; } }, 
+                { flag: 'noimplicitany', setFlag: (x: TypeScript.CompilationSettings, value: string) => { x.noImplicitAny = value.toLowerCase() === 'true' ? true : false; } },
+                { flag: 'nounreachablecode', setFlag: (x: TypeScript.CompilationSettings, value: string) => { x.noUnreachableCode = value.toLowerCase() === 'true' ? true : false; } },
             ];
 
             /** Does a deep copy of the given compiler's settings and emit options and returns
@@ -1228,23 +1229,24 @@ module Harness {
 
         }
 
-        export function makeDefaultCompilerSettings(useMinimalDefaultLib = true, noImplicitAny = false) {
+        export function makeDefaultCompilerSettings(useMinimalDefaultLib = true, noImplicitAny = false, noUnreachableCode = false) {
             var settings = new TypeScript.CompilationSettings();
             settings.codeGenTarget = TypeScript.LanguageVersion.EcmaScript5;
             settings.moduleGenTarget = TypeScript.ModuleGenTarget.Synchronous;
             settings.noLib = useMinimalDefaultLib;
             settings.noResolve = false;
             settings.noImplicitAny = noImplicitAny;
+            settings.noUnreachableCode = noUnreachableCode;
             return settings;
         }
 
         /** Recreate the appropriate compiler instance to its default settings */
-        export function recreate(compilerInstance: CompilerInstance, useMinimalDefaultLib = true, noImplicitAny = false) {
+        export function recreate(compilerInstance: CompilerInstance, useMinimalDefaultLib = true, noImplicitAny = false, noUnreachableCode = false) {
             if (compilerInstance === CompilerInstance.RunTime) {
-                runTimeCompiler = new HarnessCompiler(useMinimalDefaultLib, noImplicitAny);
+                runTimeCompiler = new HarnessCompiler(useMinimalDefaultLib, noImplicitAny, noUnreachableCode);
             }
             else {
-                designTimeCompiler = new HarnessCompiler(useMinimalDefaultLib, noImplicitAny);
+                designTimeCompiler = new HarnessCompiler(useMinimalDefaultLib, noImplicitAny, noUnreachableCode);
             }
         }
 
@@ -1592,7 +1594,7 @@ module Harness {
         var optionRegex = /^[\/]{2}\s*@(\w+)\s*:\s*(\S*)/gm;  // multiple matches on multiple lines
 
         // List of allowed metadata names
-        var fileMetadataNames = ["filename", "comments", "declaration", "module", "nolib", "sourcemap", "target", "out", "outDir", "noimplicitany"];
+        var fileMetadataNames = ["filename", "comments", "declaration", "module", "nolib", "sourcemap", "target", "out", "noimplicitany", "nounreachablecode"];
 
         function extractCompilerSettings(content: string): CompilerSetting[] {
 

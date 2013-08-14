@@ -209,9 +209,11 @@ module TypeScript {
             compiler.pullTypeCheck();
             var fileNames = compiler.fileNameToDocument.getAllKeys();
             var n = fileNames.length;
+
             for (var i = 0; i < n; i++) {
                 var fileName = fileNames[i];
                 var semanticDiagnostics = compiler.getSemanticDiagnostics(fileName);
+
                 if (semanticDiagnostics.length > 0) {
                     anySemanticErrors = true;
                     compiler.reportDiagnostics(semanticDiagnostics, this);
@@ -546,6 +548,16 @@ module TypeScript {
                     }
                 });
             }
+
+            opts.flag('noUnreachableCode', {
+                usage: {
+                    locCode: DiagnosticCode.UNREACHABLE_DISCRIPTION_PLACEHOLDER,
+                    args: null
+                },
+                set: () => {
+                    this.compilationSettings.noUnreachableCode = true;
+                }
+            });
 
             opts.parse(this.ioHost.arguments);
 
