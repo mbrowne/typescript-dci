@@ -345,7 +345,9 @@ var TypeScript;
         Option_mapRoot_cannot_be_specified_without_specifying_sourcemap_option: "Option mapRoot cannot be specified without specifying sourcemap option.",
         Option_sourceRoot_cannot_be_specified_without_specifying_sourcemap_option: "Option sourceRoot cannot be specified without specifying sourcemap option.",
         Options_mapRoot_and_sourceRoot_cannot_be_specified_without_specifying_sourcemap_option: "Options mapRoot and sourceRoot cannot be specified without specifying sourcemap option.",
-        Concatenate_and_emit_output_to_single_file: "Concatenate and emit output to single file",
+        Option_0_specified_without_1: "Option '{0}' specified without '{1}'",
+        codepage_option_not_supported_on_current_platform: "'codepage' option not supported on current platform.",
+        Concatenate_and_emit_output_to_single_file: "Concatenate and emit output to single file.",
         Generates_corresponding_0_file: "Generates corresponding {0} file",
         Specifies_the_location_where_debugger_should_locate_map_files_instead_of_generated_locations: "Specifies the location where debugger should locate map files instead of generated locations.",
         Specifies_the_location_where_debugger_should_locate_TypeScript_files_instead_of_source_locations: "Specifies the location where debugger should locate TypeScript files instead of source locations.",
@@ -374,6 +376,8 @@ var TypeScript;
         VERSION: "VERSION",
         LOCATION: "LOCATION",
         DIRECTORY: "DIRECTORY",
+        NUMBER: "NUMBER",
+        Specify_the_codepage_to_use_when_opening_source_files: "Specify the codepage to use when opening source files.",
         This_version_of_the_Javascript_runtime_does_not_support_the_0_function: "This version of the Javascript runtime does not support the '{0}' function.",
         Looking_up_path_for_identifier_token_did_not_result_in_an_identifer: "Looking up path for identifier token did not result in an identifer.",
         Unknown_rule: "Unknown rule",
@@ -1180,8 +1184,19 @@ var Environment = (function () {
             currentDirectory: function () {
                 return (WScript).CreateObject("WScript.Shell").CurrentDirectory;
             },
-            readFile: function (path) {
+            supportsCodePage: function () {
+                return (WScript).ReadFile;
+            },
+            readFile: function (path, codepage) {
                 try  {
+                    if (codepage !== null && this.supportsCodePage()) {
+                        try  {
+                            var contents = (WScript).ReadFile(path, codepage);
+                            return new FileInformation(contents, 0 /* None */);
+                        } catch (e) {
+                        }
+                    }
+
                     var streamObj = getStreamObject();
                     streamObj.Open();
                     streamObj.Type = 2;
@@ -1306,7 +1321,14 @@ var Environment = (function () {
             currentDirectory: function () {
                 return (process).cwd();
             },
-            readFile: function (file) {
+            supportsCodePage: function () {
+                return false;
+            },
+            readFile: function (file, codepage) {
+                if (codepage !== null) {
+                    throw new Error(TypeScript.getDiagnosticMessage(TypeScript.DiagnosticCode.codepage_option_not_supported_on_current_platform, null));
+                }
+
                 var buffer = _fs.readFileSync(file);
                 switch (buffer[0]) {
                     case 0xFE:
@@ -2988,7 +3010,15 @@ var TypeScript;
             "code": 5040,
             "category": 1 /* Error */
         },
-        "Concatenate and emit output to single file": {
+        "Option '{0}' specified without '{1}'": {
+            "code": 5041,
+            "category": 1 /* Error */
+        },
+        "'codepage' option not supported on current platform.": {
+            "code": 5042,
+            "category": 1 /* Error */
+        },
+        "Concatenate and emit output to single file.": {
             "code": 6001,
             "category": 2 /* Message */
         },
@@ -3102,6 +3132,14 @@ var TypeScript;
         },
         "DIRECTORY": {
             "code": 6038,
+            "category": 2 /* Message */
+        },
+        "NUMBER": {
+            "code": 6039,
+            "category": 2 /* Message */
+        },
+        "Specify the codepage to use when opening source files.": {
+            "code": 6040,
             "category": 2 /* Message */
         },
         "This version of the Javascript runtime does not support the '{0}' function.": {
@@ -30241,6 +30279,7 @@ var TypeScript;
             this.useCaseSensitiveFileResolution = false;
             this.gatherDiagnostics = false;
             this.updateTC = false;
+            this.codepage = null;
         }
         return CompilationSettings;
     })();
@@ -35431,6 +35470,7 @@ var TypeScript;
             this.genericASTResolutionStack = [];
             this.resolvingTypeReference = false;
             this.resolvingNamespaceMemberAccess = false;
+            this.resolvingTypeQueryExpression = false;
             this.resolveAggressively = false;
             this.canUseTypeSymbol = false;
             this.specializingToAny = false;
@@ -37514,7 +37554,10 @@ var TypeScript;
 
                 var savedResolvingTypeReference = context.resolvingTypeReference;
                 context.resolvingTypeReference = false;
+                var savedResolvingTypeQueryExpression = context.resolvingTypeQueryExpression;
+                context.resolvingTypeQueryExpression = true;
                 var valueSymbol = this.resolveAST(typeQueryTerm, false, enclosingDecl, context);
+                context.resolvingTypeQueryExpression = savedResolvingTypeQueryExpression;
                 context.resolvingTypeReference = savedResolvingTypeReference;
 
                 if (valueSymbol && valueSymbol.isAlias()) {
@@ -39465,7 +39508,9 @@ var TypeScript;
 
             if (nameSymbol.isType() && nameSymbol.isAlias()) {
                 aliasSymbol = nameSymbol;
-                aliasSymbol.isUsedAsValue = true;
+                if (!context.resolvingTypeQueryExpression) {
+                    aliasSymbol.isUsedAsValue = true;
+                }
 
                 if (!nameSymbol.isResolved) {
                     this.resolveDeclaredSymbol(nameSymbol, enclosingDecl, context);
@@ -39552,7 +39597,9 @@ var TypeScript;
             var lhsType = lhs.type;
 
             if (lhs.isAlias()) {
-                (lhs).isUsedAsValue = true;
+                if (!context.resolvingTypeQueryExpression) {
+                    (lhs).isUsedAsValue = true;
+                }
                 lhsType = (lhs).getExportAssignedTypeSymbol();
             }
 
@@ -54932,8 +54979,8 @@ var IO = (function () {
         }
 
         return {
-            readFile: function (path) {
-                return Environment.readFile(path);
+            readFile: function (path, codepage) {
+                return Environment.readFile(path, codepage);
             },
             writeFile: function (path, contents, writeByteOrderMark) {
                 Environment.writeFile(path, contents, writeByteOrderMark);
@@ -55052,8 +55099,8 @@ var IO = (function () {
         var _module = require('module');
 
         return {
-            readFile: function (file) {
-                return Environment.readFile(file);
+            readFile: function (file, codepage) {
+                return Environment.readFile(file, codepage);
             },
             writeFile: function (path, contents, writeByteOrderMark) {
                 Environment.writeFile(path, contents, writeByteOrderMark);
@@ -55425,7 +55472,7 @@ var TypeScript;
 
                 if (match) {
                     if (match[1] === '@') {
-                        this.parseString(this.host.readFile(match[2]).contents);
+                        this.parseString(this.host.readFile(match[2], null).contents);
                     } else {
                         var arg = match[2];
                         var option = this.findOption(arg);
@@ -55972,6 +56019,19 @@ var TypeScript;
                 }
             });
 
+            if (Environment.supportsCodePage()) {
+                opts.option('codepage', {
+                    usage: {
+                        locCode: TypeScript.DiagnosticCode.Specify_the_codepage_to_use_when_opening_source_files,
+                        args: null
+                    },
+                    type: TypeScript.DiagnosticCode.NUMBER,
+                    set: function (arg) {
+                        _this.compilationSettings.codepage = parseInt(arg, 10);
+                    }
+                });
+            }
+
             opts.parse(this.ioHost.arguments);
 
             if (locale) {
@@ -56027,7 +56087,7 @@ var TypeScript;
                 return false;
             }
 
-            var fileContents = this.ioHost.readFile(filePath);
+            var fileContents = this.ioHost.readFile(filePath, this.compilationSettings.codepage);
             TypeScript.LocalizedDiagnosticMessages = JSON.parse(fileContents.contents);
             return true;
         };
@@ -56122,7 +56182,7 @@ var TypeScript;
                 var fileInformation;
 
                 try  {
-                    fileInformation = this.ioHost.readFile(fileName);
+                    fileInformation = this.ioHost.readFile(fileName, this.compilationSettings.codepage);
                 } catch (e) {
                     this.addDiagnostic(new TypeScript.Diagnostic(null, 0, 0, TypeScript.DiagnosticCode.Cannot_read_file_0_1, [fileName, e.message]));
                     fileInformation = new FileInformation("", 0 /* None */);
