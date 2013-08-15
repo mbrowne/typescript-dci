@@ -1566,8 +1566,12 @@ module TypeScript {
     "code": 8001,
     "category": DiagnosticCategory.Error
   },
-  "Break statement declared outside of loop control flow statement": {
+  "Break statement declared outside of iteration or switch statement": {
     "code": 8002,
+    "category": DiagnosticCategory.Error
+  },
+  "Continue statement declared outside of iteration statement": {
+    "code": 8003,
     "category": DiagnosticCategory.Error
   }
 };
