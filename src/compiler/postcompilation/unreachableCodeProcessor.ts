@@ -555,5 +555,44 @@ module TypeScript {
             }
             super.skip(node.closeBraceToken);
         }
+
+        public visitTryStatement(node: TryStatementSyntax): void {
+            var notReachaedCurrentNode = this.checkNoContinuationAndReportError(super.position() + node.tryKeyword.leadingTriviaWidth(), node.width());
+            if (notReachaedCurrentNode) {
+                // since the current one is not reachable then all its children are not reachable
+                // also we report an error already we don't need to visit the rest of the node in tryStatement
+                super.skip(node);
+                return;
+            }
+
+            super.skip(node.tryKeyword);
+            // if containerBlock is reachable, we will visit current tryStatement node
+            var containerBlock = this._blockStack[this._blockStack.length - 1];
+            var tryBlock = new ControlFlowBlock(null, node.kind());
+            this._blockStack.push(tryBlock);
+            super.visitNode(node.block);
+            var tryNoContinuationFlag = this._blockStack.pop().noContinuation;
+
+            // visit catchClause if one exists
+            var catchNoContinuationFlag = false;
+            if (node.catchClause !== null) {
+                var catchBlock = new ControlFlowBlock(null, node.catchClause.kind());
+                this._blockStack.push(catchBlock);
+                super.visitNode(node.catchClause);
+                catchNoContinuationFlag = this._blockStack.pop().noContinuation;
+            }
+
+            // visit finallyClause if one exists
+            var finallyNoContinuationFlag = false;
+            if (node.finallyClause !== null) {
+                var finallyBlock = new ControlFlowBlock(null, node.finallyClause.kind());
+                this._blockStack.push(finallyBlock);
+                super.visitNode(node.finallyClause);
+                finallyNoContinuationFlag = this._blockStack.pop().noContinuation;
+            }
+
+            // containerBlock is not continuable if BOTH try and catch clauses are not continuable or finally clause is not continuable
+            containerBlock.noContinuation = (tryNoContinuationFlag && catchNoContinuationFlag) || finallyNoContinuationFlag;
+        }
     }
 }
