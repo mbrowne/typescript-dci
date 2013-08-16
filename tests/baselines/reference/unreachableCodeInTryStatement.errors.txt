@@ -1,0 +1,7 @@
+unreachableCodeInTryStatement.ts line 3 col 5: error TS8001: Unreachable code detected.
+unreachableCodeInTryStatement.ts line 14 col 5: error TS8001: Unreachable code detected.
+unreachableCodeInTryStatement.ts line 47 col 5: error TS8001: Unreachable code detected.
+unreachableCodeInTryStatement.ts line 59 col 5: error TS8001: Unreachable code detected.
+unreachableCodeInTryStatement.ts line 69 col 5: error TS8001: Unreachable code detected.
+unreachableCodeInTryStatement.ts line 80 col 5: error TS8001: Unreachable code detected.
+unreachableCodeInTryStatement.ts line 92 col 5: error TS8001: Unreachable code detected.

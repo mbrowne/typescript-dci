@@ -1,0 +1,5 @@
+unreachableCodeInDoStatement.ts line 4 col 5: error TS8001: Unreachable code detected.
+unreachableCodeInDoStatement.ts line 11 col 5: error TS8001: Unreachable code detected.
+unreachableCodeInDoStatement.ts line 30 col 5: error TS8001: Unreachable code detected.
+unreachableCodeInDoStatement.ts line 40 col 9: error TS8001: Unreachable code detected.
+unreachableCodeInDoStatement.ts line 42 col 5: error TS8001: Unreachable code detected.

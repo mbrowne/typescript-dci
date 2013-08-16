@@ -1,0 +1,4 @@
+unreachableCode.ts line 3 col 5: error TS8001: Unreachable code detected.
+unreachableCode.ts line 8 col 5: error TS8003: Continue statement declared outside of iteration statement
+unreachableCode.ts line 13 col 5: error TS8001: Unreachable code detected.
+unreachableCode.ts line 19 col 5: error TS8001: Unreachable code detected.

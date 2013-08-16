@@ -1,0 +1,1 @@
+unreachableCodeInSwitchStatement.ts line 11 col 5: error TS8001: Unreachable code detected.

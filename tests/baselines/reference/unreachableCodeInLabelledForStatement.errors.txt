@@ -1,0 +1,8 @@
+unreachableCodeInLabelledForStatement.ts line 7 col 17: error TS8001: Unreachable code detected.
+unreachableCodeInLabelledForStatement.ts line 12 col 13: error TS8001: Unreachable code detected.
+unreachableCodeInLabelledForStatement.ts line 14 col 9: error TS8001: Unreachable code detected.
+unreachableCodeInLabelledForStatement.ts line 24 col 17: error TS8001: Unreachable code detected.
+unreachableCodeInLabelledForStatement.ts line 27 col 9: error TS8001: Unreachable code detected.
+unreachableCodeInLabelledForStatement.ts line 38 col 17: error TS8001: Unreachable code detected.
+unreachableCodeInLabelledForStatement.ts line 44 col 9: error TS8001: Unreachable code detected.
+unreachableCodeInLabelledForStatement.ts line 46 col 5: error TS8001: Unreachable code detected.
