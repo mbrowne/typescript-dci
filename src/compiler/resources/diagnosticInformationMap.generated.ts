@@ -1530,7 +1530,7 @@ module TypeScript {
     "code": 7008,
     "category": DiagnosticCategory.Error
   },
-  "\"New\" expression, which lacks a constructor signature, implicitly has an 'any' type.": {
+  "'new' expression, which lacks a constructor signature, implicitly has an 'any' type.": {
     "code": 7009,
     "category": DiagnosticCategory.Error
   },
