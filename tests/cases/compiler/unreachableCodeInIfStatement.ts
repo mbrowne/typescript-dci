@@ -56,3 +56,13 @@ function func5(x: number): any {
     }
     var j = 0;  // this should not be an error
 }
+
+function func6(x: number): any {
+    if (x === 5) {
+        throw "error";
+    }
+    else {
+        throw "error"
+    }
+    var j = 0;  // this should be an error
+}

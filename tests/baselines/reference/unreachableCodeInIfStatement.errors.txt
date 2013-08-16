@@ -1,3 +1,4 @@
 unreachableCodeInIfStatement.ts line 6 col 9: error TS8001: Unreachable code detected.
 unreachableCodeInIfStatement.ts line 13 col 9: error TS8001: Unreachable code detected.
 unreachableCodeInIfStatement.ts line 32 col 5: error TS8001: Unreachable code detected.
+unreachableCodeInIfStatement.ts line 66 col 5: error TS8001: Unreachable code detected.

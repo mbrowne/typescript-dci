@@ -49,3 +49,12 @@ function func5(x) {
     }
     var j = 0;
 }
+
+function func6(x) {
+    if (x === 5) {
+        throw "error";
+    } else {
+        throw "error";
+    }
+    var j = 0;
+}
