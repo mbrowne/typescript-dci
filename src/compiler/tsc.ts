@@ -551,7 +551,7 @@ module TypeScript {
 
             opts.flag('noUnreachableCode', {
                 usage: {
-                    locCode: DiagnosticCode.UNREACHABLE_DISCRIPTION_PLACEHOLDER,
+                    locCode: DiagnosticCode.Warn_on_unreachable_code,
                     args: null
                 },
                 set: () => {

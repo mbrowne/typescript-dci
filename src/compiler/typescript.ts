@@ -756,7 +756,6 @@ module TypeScript {
                     unit.getDiagnostics(errors);
                 }
 
-                // TODO<POSTCOMPILATION>
                 document.getPostCompilationDiagnostics(errors);
             }
 

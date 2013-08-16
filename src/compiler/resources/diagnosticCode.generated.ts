@@ -390,7 +390,7 @@ module TypeScript {
         Constructor_signature_which_lacks_return_type_annotation_implicitly_has_an_any_return_type: "Constructor signature, which lacks return-type annotation, implicitly has an 'any' return type.",
         Lambda_Function_which_lacks_return_type_annotation_implicitly_has_an_any_return_type: "Lambda Function, which lacks return-type annotation, implicitly has an 'any' return type.",
         Array_Literal_implicitly_has_an_any_type_from_widening: "Array Literal implicitly has an 'any' type from widening.",
-        UNREACHABLE_DISCRIPTION_PLACEHOLDER: "UNREACHABLE DISCRIPTION PLACEHOLDER.",
+        Warn_on_unreachable_code: "Warn on unreachable code.",
         Unreachable_code_detected: "Unreachable code detected.",
         Break_statement_declared_outside_of_iteration_or_switch_statement: "Break statement declared outside of iteration or switch statement",
         Continue_statement_declared_outside_of_iteration_statement: "Continue statement declared outside of iteration statement",

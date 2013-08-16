@@ -1559,7 +1559,7 @@
 		"category": "Error",
 		"code": 7014
 	},
-	"UNREACHABLE DISCRIPTION PLACEHOLDER.": {
+	"Warn on unreachable code.": {
 		"category": "Error",
 		"code": 8000
 	},

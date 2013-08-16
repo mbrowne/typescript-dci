@@ -1558,7 +1558,7 @@ module TypeScript {
     "code": 7014,
     "category": DiagnosticCategory.Error
   },
-  "UNREACHABLE DISCRIPTION PLACEHOLDER.": {
+  "Warn on unreachable code.": {
     "code": 8000,
     "category": DiagnosticCategory.Error
   },
