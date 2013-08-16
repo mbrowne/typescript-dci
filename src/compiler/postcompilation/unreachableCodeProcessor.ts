@@ -5,7 +5,7 @@ module TypeScript {
     // the basic block used for unreachableCode analaysis
     // the block is created whenever the new scope is introduced:
     //      while | forIn | for | doWhile | If/Else | try | catch | finally | switch | function | script |
-    // other kinds of statements: return | continue | break | throw | variable | will simply update flags in ControlFlowBlock which contains it.
+    // other kinds of statements: return | continue | break | throw | variable | expression | will simply update flags in ControlFlowBlock which contains it.
     export class ControlFlowBlock {
         // name property is set by label statement in the code
         public labelName: string;
@@ -28,19 +28,35 @@ module TypeScript {
         }
     }
 
-    // the class to perform unreachable code analysis by visiting syntaxTree and create ControlFlowBlock to analyze
-    // the flow of the code. The class extends SubProcessor which extends PositionTrackingWalker. It override visit function of node
-    // which are of type statements : block, ifStatement, variableStatement, expressionStatement, returnStatement, switchStatement,
-    // breakStatement, continueStatement, forStatement, forInStatement, emptyStatement, throwStatement, whileStatement, tryStatement,
-    // labeledStatement, deStatement, and withStatement. In other type of nodes, the class will simply inherit the function from its parents which
-    // will update the postion.
+    // the class to perform unreachable code analysis by visiting syntaxTree and create ControlFlowBlock.
+    // The class extends SubProcessor which extends PositionTrackingWalker. It override visit function of node
+    // which are of type statements :
+    //      ifStatement
+    //      variableStatement
+    //      expressionStatement
+    //      returnStatement
+    //      switchStatement
+    //      breakStatement
+    //      continueStatement
+    //      forStatement & forInStatement
+    //      throwStatement
+    //      whileStatement
+    //      tryStatement
+    //      labeledStatement
+    //      doStatement
+    //      debuggerStatement
+    //      withStatement
+    //      functionDeclaration
+    //      sourceUnit
+    // In other type of nodes, the class will simply inherit the function from its parents which will update the postion.
     export class UnreachableCodeProcessor extends SubProcessor {
-        private _blockStack: ControlFlowBlock[];
-        //private _labelStack
+        private _blockStack: ControlFlowBlock[];  // a stack data structure to keep track of ControlFlowBlock
+        private _labelStack: string[];  // a stack data structure to keep track of label
 
         constructor(fileName: string, diagnostics: Diagnostic[]) {
             super(fileName, diagnostics);
             this._blockStack = [];
+            this._labelStack = []
         }
 
         public visitFunctionDeclaration(node: FunctionDeclarationSyntax): void {
@@ -72,8 +88,31 @@ module TypeScript {
             this._blockStack.pop();
         }
 
+        public visitLabeledStatement(node: LabeledStatementSyntax): void {
+            this.visitToken(node.identifier);
+            this.visitToken(node.colonToken);
+            this._labelStack.push(node.identifier.text());
+            this.visitNodeOrToken(node.statement);
+            this._labelStack.pop();
+        }
+
         public visitVariableStatement(node: VariableStatementSyntax): void {
             this.checkNoContinuationAndReportError(super.position() + node.variableDeclaration.varKeyword.leadingTriviaWidth(), node.width());
+            super.skip(node);
+        }
+
+        public visitExpressionStatement(node: ExpressionStatementSyntax): void {
+            this.checkNoContinuationAndReportError(super.position() + node.leadingTriviaWidth(), node.width());
+            super.skip(node);
+        }
+
+        public visitDebuggerStatement(node: DebuggerStatementSyntax): void {
+            this.checkNoContinuationAndReportError(super.position() + node.debuggerKeyword.leadingTriviaWidth(), node.width());
+            super.skip(node);
+        }
+
+        public visitWithStatement(node: WithStatementSyntax): void {
+            this.checkNoContinuationAndReportError(super.position() + node.withKeyword.leadingTriviaWidth(), node.width());
             super.skip(node);
         }
 
@@ -309,7 +348,14 @@ module TypeScript {
             super.skip(node.condition);
             super.skip(node.closeParenToken);
 
-            var whileBlock = new ControlFlowBlock(null, node.kind());
+            // check if there is any label associated with this whileStatement
+            var label: string = null;
+            if (this._labelStack.length > 0) {
+                // if there is a label, then get the top most one on the stack as that is the most recent one
+                label = this._labelStack[this._labelStack.length - 1];
+            }
+
+            var whileBlock = new ControlFlowBlock(label, node.kind());
             if (node.condition.kind() === SyntaxKind.TrueKeyword) {
                 // by default if the condition is a true literal, the loop is not terminated and the end of the loop can't be reached
                 whileBlock.loopTerminated = false;
@@ -376,9 +422,16 @@ module TypeScript {
             super.visitOptionalNodeOrToken(node.incrementor);
             super.skip(node.closeParenToken);
 
+            // check if there is any label associated with this forStatement
+            var label: string = null;
+            if (this._labelStack.length > 0) {
+                // if there is a label, then get the top most one on the stack as that is the most recent one
+                label = this._labelStack[this._labelStack.length - 1];
+            }
+
             // check if we have condition
             // if no condition, then we have infiniteloop
-            var forBlock = new ControlFlowBlock(null, node.kind());
+            var forBlock = new ControlFlowBlock(label, node.kind());
             if (node.condition === null) {
                 // by default if there is no condition, the loop is not terminated and the end of the loop can't be reached
                 forBlock.loopTerminated = false;
@@ -435,7 +488,14 @@ module TypeScript {
             super.skip(node.expression);
             super.skip(node.closeParenToken);
 
-            var forInBlock = new ControlFlowBlock(null, node.kind());
+            // check if there is any label associated with this forInStatement
+            var label: string = null;
+            if (this._labelStack.length > 0) {
+                // if there is a label, then get the top most one on the stack as that is the most recent one
+                label = this._labelStack[this._labelStack.length - 1];
+            }
+
+            var forInBlock = new ControlFlowBlock(label, node.kind());
 
             // by default, forInStatement will be terminated, and reach its end.
             // its continuity is true unless encounter return statement.
@@ -461,8 +521,15 @@ module TypeScript {
              // if containerBlock is reachable, we will visit current doStatement node
             super.skip(node.doKeyword);
 
+            // check if there is any label associated with this doStatement
+            var label: string = null;
+            if (this._labelStack.length > 0) {
+                // if there is a label, then get the top most one on the stack as that is the most recent one
+                label = this._labelStack[this._labelStack.length - 1];
+            }
+
             // visit statements in the doWhile body
-            var doWhileBlock = new ControlFlowBlock(null, node.kind());
+            var doWhileBlock = new ControlFlowBlock(label, node.kind());
             if (node.condition.kind() === SyntaxKind.TrueKeyword) {
                 // by default if the condition is a true literal, the loop is not terminated and the end of the loop can't be reached
                 doWhileBlock.loopTerminated = false;
