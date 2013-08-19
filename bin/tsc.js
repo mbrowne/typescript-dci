@@ -38055,8 +38055,121 @@ var TypeScript;
             }
         };
 
-        PullTypeResolver.prototype.resolveFunctionDeclaration = function (funcDeclAST, context) {
+        PullTypeResolver.prototype.typeCheckFunctionDeclaration = function (funcDeclAST, funcDecl, signature, context) {
             var _this = this;
+            if (context.inTypeCheck && (!context.inSpecialization || !signature.isGeneric())) {
+                PullTypeResolver.typeCheckCallBacks.push(function () {
+                    if (signature.hasBeenChecked || signature.getRootSymbol() != signature) {
+                        return;
+                    }
+
+                    var currentUnitPath = _this.unitPath;
+                    _this.setUnitPath(funcDecl.getScriptName());
+                    var prevSeenSuperConstructorCall = _this.seenSuperConstructorCall;
+                    _this.seenSuperConstructorCall = false;
+
+                    _this.resolveAST(funcDeclAST.block, false, funcDecl, context);
+
+                    _this.validateVariableDeclarationGroups(funcDecl, context);
+
+                    var enclosingDecl = _this.getEnclosingDecl(funcDecl);
+
+                    var hasReturn = (funcDecl.flags & (2048 /* Signature */ | 4194304 /* HasReturnStatement */)) != 0;
+
+                    var parameters = signature.parameters;
+
+                    if (funcDeclAST.isConstructor || TypeScript.hasFlag(funcDeclAST.getFunctionFlags(), 1024 /* ConstructMember */)) {
+                        if (funcDecl.getSignatureSymbol() && funcDecl.getSignatureSymbol().isDefinition() && _this.enclosingClassIsDerived(funcDecl)) {
+                            if (!_this.seenSuperConstructorCall) {
+                                context.postError(_this.unitPath, funcDeclAST.minChar, 11, TypeScript.DiagnosticCode.Constructors_for_derived_classes_must_contain_a_super_call, null, enclosingDecl);
+                            } else if (_this.superCallMustBeFirstStatementInConstructor(funcDecl, enclosingDecl)) {
+                                var firstStatement = _this.getFirstStatementFromFunctionDeclAST(funcDeclAST);
+                                if (!firstStatement || !_this.isSuperCallNode(firstStatement)) {
+                                    context.postError(_this.unitPath, funcDeclAST.minChar, 11, TypeScript.DiagnosticCode.A_super_call_must_be_the_first_statement_in_the_constructor_when_a_class_contains_initialized_properties_or_has_parameter_properties, null, enclosingDecl);
+                                }
+                            }
+                        }
+                        _this.typeCheckFunctionOverloads(funcDeclAST, context);
+                    } else if (TypeScript.hasFlag(funcDeclAST.getFunctionFlags(), 4096 /* IndexerMember */)) {
+                        var allIndexSignatures = enclosingDecl.getSymbol().type.getIndexSignatures();
+
+                        for (var i = 0; i < allIndexSignatures.length; i++) {
+                            if (!allIndexSignatures[i].isResolved) {
+                                _this.resolveDeclaredSymbol(allIndexSignatures[i], allIndexSignatures[i].getDeclarations()[0].getParentDecl(), context);
+                            }
+
+                            if (allIndexSignatures[i].parameters[0].type !== parameters[0].type) {
+                                var stringIndexSignature = null;
+                                var numberIndexSignature = null;
+
+                                var indexSignature = signature;
+
+                                var isNumericIndexer = parameters[0].type === _this.semanticInfoChain.numberTypeSymbol;
+
+                                if (isNumericIndexer) {
+                                    numberIndexSignature = indexSignature;
+                                    stringIndexSignature = allIndexSignatures[i];
+                                } else {
+                                    numberIndexSignature = allIndexSignatures[i];
+                                    stringIndexSignature = indexSignature;
+
+                                    if (enclosingDecl.getSymbol() === numberIndexSignature.getDeclarations()[0].getParentDecl().getSymbol()) {
+                                        break;
+                                    }
+                                }
+                                var comparisonInfo = new TypeComparisonInfo();
+                                var resolutionContext = new TypeScript.PullTypeResolutionContext();
+                                if (!_this.sourceIsSubtypeOfTarget(numberIndexSignature.returnType, stringIndexSignature.returnType, resolutionContext, comparisonInfo)) {
+                                    if (comparisonInfo.message) {
+                                        context.postError(_this.unitPath, funcDeclAST.minChar, funcDeclAST.getLength(), TypeScript.DiagnosticCode.Numeric_indexer_type_0_must_be_a_subtype_of_string_indexer_type_1_NL_2, [numberIndexSignature.returnType.toString(), stringIndexSignature.returnType.toString(), comparisonInfo.message], enclosingDecl);
+                                    } else {
+                                        context.postError(_this.unitPath, funcDeclAST.minChar, funcDeclAST.getLength(), TypeScript.DiagnosticCode.Numeric_indexer_type_0_must_be_a_subtype_of_string_indexer_type_1, [numberIndexSignature.returnType.toString(), stringIndexSignature.returnType.toString()], enclosingDecl);
+                                    }
+                                }
+                                break;
+                            }
+                        }
+
+                        var allMembers = enclosingDecl.getSymbol().type.getAllMembers(TypeScript.PullElementKind.All, true);
+                        for (var i = 0; i < allMembers.length; i++) {
+                            var name = allMembers[i].name;
+                            if (name) {
+                                if (!allMembers[i].isResolved) {
+                                    _this.resolveDeclaredSymbol(allMembers[i], allMembers[i].getDeclarations()[0].getParentDecl(), context);
+                                }
+
+                                if (enclosingDecl.getSymbol() !== allMembers[i].getContainer()) {
+                                    var isMemberNumeric = isFinite(+name);
+                                    if (isNumericIndexer === isMemberNumeric) {
+                                        _this.checkThatMemberIsSubtypeOfIndexer(allMembers[i], indexSignature, funcDeclAST, context, enclosingDecl, isNumericIndexer);
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        if (funcDeclAST.block && funcDeclAST.returnTypeAnnotation != null && !hasReturn) {
+                            var isVoidOrAny = _this.isAnyOrEquivalent(signature.returnType) || signature.returnType === _this.semanticInfoChain.voidTypeSymbol;
+
+                            if (!isVoidOrAny && !(funcDeclAST.block.statements.members.length > 0 && funcDeclAST.block.statements.members[0].nodeType() === 96 /* ThrowStatement */)) {
+                                var funcName = funcDecl.getDisplayName();
+                                funcName = funcName ? funcName : "expression";
+
+                                context.postError(_this.unitPath, funcDeclAST.returnTypeAnnotation.minChar, funcDeclAST.returnTypeAnnotation.getLength(), TypeScript.DiagnosticCode.Function_0_declared_a_non_void_return_type_but_has_no_return_expression, [funcName], enclosingDecl);
+                            }
+                        }
+                        _this.typeCheckFunctionOverloads(funcDeclAST, context);
+                    }
+
+                    _this.checkFunctionTypePrivacy(funcDeclAST, false, context);
+                    _this.seenSuperConstructorCall = prevSeenSuperConstructorCall;
+
+                    signature.hasBeenChecked = true;
+                    _this.setUnitPath(currentUnitPath);
+                });
+            }
+        };
+
+        PullTypeResolver.prototype.resolveFunctionDeclaration = function (funcDeclAST, context) {
             var funcDecl = this.getDeclForAST(funcDeclAST);
 
             var funcSymbol = funcDecl.getSymbol();
@@ -38069,6 +38182,7 @@ var TypeScript;
 
             if (signature) {
                 if (signature.isResolved) {
+                    this.typeCheckFunctionDeclaration(funcDeclAST, funcDecl, signature, context);
                     return funcSymbol;
                 }
 
@@ -38220,116 +38334,7 @@ var TypeScript;
                 }
             }
 
-            if (context.inTypeCheck && (!context.inSpecialization || !signature.isGeneric())) {
-                var prevSeenSuperConstructorCall = this.seenSuperConstructorCall;
-
-                PullTypeResolver.typeCheckCallBacks.push(function () {
-                    if (signature.hasBeenChecked) {
-                        return;
-                    }
-
-                    _this.setUnitPath(funcDecl.getScriptName());
-                    _this.seenSuperConstructorCall = false;
-
-                    _this.resolveAST(funcDeclAST.block, false, funcDecl, context);
-
-                    _this.validateVariableDeclarationGroups(funcDecl, context);
-
-                    var enclosingDecl = _this.getEnclosingDecl(funcDecl);
-
-                    var hasReturn = (funcDecl.flags & (2048 /* Signature */ | 4194304 /* HasReturnStatement */)) != 0;
-
-                    var parameters = signature.parameters;
-
-                    if (funcDeclAST.isConstructor || TypeScript.hasFlag(funcDeclAST.getFunctionFlags(), 1024 /* ConstructMember */)) {
-                        if (funcDecl.getSignatureSymbol() && funcDecl.getSignatureSymbol().isDefinition() && _this.enclosingClassIsDerived(funcDecl)) {
-                            if (!_this.seenSuperConstructorCall) {
-                                context.postError(_this.unitPath, funcDeclAST.minChar, 11, TypeScript.DiagnosticCode.Constructors_for_derived_classes_must_contain_a_super_call, null, enclosingDecl);
-                            } else if (_this.superCallMustBeFirstStatementInConstructor(funcDecl, enclosingDecl)) {
-                                var firstStatement = _this.getFirstStatementFromFunctionDeclAST(funcDeclAST);
-                                if (!firstStatement || !_this.isSuperCallNode(firstStatement)) {
-                                    context.postError(_this.unitPath, funcDeclAST.minChar, 11, TypeScript.DiagnosticCode.A_super_call_must_be_the_first_statement_in_the_constructor_when_a_class_contains_initialized_properties_or_has_parameter_properties, null, enclosingDecl);
-                                }
-                            }
-                        }
-                        _this.typeCheckFunctionOverloads(funcDeclAST, context);
-                    } else if (TypeScript.hasFlag(funcDeclAST.getFunctionFlags(), 4096 /* IndexerMember */)) {
-                        var allIndexSignatures = enclosingDecl.getSymbol().type.getIndexSignatures();
-
-                        for (var i = 0; i < allIndexSignatures.length; i++) {
-                            if (!allIndexSignatures[i].isResolved) {
-                                _this.resolveDeclaredSymbol(allIndexSignatures[i], allIndexSignatures[i].getDeclarations()[0].getParentDecl(), context);
-                            }
-
-                            if (allIndexSignatures[i].parameters[0].type !== parameters[0].type) {
-                                var stringIndexSignature = null;
-                                var numberIndexSignature = null;
-
-                                var indexSignature = signature;
-
-                                var isNumericIndexer = parameters[0].type === _this.semanticInfoChain.numberTypeSymbol;
-
-                                if (isNumericIndexer) {
-                                    numberIndexSignature = indexSignature;
-                                    stringIndexSignature = allIndexSignatures[i];
-                                } else {
-                                    numberIndexSignature = allIndexSignatures[i];
-                                    stringIndexSignature = indexSignature;
-
-                                    if (enclosingDecl.getSymbol() === numberIndexSignature.getDeclarations()[0].getParentDecl().getSymbol()) {
-                                        break;
-                                    }
-                                }
-                                var comparisonInfo = new TypeComparisonInfo();
-                                var resolutionContext = new TypeScript.PullTypeResolutionContext();
-                                if (!_this.sourceIsSubtypeOfTarget(numberIndexSignature.returnType, stringIndexSignature.returnType, resolutionContext, comparisonInfo)) {
-                                    if (comparisonInfo.message) {
-                                        context.postError(_this.unitPath, funcDeclAST.minChar, funcDeclAST.getLength(), TypeScript.DiagnosticCode.Numeric_indexer_type_0_must_be_a_subtype_of_string_indexer_type_1_NL_2, [numberIndexSignature.returnType.toString(), stringIndexSignature.returnType.toString(), comparisonInfo.message], enclosingDecl);
-                                    } else {
-                                        context.postError(_this.unitPath, funcDeclAST.minChar, funcDeclAST.getLength(), TypeScript.DiagnosticCode.Numeric_indexer_type_0_must_be_a_subtype_of_string_indexer_type_1, [numberIndexSignature.returnType.toString(), stringIndexSignature.returnType.toString()], enclosingDecl);
-                                    }
-                                }
-                                break;
-                            }
-                        }
-
-                        var allMembers = enclosingDecl.getSymbol().type.getAllMembers(TypeScript.PullElementKind.All, true);
-                        for (var i = 0; i < allMembers.length; i++) {
-                            var name = allMembers[i].name;
-                            if (name) {
-                                if (!allMembers[i].isResolved) {
-                                    _this.resolveDeclaredSymbol(allMembers[i], allMembers[i].getDeclarations()[0].getParentDecl(), context);
-                                }
-
-                                if (enclosingDecl.getSymbol() !== allMembers[i].getContainer()) {
-                                    var isMemberNumeric = isFinite(+name);
-                                    if (isNumericIndexer === isMemberNumeric) {
-                                        _this.checkThatMemberIsSubtypeOfIndexer(allMembers[i], indexSignature, funcDeclAST, context, enclosingDecl, isNumericIndexer);
-                                    }
-                                }
-                            }
-                        }
-                    } else {
-                        if (funcDeclAST.block && funcDeclAST.returnTypeAnnotation != null && !hasReturn) {
-                            var isVoidOrAny = _this.isAnyOrEquivalent(returnTypeSymbol) || returnTypeSymbol === _this.semanticInfoChain.voidTypeSymbol;
-
-                            if (!isVoidOrAny && !(funcDeclAST.block.statements.members.length > 0 && funcDeclAST.block.statements.members[0].nodeType() === 96 /* ThrowStatement */)) {
-                                var funcName = funcDecl.getDisplayName();
-                                funcName = funcName ? funcName : "expression";
-
-                                context.postError(_this.unitPath, funcDeclAST.returnTypeAnnotation.minChar, funcDeclAST.returnTypeAnnotation.getLength(), TypeScript.DiagnosticCode.Function_0_declared_a_non_void_return_type_but_has_no_return_expression, [funcName], enclosingDecl);
-                            }
-                        }
-                        _this.typeCheckFunctionOverloads(funcDeclAST, context);
-                    }
-
-                    _this.checkFunctionTypePrivacy(funcDeclAST, false, context);
-                    _this.seenSuperConstructorCall = prevSeenSuperConstructorCall;
-
-                    signature.hasBeenChecked = true;
-                });
-            }
-
+            this.typeCheckFunctionDeclaration(funcDeclAST, funcDecl, signature, context);
             return funcSymbol;
         };
 
@@ -40140,6 +40145,7 @@ var TypeScript;
 
             if (context.typeCheck()) {
                 PullTypeResolver.typeCheckCallBacks.push(function () {
+                    var currentUnitPath = _this.unitPath;
                     _this.setUnitPath(functionDecl.getScriptName());
                     _this.seenSuperConstructorCall = false;
 
@@ -40161,6 +40167,7 @@ var TypeScript;
                     }
 
                     _this.typeCheckFunctionOverloads(funcDeclAST, context);
+                    _this.setUnitPath(currentUnitPath);
                 });
             }
 
@@ -40908,7 +40915,6 @@ var TypeScript;
 
         PullTypeResolver.prototype.computeInvocationExpressionSymbol = function (callEx, inContextuallyTypedAssignment, enclosingDecl, context, additionalResults) {
             var targetSymbol = this.resolveAST(callEx.target, inContextuallyTypedAssignment, enclosingDecl, context);
-
             var targetAST = this.getLastIdentifierInTarget(callEx);
 
             var targetTypeSymbol = targetSymbol.type;
@@ -40934,6 +40940,7 @@ var TypeScript;
                     targetTypeSymbol = targetSymbol.type;
                 } else {
                     context.postError(this.unitPath, targetAST.minChar, targetAST.getLength(), TypeScript.DiagnosticCode.Calls_to_super_are_only_valid_inside_a_class, null, enclosingDecl);
+                    this.resolveAST(callEx.arguments, inContextuallyTypedAssignment, enclosingDecl, context);
 
                     return this.getNewErrorTypeSymbol(null);
                 }
@@ -41082,6 +41089,15 @@ var TypeScript;
                     additionalResults.candidateSignature = beforeResolutionSignatures && beforeResolutionSignatures.length ? beforeResolutionSignatures[0] : null;
 
                     additionalResults.actualParametersContextTypeSymbols = actualParametersContextTypeSymbols;
+                }
+
+                var prevIsResolvingSuperConstructorTarget = context.isResolvingSuperConstructorTarget;
+                if (isSuperCall) {
+                    context.isResolvingSuperConstructorTarget = true;
+                }
+                this.resolveAST(callEx.arguments, inContextuallyTypedAssignment, enclosingDecl, context);
+                if (isSuperCall) {
+                    context.isResolvingSuperConstructorTarget = prevIsResolvingSuperConstructorTarget;
                 }
 
                 if (!couldNotFindGenericOverload) {
@@ -41528,8 +41544,11 @@ var TypeScript;
                 }
 
                 return returnType;
-            } else if (targetTypeSymbol.isClass()) {
-                return returnType;
+            } else {
+                this.resolveAST(callEx.arguments, inContextuallyTypedAssignment, enclosingDecl, context);
+                if (targetTypeSymbol.isClass()) {
+                    return returnType;
+                }
             }
 
             context.postError(this.unitPath, targetAST.minChar, targetAST.getLength(), TypeScript.DiagnosticCode.Invalid_new_expression, null, enclosingDecl);
