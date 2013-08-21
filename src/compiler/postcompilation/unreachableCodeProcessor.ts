@@ -59,13 +59,6 @@ module TypeScript {
             this._labelStack = []
         }
 
-        public visitFunctionDeclaration(node: FunctionDeclarationSyntax): void {
-            var newBlock = new ControlFlowBlock(null, node.kind());
-            this._blockStack.push(newBlock);
-            super.visitFunctionDeclaration(node);
-            this._blockStack.pop();
-        }
-
         // check if the block which contains current visiting statement is reachable.
         // If not, the current node is not reachable so report an error at appropriate location
         // Return true if we can't reach current node, otherwise return false
@@ -85,6 +78,41 @@ module TypeScript {
             var sourceUnitBlock = new ControlFlowBlock(null, node.kind());
             this._blockStack.push(sourceUnitBlock);
             super.visitSourceUnit(node);
+            this._blockStack.pop();
+        }
+
+        public visitFunctionDeclaration(node: FunctionDeclarationSyntax): void {
+            var newBlock = new ControlFlowBlock(null, node.kind());
+            this._blockStack.push(newBlock);
+            super.visitFunctionDeclaration(node);
+            this._blockStack.pop();
+        }
+
+        public visitMemberFunctionDeclaration(node: MemberFunctionDeclarationSyntax): void {
+            var newBlock = new ControlFlowBlock(null, node.kind());
+            this._blockStack.push(newBlock);
+            super.visitMemberFunctionDeclaration(node);
+            this._blockStack.pop();
+        }
+
+        public visitGetMemberAccessorDeclaration(node: GetMemberAccessorDeclarationSyntax): void {
+            var newBlock = new ControlFlowBlock(null, node.kind());
+            this._blockStack.push(newBlock);
+            super.visitGetMemberAccessorDeclaration(node);
+            this._blockStack.pop();
+        }
+
+        public visitSetMemberAccessorDeclaration(node: SetMemberAccessorDeclarationSyntax): void {
+            var newBlock = new ControlFlowBlock(null, node.kind());
+            this._blockStack.push(newBlock);
+            super.visitSetMemberAccessorDeclaration(node);
+            this._blockStack.pop();
+        }
+
+        public visitConstructorDeclaration(node: ConstructorDeclarationSyntax): void {
+            var newBlock = new ControlFlowBlock(null, node.kind());
+            this._blockStack.push(newBlock);
+            super.visitConstructorDeclaration(node);
             this._blockStack.pop();
         }
 
