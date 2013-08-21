@@ -47,6 +47,8 @@ module TypeScript {
     //      debuggerStatement
     //      withStatement
     //      functionDeclaration
+    //      memberFunctionDeclaration
+    //      getMemberAccessor & setMemberAccessor
     //      sourceUnit
     // In other type of nodes, the class will simply inherit the function from its parents which will update the postion.
     export class UnreachableCodeProcessor extends SubProcessor {
