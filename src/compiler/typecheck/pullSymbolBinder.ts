@@ -719,7 +719,7 @@ module TypeScript {
             constructorTypeSymbol.addDeclaration(constructorTypeDeclaration);
             this.semanticInfo.setSymbolForAST(constructorTypeAST, constructorTypeSymbol);
 
-            var signature = new PullDefinitionSignatureSymbol(PullElementKind.ConstructSignature);
+            var signature = new PullSignatureSymbol(PullElementKind.ConstructSignature);
 
             if ((<FunctionDeclaration>constructorTypeAST).variableArgList) {
                 signature.hasVarArgs = true;
@@ -1418,7 +1418,7 @@ module TypeScript {
                     signature.addTypeParameter(typeParameter);
                 }
                 else {
-                    var typeParameterAST = this.semanticInfoChain.getASTForDecl(typeParameterDecls[0]);
+                    var typeParameterAST = this.semanticInfoChain.getASTForDecl(typeParameter.getDeclarations()[0]);
                     functionTypeDeclaration.addDiagnostic(
                         new Diagnostic(this.semanticInfo.getPath(), typeParameterAST.minChar, typeParameterAST.getLength(), DiagnosticCode.Duplicate_identifier_0, [typeParameter.name]));
                 }

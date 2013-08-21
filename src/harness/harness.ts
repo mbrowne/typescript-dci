@@ -35,7 +35,7 @@ function filePath(fullPath: string) {
 }
 
 var typescriptServiceFileName = filePath(IO.getExecutingFilePath()) + "typescriptServices.js";
-var typescriptServiceFile = IO.readFile(typescriptServiceFileName).contents;
+var typescriptServiceFile = IO.readFile(typescriptServiceFileName, /*codepage:*/ null).contents;
 if (typeof ActiveXObject === "function") {
     eval(typescriptServiceFile);
 } else if (typeof require === "function") {
@@ -218,7 +218,7 @@ module Harness {
             path = "tests/" + path;
         }
 
-        var content = IO.readFile(Harness.userSpecifiedroot + path);
+        var content = IO.readFile(Harness.userSpecifiedroot + path, /*codepage:*/ null);
         if (content === null) {
             throw new Error("failed to read file at: '" + Harness.userSpecifiedroot + path + "'");
         }
@@ -756,8 +756,8 @@ module Harness {
         }
 
         var libFolder: string = global['WScript'] ? TypeScript.filePath(global['WScript'].ScriptFullName) : (__dirname + '/');
-        export var libText = IO ? IO.readFile(libFolder + "lib.d.ts").contents : '';
-        export var libTextMinimal = IO ? IO.readFile(libFolder + "../../tests/minimal.lib.d.ts").contents : '';
+        export var libText = IO ? IO.readFile(libFolder + "lib.d.ts", /*codepage:*/ null).contents : '';
+        export var libTextMinimal = IO ? IO.readFile(libFolder + "../../tests/minimal.lib.d.ts", /*codepage:*/ null).contents : '';
 
         /** This is the harness's own version of the batch compiler that encapsulates state about resolution */
         export class HarnessCompiler implements TypeScript.IReferenceResolverHost {
@@ -1154,7 +1154,7 @@ module Harness {
                         */
                         var justName = getFileName(filename);
                         if (IO.fileExists(filename)) {
-                            var code = IO.readFile(filename).contents;
+                            var code = IO.readFile(filename, /*codepage:*/ null).contents;
                             var units = TestCaseParser.makeUnitsFromTest(code, filename);
                             var lastUnit = units.testUnitData[units.testUnitData.length - 1];
                             fileContents = lastUnit.content;
@@ -1163,7 +1163,7 @@ module Harness {
                             // Only sub-files in a multi-file test should have _ in their name
                             var filenameMatches = /_(\w*)*\./.exec(filename);
                             var realFile = filename.replace(filenameMatches[0], '.');
-                            var code = IO.readFile(realFile).contents;
+                            var code = IO.readFile(realFile, /*codepage:*/ null).contents;
                             var units = TestCaseParser.makeUnitsFromTest(code, realFile);
                             for (var i = 0; i < units.testUnitData.length; i++) {
                                 var currentUnit = units.testUnitData[i];
@@ -1187,7 +1187,7 @@ module Harness {
                                 }
                             }
                             if (!fileContents) {
-                                fileContents = IO.readFile(filename);
+                                fileContents = IO.readFile(filename, /*codepage:*/ null);
                             }
                         }
                     }
@@ -1235,7 +1235,7 @@ module Harness {
                     // only sub-files in multi-file tests should have _ in the name
                     for(var i = 0; i < this.inputFiles.length; i++) {
                         var file = this.inputFiles[i];
-                        var contents = IO.readFile(Harness.userSpecifiedroot + file).contents;
+                        var contents = IO.readFile(Harness.userSpecifiedroot + file, /*codepage:*/ null).contents;
                         var hasAdditionalFilenames = new RegExp('//\\s*@Filename:\\s*' + justName);
                         if (hasAdditionalFilenames.test(contents)) {
                             return true;
@@ -1936,7 +1936,7 @@ module Harness {
 
         /** Parse a file on disk given its fileName */
         public parseFile(fileName: string) {
-            var sourceText = TypeScript.ScriptSnapshot.fromString(IO.readFile(fileName).contents)
+            var sourceText = TypeScript.ScriptSnapshot.fromString(IO.readFile(fileName, /*codepage:*/ null).contents)
             return this.parseSourceText(fileName, sourceText);
         }
 
@@ -2191,7 +2191,7 @@ module Harness {
 
             var expected = '<no content>';
             if (IO.fileExists(refFilename)) {
-                expected = IO.readFile(refFilename).contents;
+                expected = IO.readFile(refFilename, /*codepage:*/ null).contents;
             }
 
             var lineEndingSensitive = opts && opts.LineEndingSensitive;
@@ -2208,7 +2208,7 @@ module Harness {
             if (expected != actual) {
                 // Overwrite & issue error
                 var errMsg = 'The baseline file ' + relativeFilename + ' has changed. Please refer to baseline-report.html and ';
-                errMsg += 'either fix the regression (if unintended) or run nmake baseline-accept (if intended).'
+                errMsg += 'either fix the regression (if unintended) or run jake baseline-accept (if intended).'
 
                 var refFilename = referencePath(relativeFilename);
                 htmlBaselineReport.addDifference(descriptionForDescribe, actualFilename, refFilename, expected, actual, /*includeUnchangedRegions:*/ true);

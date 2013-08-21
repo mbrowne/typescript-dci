@@ -126,11 +126,11 @@ class Program {
             return;
         }
 
-        var contents = Environment.readFile(fileName).contents;
+        var contents = Environment.readFile(fileName, /*codepage*/ null).contents;
         // Environment.standardOut.WriteLine(fileName);
 
         var text = TypeScript.TextFactory.createText(contents);
-        var tree = TypeScript.Parser.parse(fileName, text, TypeScript.isDTSFile(fileName), new TypeScript.ParseOptions(TypeScript.LanguageVersion.EcmaScript5, true));
+        var tree = TypeScript.Parser.parse(fileName, text, TypeScript.isDTSFile(fileName), new TypeScript.ParseOptions(TypeScript.LanguageVersion.EcmaScript5, true, false));
         var originalTree = tree;
         var ast = TypeScript.SyntaxTreeToAstVisitor.visit(tree, fileName, new TypeScript.CompilationSettings(), /*incrementalAST:*/ true);
 
@@ -187,11 +187,11 @@ class Program {
             return;
         }
 
-        var contents = Environment.readFile(fileName).contents;
+        var contents = Environment.readFile(fileName, /*codepage*/ null).contents;
         // Environment.standardOut.WriteLine(fileName);
 
         var text = TypeScript.TextFactory.createText(contents);
-        var tree = TypeScript.Parser.parse(fileName, text, TypeScript.isDTSFile(fileName), new TypeScript.ParseOptions(TypeScript.LanguageVersion.EcmaScript5, true));
+        var tree = TypeScript.Parser.parse(fileName, text, TypeScript.isDTSFile(fileName), new TypeScript.ParseOptions(TypeScript.LanguageVersion.EcmaScript5, true, false));
         var originalTree = tree;
         var ast = TypeScript.SyntaxTreeToAstVisitor.visit(tree, fileName, new TypeScript.CompilationSettings(), /*incrementalAST:*/ true);
 
@@ -317,7 +317,7 @@ class Program {
                 Environment.writeFile(expectedFile, "", false);
             }
             else {
-                expectedResult = Environment.readFile(expectedFile).contents;
+                expectedResult = Environment.readFile(expectedFile, /*codepage*/ null).contents;
             }
 
             if (expectedResult !== actualResult) {
@@ -354,14 +354,14 @@ class Program {
             return;
         }
 
-        var contents = Environment.readFile(fileName).contents;
+        var contents = Environment.readFile(fileName, /*codepage*/ null).contents;
         // Environment.standardOut.WriteLine(fileName);
 
         totalSize += contents.length;
 
         var text = TypeScript.TextFactory.createText(contents);
 
-                   var tree = TypeScript.Parser.parse(fileName, text, TypeScript.isDTSFile(fileName), new TypeScript.ParseOptions(languageVersion, true));
+                   var tree = TypeScript.Parser.parse(fileName, text, TypeScript.isDTSFile(fileName), new TypeScript.ParseOptions(languageVersion, true, false));
         var emitted = TypeScript.Emitter1.emit(<TypeScript.SourceUnitSyntax>tree.sourceUnit());
 
         var result = justText
@@ -382,14 +382,14 @@ class Program {
             return;
         }
 
-        var contents = Environment.readFile(fileName).contents;
+        var contents = Environment.readFile(fileName, /*codepage*/ null).contents;
         // Environment.standardOut.WriteLine(fileName);
 
         totalSize += contents.length;
 
         var text = TypeScript.TextFactory.createText(contents);
 
-        var tree = TypeScript.Parser.parse(fileName, text, TypeScript.isDTSFile(fileName), new TypeScript.ParseOptions(languageVersion, true));
+        var tree = TypeScript.Parser.parse(fileName, text, TypeScript.isDTSFile(fileName), new TypeScript.ParseOptions(languageVersion, true, false));
         var result = TypeScript.PrettyPrinter.prettyPrint(tree.sourceUnit());
 
         this.checkResult(fileName, result, verify, generateBaseline, true);
@@ -410,7 +410,7 @@ class Program {
             return;
         }
 
-        var contents = Environment.readFile(fileName).contents;
+        var contents = Environment.readFile(fileName, /*codepage*/ null).contents;
         // Environment.standardOut.WriteLine(fileName);
 
         totalSize += contents.length;
@@ -418,7 +418,7 @@ class Program {
         var text = TypeScript.TextFactory.createText(contents);
 
         timer.start();
-                  var tree = TypeScript.Parser.parse(fileName, text, TypeScript.isDTSFile(fileName), new TypeScript.ParseOptions(languageVersion, true));
+                  var tree = TypeScript.Parser.parse(fileName, text, TypeScript.isDTSFile(fileName), new TypeScript.ParseOptions(languageVersion, true, false));
         timer.end();
         
         if (!allowErrors) {
@@ -448,12 +448,12 @@ class Program {
             return;
         }
 
-        var contents = Environment.readFile(fileName).contents;
+        var contents = Environment.readFile(fileName, /*codepage*/ null).contents;
         // Environment.standardOut.WriteLine(fileName);
 
         var text = TypeScript.TextFactory.createText(contents);
 
-            var tree1 = TypeScript.Parser.parse(fileName, text, TypeScript.isDTSFile(fileName), new TypeScript.ParseOptions(languageVersion, true));
+            var tree1 = TypeScript.Parser.parse(fileName, text, TypeScript.isDTSFile(fileName), new TypeScript.ParseOptions(languageVersion, true, false));
         var tree2 = TypeScript.Parser.incrementalParse(
             new TypeScript.SyntaxTree(TypeScript.Syntax.emptySourceUnit(), TypeScript.isDTSFile(fileName), [], fileName, null, tree1.parseOptions()),
             new TypeScript.TextChangeRange(new TypeScript.TextSpan(0, 0), text.length()),
@@ -472,11 +472,11 @@ class Program {
             return;
         }
 
-        var contents = Environment.readFile(fileName).contents;
+        var contents = Environment.readFile(fileName, /*codepage*/ null).contents;
         // Environment.standardOut.WriteLine(fileName);
 
         var text = TypeScript.TextFactory.createText(contents);
-        var tree = TypeScript.Parser.parse(fileName, text, TypeScript.isDTSFile(fileName), new TypeScript.ParseOptions(languageVersion, true));
+        var tree = TypeScript.Parser.parse(fileName, text, TypeScript.isDTSFile(fileName), new TypeScript.ParseOptions(languageVersion, true, false));
         var sourceUnit = tree.sourceUnit();
 
         TypeScript.Debug.assert(tree.sourceUnit().fullWidth() === contents.length);
@@ -533,7 +533,7 @@ class Program {
             return;
         }
 
-        var contents = Environment.readFile(fileName).contents;
+        var contents = Environment.readFile(fileName, /*codepage*/ null).contents;
 
         var text = TypeScript.TextFactory.createText(contents);
         var scanner = new TypeScript.Scanner(fileName, text, languageVersion);
@@ -559,7 +559,7 @@ class Program {
             return;
         }
 
-        var contents = Environment.readFile(fileName).contents;
+        var contents = Environment.readFile(fileName, /*codepage*/ null).contents;
 
         var text = TypeScript.TextFactory.createText(contents);
         var scanner = new TypeScript.Scanner(fileName, text, languageVersion);
@@ -622,7 +622,7 @@ class Program {
 
             // All 262 files are utf8.  But they dont' have a BOM.  Force them to be read in
             // as UTF8.
-            var contents = Environment.readFile(fileName).contents;
+            var contents = Environment.readFile(fileName, /*codepage*/ null).contents;
 
             var isNegative = contents.indexOf("@negative") >= 0
 
@@ -630,7 +630,7 @@ class Program {
 
             try {
                 var stringText = TypeScript.TextFactory.createText(contents);
-                var tree = TypeScript.Parser.parse(fileName, stringText, TypeScript.isDTSFile(fileName), new TypeScript.ParseOptions(TypeScript.LanguageVersion.EcmaScript5, true));
+                var tree = TypeScript.Parser.parse(fileName, stringText, TypeScript.isDTSFile(fileName), new TypeScript.ParseOptions(TypeScript.LanguageVersion.EcmaScript5, true, false));
 
                 if (isNegative) {
                     var nameOnly = fileName.substr(fileName.lastIndexOf("\\") + 1);

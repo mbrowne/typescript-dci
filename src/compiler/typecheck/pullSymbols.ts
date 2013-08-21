@@ -585,6 +585,10 @@ module TypeScript {
                 return true;
             }
 
+            if (this.rootSymbol) {
+                return PullSymbol.getIsExternallyVisible(this.rootSymbol, this, inIsExternallyVisibleSymbols);
+            }
+            
             // Type - use container to determine privacy info
             if (this.isType()) {
                 var associatedContainerSymbol = (<PullTypeSymbol>this).getAssociatedContainerType();
@@ -601,6 +605,19 @@ module TypeScript {
             // If the container for this symbol is null, then this symbol is visible
             var container = this.getContainer();
             if (container === null) {
+                var decls = this.getDeclarations();
+                if (decls.length) {
+                    var parentDecl = decls[0].getParentDecl();
+                    if (parentDecl) {
+                        var parentSymbol = parentDecl.getSymbol();
+                        if (!parentSymbol || parentDecl.kind == PullElementKind.Script) {
+                            return true;
+                        }
+
+                        return PullSymbol.getIsExternallyVisible(parentSymbol, this, inIsExternallyVisibleSymbols);
+                    }
+                }
+
                 return true;
             }
 
@@ -2784,7 +2801,7 @@ module TypeScript {
                 newSignature.mimicSignature(signature, resolver);
                 declAST = resolver.semanticInfoChain.getASTForDecl(decl);
 
-                Debug.assert(declAST != null, "Call signature for type '" + typeToSpecialize.toString() + "' could not be specialized because of a stale declaration");
+                Debug.assert(declAST != null, "Call signature for type '" + typeToSpecialize.pullSymbolIDString + "' could not be specialized because of a stale declaration");
 
                 prevSpecializationSignature = decl.getSpecializingSignatureSymbol();
                 decl.setSpecializingSignatureSymbol(newSignature);
@@ -2861,7 +2878,7 @@ module TypeScript {
                 newSignature.mimicSignature(signature, resolver);
                 declAST = resolver.semanticInfoChain.getASTForDecl(decl);
 
-                Debug.assert(declAST != null, "Construct signature for type '" + typeToSpecialize.toString() + "' could not be specialized because of a stale declaration");
+                Debug.assert(declAST != null, "Construct signature for type '" + typeToSpecialize.pullSymbolIDString + "' could not be specialized because of a stale declaration");
 
                 prevSpecializationSignature = decl.getSpecializingSignatureSymbol();
                 decl.setSpecializingSignatureSymbol(newSignature);
@@ -2938,7 +2955,7 @@ module TypeScript {
                 newSignature.mimicSignature(signature, resolver);
                 declAST = resolver.semanticInfoChain.getASTForDecl(decl);
 
-                Debug.assert(declAST != null, "Index signature for type '" + typeToSpecialize.toString() + "' could not be specialized because of a stale declaration");
+                Debug.assert(declAST != null, "Index signature for type '" + typeToSpecialize.pullSymbolIDString + "' could not be specialized because of a stale declaration");
 
                 prevSpecializationSignature = decl.getSpecializingSignatureSymbol();
                 decl.setSpecializingSignatureSymbol(newSignature);
@@ -3227,9 +3244,26 @@ module TypeScript {
 
     export function getIDForTypeSubstitutions(types: PullTypeSymbol[]): string {
         var substitution = "";
+        var members: PullSymbol[] = null;
 
         for (var i = 0; i < types.length; i++) {
-            substitution += types[i].pullSymbolIDString + "#";
+
+            // Cache object types structurally
+            if (types[i].kind != PullElementKind.ObjectType) {
+                substitution += types[i].pullSymbolIDString + "#";
+            }
+            else {
+                members = types[i].getMembers();
+
+                if (types[i].isResolved && members && members.length) {
+                    for (var j = 0; j < members.length; j++) {
+                        substitution += members[j].name + "@" + getIDForTypeSubstitutions([members[j].type]);
+                    }
+                }
+                else {
+                    substitution += types[i].pullSymbolIDString + "#";
+                }
+            }
         }
 
         return substitution;

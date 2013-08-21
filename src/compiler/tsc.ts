@@ -39,7 +39,7 @@ module TypeScript {
     useDirectTypeStorage = true;
 
     export class BatchCompiler implements IReferenceResolverHost, IDiagnosticReporter, EmitterIOHost {
-        public compilerVersion = "0.9.1.0";
+        public compilerVersion = "0.9.1.1";
         private inputFiles: string[] = [];
         private compilationSettings: CompilationSettings;
         private resolvedFiles: IResolvedFile[] = [];
@@ -150,7 +150,11 @@ module TypeScript {
                     // If declaration files are going to be emitted, preprocess the file contents and add in referenced files as well
                     if (this.compilationSettings.generateDeclarationFiles) {
                         var references = getReferencedFiles(inputFile, this.getScriptSnapshot(inputFile));
-                        references.forEach((reference) => { referencedFiles.push(reference.path); });
+                        for (var j = 0; j < references.length; j++) {
+                            referencedFiles.push(references[j].path);
+                        }
+
+                        inputFile = this.ioHost.resolvePath(inputFile);
                     }
 
                     resolvedFiles.push({
@@ -318,7 +322,7 @@ module TypeScript {
                     locCode: DiagnosticCode.Concatenate_and_emit_output_to_single_file, 
                     args: null
                 },
-                type: DiagnosticCode.FILE,
+                type: DiagnosticCode.file2,
                 set: (str) => {
                     this.compilationSettings.outFileOption = str;
                 }
@@ -507,6 +511,26 @@ module TypeScript {
                 }
             }, 'v');
 
+            opts.flag('allowbool', {
+                usage: {
+                    locCode: DiagnosticCode.Allow_bool_as_a_synonym_for_boolean,
+                    args: null
+                },
+                set: () => {
+                    this.compilationSettings.allowBool = true;
+                }
+            });
+
+            opts.flag('allowimportmodule', {
+                usage: {
+                    locCode: DiagnosticCode.Allow_module_as_a_synonym_for_require,
+                    args: null
+                },
+                set: () => {
+                    this.compilationSettings.allowModuleKeywordInExternalModuleReference = true;
+                }
+            });
+
             var locale: string = null;
             opts.option('locale', {
                 experimental: true,
@@ -529,6 +553,19 @@ module TypeScript {
                     this.compilationSettings.noImplicitAny = true;
                 }
             });
+
+            if (Environment.supportsCodePage()) {
+                opts.option('codepage', {
+                    usage: {
+                        locCode: DiagnosticCode.Specify_the_codepage_to_use_when_opening_source_files,
+                        args: null
+                    },
+                    type: DiagnosticCode.NUMBER,
+                    set: (arg) => {
+                        this.compilationSettings.codepage = parseInt(arg, 10);
+                    }
+                });
+            }
 
             opts.parse(this.ioHost.arguments);
 
@@ -591,7 +628,7 @@ module TypeScript {
                 return false;
             }
 
-            var fileContents = this.ioHost.readFile(filePath);
+            var fileContents = this.ioHost.readFile(filePath, this.compilationSettings.codepage);
             TypeScript.LocalizedDiagnosticMessages = JSON.parse(fileContents.contents);
             return true;
         }
@@ -679,7 +716,9 @@ module TypeScript {
                 // Print header
                 if (!firstTime) {
                     var fileNames = "";
-                    lastResolvedFileSet.forEach((f) => { fileNames += Environment.newLine + "    " + f; });
+                    for (var k = 0; k < lastResolvedFileSet.length; k++) {
+                        fileNames += Environment.newLine + "    " + lastResolvedFileSet[k];
+                    }
                     this.ioHost.printLine(getLocalizedText(DiagnosticCode.NL_Recompiling_0, [fileNames]));
                 }
                 else {
@@ -703,7 +742,7 @@ module TypeScript {
                 var fileInformation: FileInformation;
 
                 try {
-                    fileInformation = this.ioHost.readFile(fileName);
+                    fileInformation = this.ioHost.readFile(fileName, this.compilationSettings.codepage);
                 }
                 catch (e) {
                     this.addDiagnostic(new Diagnostic(null, 0, 0, DiagnosticCode.Cannot_read_file_0_1, [fileName, e.message]));

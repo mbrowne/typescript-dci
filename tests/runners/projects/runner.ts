@@ -126,7 +126,7 @@ class HarnessBatch implements TypeScript.IDiagnosticReporter, TypeScript.IRefere
         for (var i = 0; i < this.resolvedFiles.length; i++) {
             var unit = this.resolvedFiles[i];
             var outputFileName = unit.path.replace(/\.ts$/, ".js");
-            var unitRes = this.host.readFile(outputFileName).contents;
+            var unitRes = this.host.readFile(outputFileName, /*codepage:*/ null).contents;
             this.host.run(unitRes, outputFileName);
         }
     }
@@ -161,7 +161,7 @@ class HarnessBatch implements TypeScript.IDiagnosticReporter, TypeScript.IRefere
     private getSourceFile(fileName: string): SourceFile {
         var sourceFile: SourceFile = this.fileNameToSourceFile.lookup(fileName);
         if (!sourceFile) {
-            var fileInformation = this.host.readFile(fileName);
+            var fileInformation = this.host.readFile(fileName, /*codepage:*/ null);
             var snapshot = TypeScript.ScriptSnapshot.fromString(fileInformation.contents);
             var sourceFile = new SourceFile(snapshot, fileInformation.byteOrderMark);
             this.fileNameToSourceFile.add(fileName, sourceFile);
@@ -284,14 +284,14 @@ class ProjectRunner extends RunnerBase {
                     }
                 }
 
-                var generatedDeclareFiles: { fname: string; file: Harness.Compiler.WriterAggregator; }[] = [];
+                var generatedDeclareFiles: { fileName: string; file: Harness.Compiler.WriterAggregator; }[] = [];
                 var getDeclareFiles = false;
                 if (spec.declareFiles) {
                     getDeclareFiles = true;
                 }
 
-                var writeGeneratedFile = (files: { fname: string; file: Harness.Compiler.WriterAggregator; }[], fn: string, contents: string, writeByteOrderMark: boolean) => {
-                    var fnEntry = { fname: fn, file: new Harness.Compiler.WriterAggregator() };
+                var writeGeneratedFile = (files: { fileName: string; file: Harness.Compiler.WriterAggregator; }[], fn: string, contents: string, writeByteOrderMark: boolean) => {
+                    var fnEntry = { fileName: fn, file: new Harness.Compiler.WriterAggregator() };
                     files.push(fnEntry);
                     fnEntry.file.Write(contents);
                     fnEntry.file.Close();
@@ -302,7 +302,7 @@ class ProjectRunner extends RunnerBase {
                     return writeGeneratedFile(generatedDeclareFiles, fn, contents, writeByteOrderMark);
                 }
 
-                var generatedEmitFiles: { fname: string; file: Harness.Compiler.WriterAggregator; }[] = [];
+                var generatedEmitFiles: { fileName: string; file: Harness.Compiler.WriterAggregator; }[] = [];
                 var writeGeneratedEmitFile = (fn: string, contents: string, writeByteOrderMark: boolean) => {
                     return writeGeneratedFile(generatedEmitFiles, fn, contents, writeByteOrderMark);
                 }
@@ -348,15 +348,15 @@ class ProjectRunner extends RunnerBase {
 
                 var codeGenType: string;
                 var compareGeneratedFiles = (
-                    generatedFiles: { fname: string; file: Harness.Compiler.WriterAggregator; }[],
+                    generatedFiles: { fileName: string; file: Harness.Compiler.WriterAggregator; }[],
                     expectedFiles: string[]) => {
 
                     Harness.Assert.equal(generatedFiles.length, expectedFiles.length);
                     for (var i = 0; i < expectedFiles.length; i++) {
-                        var expectedFName = baseFileName + expectedFiles[i];
+                        var expectedfileName = baseFileName + expectedFiles[i];
 
                         var generatedFile = TypeScript.ArrayUtilities.firstOrDefault(
-                            generatedFiles, f => IO.resolvePath(f.fname) === IO.resolvePath(expectedFName));
+                            generatedFiles, f => IO.resolvePath(f.fileName) === IO.resolvePath(expectedfileName));
 
                         Harness.Assert.notNull(generatedFile);
                         if (spec.verifyFileNamesOnly) {
@@ -406,7 +406,7 @@ class ProjectRunner extends RunnerBase {
                         var localFileName = baseFileName + "local/" + codeGenType + "/" + sourcemapDir + mapRootDir + sourceRootDir + expectedFiles[i];
                         var localFile = IOUtils.writeFileAndFolderStructure(IO, localFileName, fileContents, /*writeByteOrderMark:*/ false);
                         var referenceFileName = baseFileName + "reference/" + codeGenType + "/" + sourcemapDir + mapRootDir + sourceRootDir + expectedFiles[i];
-                        Harness.Assert.noDiff(fileContents, IO.readFile(referenceFileName).contents);
+                        Harness.Assert.noDiff(fileContents, IO.readFile(referenceFileName, /*codepage:*/ null).contents);
                     }
                 }
 

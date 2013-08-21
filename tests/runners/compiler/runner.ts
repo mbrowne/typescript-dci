@@ -24,7 +24,7 @@ class CompilerBaselineRunner extends RunnerBase {
     public checkTestCodeOutput(fileName: string) {
         // strips the fileName from the path.
         var justName = fileName.replace(/^.*[\\\/]/, '');
-        var content = IO.readFile(fileName).contents;
+        var content = IO.readFile(fileName, /*codepage:*/ null).contents;
         var testCaseContent = Harness.TestCaseParser.makeUnitsFromTest(content, fileName);
 
         var units = testCaseContent.testUnitData;
@@ -93,7 +93,7 @@ class CompilerBaselineRunner extends RunnerBase {
                     } else {
                         // Certain errors result in full paths being reported, namely when types of external modules are involved
                         // we'll strip the full path and just report the filename
-                        var fullPath = /\w+:(\/|\\)(\w+|\/)*\.ts/g;
+                        var fullPath = /\w+:(\/|\\)([\w+\-\.]|\/)*\.ts/g;
                         var hasFullPath = errorDescriptionLocal.match(fullPath);
                         if (hasFullPath) {
                             hasFullPath.forEach(match => {

@@ -6,12 +6,12 @@ describe('Compiling samples', function ()
 
     function loadSample(path: string): string
     {
-        return IO.readFile(Harness.userSpecifiedroot + "samples/" + path).contents;
+        return IO.readFile(Harness.userSpecifiedroot + "samples/" + path, /*codepage*/ null).contents;
     }
 
     function addUnitsAndCompile(units: string[]) {
         units.forEach(unit => {
-            var code = IO.readFile(Harness.userSpecifiedroot + "samples/" + unit).contents;
+            var code = IO.readFile(Harness.userSpecifiedroot + "samples/" + unit, /*codepage*/ null).contents;
             harnessCompiler.addInputFile(unit);
         });
         harnessCompiler.compile();

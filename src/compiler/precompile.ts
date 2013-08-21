@@ -23,7 +23,9 @@ module TypeScript {
         public removeComments = false;
         public watch = false;
         public noResolve = false;
+        public allowBool = false;
         public allowAutomaticSemicolonInsertion = true;
+        public allowModuleKeywordInExternalModuleReference = false;
         public noImplicitAny = false;
 
         public noLib = false;
@@ -44,6 +46,8 @@ module TypeScript {
         public gatherDiagnostics = false;
 
         public updateTC = false;
+
+        public codepage: number = null;
     }
 
     ///
@@ -218,7 +222,7 @@ module TypeScript {
     }
 
     export function getParseOptions(settings: CompilationSettings): ParseOptions {
-        return new ParseOptions(settings.codeGenTarget, settings.allowAutomaticSemicolonInsertion);
+        return new ParseOptions(settings.codeGenTarget, settings.allowAutomaticSemicolonInsertion, settings.allowModuleKeywordInExternalModuleReference);
     }
 
 } // Tools
