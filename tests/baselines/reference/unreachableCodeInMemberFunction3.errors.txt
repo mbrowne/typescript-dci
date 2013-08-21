@@ -1,0 +1,6 @@
+unreachableCodeInMemberFunction3.ts line 4 col 9: error TS8001: Unreachable code detected.
+unreachableCodeInMemberFunction3.ts line 14 col 13: error TS8001: Unreachable code detected.
+unreachableCodeInMemberFunction3.ts line 23 col 9: error TS8001: Unreachable code detected.
+unreachableCodeInMemberFunction3.ts line 32 col 9: error TS8001: Unreachable code detected.
+unreachableCodeInMemberFunction3.ts line 45 col 9: error TS8001: Unreachable code detected.
+unreachableCodeInMemberFunction3.ts line 56 col 9: error TS8001: Unreachable code detected.

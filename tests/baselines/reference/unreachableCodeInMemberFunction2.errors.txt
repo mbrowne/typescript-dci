@@ -1,0 +1,13 @@
+unreachableCodeInMemberFunction2.ts line 7 col 9: error TS8001: Unreachable code detected.
+unreachableCodeInMemberFunction2.ts line 12 col 9: error TS8001: Unreachable code detected.
+unreachableCodeInMemberFunction2.ts line 19 col 13: error TS8001: Unreachable code detected.
+unreachableCodeInMemberFunction2.ts line 26 col 13: error TS8001: Unreachable code detected.
+unreachableCodeInMemberFunction2.ts line 35 col 9: error TS8001: Unreachable code detected.
+unreachableCodeInMemberFunction2.ts line 41 col 9: error TS8001: Unreachable code detected.
+unreachableCodeInMemberFunction2.ts line 47 col 9: error TS8001: Unreachable code detected.
+unreachableCodeInMemberFunction2.ts line 52 col 13: error TS8001: Unreachable code detected.
+unreachableCodeInMemberFunction2.ts line 67 col 13: error TS8001: Unreachable code detected.
+unreachableCodeInMemberFunction2.ts line 75 col 21: error TS8001: Unreachable code detected.
+unreachableCodeInMemberFunction2.ts line 78 col 13: error TS8001: Unreachable code detected.
+unreachableCodeInMemberFunction2.ts line 80 col 9: error TS8001: Unreachable code detected.
+unreachableCodeInMemberFunction2.ts line 92 col 9: error TS8001: Unreachable code detected.
