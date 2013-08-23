@@ -9,22 +9,23 @@ module TypeScript {
     export class ControlFlowBlock {
         // name property is set by label statement in the code
         public labelName: string;
-        public nodeKind: SyntaxKind;
-        public noContinuation: boolean;  // the flag is set to be true if the block is not continued (i.e the next statement is unreachable)
-        public loopTerminated: boolean;  // the flag is set to be true if the current LOOP block will be terminated
-        public reachEndOfLoop: boolean;  // the flag is set to be true if the next statement outside the current LOOP block can be reached
-        public errorReported: boolean;  // the flag is set to be true if we already report an unreachable code error in current block
-        public containReturn: boolean;  // the flag is set to be true if we encounter return statement (this is mainly for distinguish between
-                                           // noContinuity by break statement and return statement
+        public node: ISyntaxNodeOrToken;
 
-        constructor(labelName: string, nodeKind: SyntaxKind) {
+        // the flag is set to be true if within the current block, statement is still reachable from one to the other
+        public isStatementInCurrentBlockReachable: boolean;
+
+        // the flag is set to be true if we can reach next control-flow block after the current one.
+        public isStatementAfterBlockReachable: boolean;
+
+        // the flag is set to be true if we already report an unreachable code error in current block
+        public errorReported: boolean;
+
+        constructor(node: ISyntaxNodeOrToken, labelName: string = null) {
             this.labelName = labelName;
-            this.noContinuation = false;
-            this.nodeKind = nodeKind;
-            this.loopTerminated = true;
-            this.reachEndOfLoop = true;
+            this.node = node;
+            this.isStatementInCurrentBlockReachable = true;
+            this.isStatementAfterBlockReachable = true;
             this.errorReported = false;
-            this.containReturn = false;
         }
     }
 
@@ -47,28 +48,30 @@ module TypeScript {
     //      debuggerStatement
     //      withStatement
     //      functionDeclaration
+    //      functionExpression
     //      memberFunctionDeclaration
     //      getMemberAccessor & setMemberAccessor
     //      sourceUnit
     // In other type of nodes, the class will simply inherit the function from its parents which will update the postion.
     export class UnreachableCodeProcessor extends SubProcessor {
         private _blockStack: ControlFlowBlock[];  // a stack data structure to keep track of ControlFlowBlock
-        private _labelStack: string[];  // a stack data structure to keep track of label
+        private _currentLabel: string;  // a stack data structure to keep track of label
 
         constructor(fileName: string, diagnostics: Diagnostic[]) {
             super(fileName, diagnostics);
             this._blockStack = [];
-            this._labelStack = []
+            this._currentLabel = null;
         }
 
         // check if the block which contains current visiting statement is reachable.
         // If not, the current node is not reachable so report an error at appropriate location
         // Return true if we can't reach current node, otherwise return false
-        public checkNoContinuationAndReportError(position: number, width: number): boolean {
+        private checkNoContinuationAndReportError(position: number, width: number): boolean {
             var containerBlock = this._blockStack[this._blockStack.length - 1];
-            // if top most block which contains current statement is not reachable, then the current statement is unreachable.
-            // if we have not reported an error yet, report an error.
-            if (containerBlock && containerBlock.noContinuation && !containerBlock.errorReported) {
+
+            // if the isStatementInCurrentBlockReachable is true then the rest of statements in the block is not reachable
+            // report unreachableCode error if we haven't done so yet
+            if (containerBlock && !containerBlock.isStatementInCurrentBlockReachable && !containerBlock.errorReported) {
                 this.diagnostics.push(new Diagnostic(this.fileName, position, width, DiagnosticCode.Unreachable_code_detected, null));
                 containerBlock.errorReported = true;
                 return true;
@@ -77,63 +80,105 @@ module TypeScript {
         }
 
         public visitSourceUnit(node: SourceUnitSyntax): void {
-            var sourceUnitBlock = new ControlFlowBlock(null, node.kind());
+            var sourceUnitBlock = new ControlFlowBlock(node);
             this._blockStack.push(sourceUnitBlock);
             super.visitSourceUnit(node);
             this._blockStack.pop();
         }
 
         public visitFunctionDeclaration(node: FunctionDeclarationSyntax): void {
-            var newBlock = new ControlFlowBlock(null, node.kind());
+            var newBlock = new ControlFlowBlock(node);
             this._blockStack.push(newBlock);
             super.visitFunctionDeclaration(node);
             this._blockStack.pop();
         }
 
+        public visitConstructorDeclaration(node: ConstructorDeclarationSyntax): void {
+            var newBlock = new ControlFlowBlock(node);
+            this._blockStack.push(newBlock);
+            super.visitConstructorDeclaration(node);
+            this._blockStack.pop();
+        }
+
         public visitMemberFunctionDeclaration(node: MemberFunctionDeclarationSyntax): void {
-            var newBlock = new ControlFlowBlock(null, node.kind());
+            var newBlock = new ControlFlowBlock(node);
             this._blockStack.push(newBlock);
             super.visitMemberFunctionDeclaration(node);
             this._blockStack.pop();
         }
 
         public visitGetMemberAccessorDeclaration(node: GetMemberAccessorDeclarationSyntax): void {
-            var newBlock = new ControlFlowBlock(null, node.kind());
+            var newBlock = new ControlFlowBlock(node);
             this._blockStack.push(newBlock);
             super.visitGetMemberAccessorDeclaration(node);
             this._blockStack.pop();
         }
 
         public visitSetMemberAccessorDeclaration(node: SetMemberAccessorDeclarationSyntax): void {
-            var newBlock = new ControlFlowBlock(null, node.kind());
+            var newBlock = new ControlFlowBlock(node);
             this._blockStack.push(newBlock);
             super.visitSetMemberAccessorDeclaration(node);
             this._blockStack.pop();
         }
 
-        public visitConstructorDeclaration(node: ConstructorDeclarationSyntax): void {
-            var newBlock = new ControlFlowBlock(null, node.kind());
+        public visitFunctionPropertyAssignment(node: FunctionPropertyAssignmentSyntax): void {
+            var newBlock = new ControlFlowBlock(node);
             this._blockStack.push(newBlock);
-            super.visitConstructorDeclaration(node);
+            super.visitFunctionPropertyAssignment(node);
+            this._blockStack.pop();
+        }
+
+        public visitGetAccessorPropertyAssignment(node: GetAccessorPropertyAssignmentSyntax): void {
+            var newBlock = new ControlFlowBlock(node);
+            this._blockStack.push(newBlock);
+            super.visitGetAccessorPropertyAssignment(node);
+            this._blockStack.pop();
+        }
+
+        public visitSetAccessorPropertyAssignment(node: SetAccessorPropertyAssignmentSyntax): void {
+            var newBlock = new ControlFlowBlock(node);
+            this._blockStack.push(newBlock);
+            super.visitSetAccessorPropertyAssignment(node);
+            this._blockStack.pop();
+        }
+
+        public visitFunctionExpression(node: FunctionExpressionSyntax): void {
+            var newBlock = new ControlFlowBlock(node);
+            this._blockStack.push(newBlock);
+            super.visitFunctionExpression(node);
+            this._blockStack.pop();
+        }
+
+        public visitSimpleArrowFunctionExpression(node: SimpleArrowFunctionExpressionSyntax): void {
+            var newBlock = new ControlFlowBlock(node);
+            this._blockStack.push(newBlock);
+            super.visitSimpleArrowFunctionExpression(node);
+            this._blockStack.pop();
+        }
+
+        public visitParenthesizedArrowFunctionExpression(node: ParenthesizedArrowFunctionExpressionSyntax): void {
+            var newBlock = new ControlFlowBlock(node);
+            this._blockStack.push(newBlock);
+            super.visitParenthesizedArrowFunctionExpression(node);
             this._blockStack.pop();
         }
 
         public visitLabeledStatement(node: LabeledStatementSyntax): void {
             this.visitToken(node.identifier);
             this.visitToken(node.colonToken);
-            this._labelStack.push(node.identifier.text());
+            this._currentLabel = node.identifier.text();
             this.visitNodeOrToken(node.statement);
-            this._labelStack.pop();
+            this._currentLabel = null;
         }
 
         public visitVariableStatement(node: VariableStatementSyntax): void {
             this.checkNoContinuationAndReportError(super.position() + node.variableDeclaration.varKeyword.leadingTriviaWidth(), node.width());
-            super.skip(node);
+            super.visitVariableStatement(node);
         }
 
         public visitExpressionStatement(node: ExpressionStatementSyntax): void {
             this.checkNoContinuationAndReportError(super.position() + node.leadingTriviaWidth(), node.width());
-            super.skip(node);
+            super.visitExpressionStatement(node);
         }
 
         public visitDebuggerStatement(node: DebuggerStatementSyntax): void {
@@ -143,28 +188,32 @@ module TypeScript {
 
         public visitWithStatement(node: WithStatementSyntax): void {
             this.checkNoContinuationAndReportError(super.position() + node.withKeyword.leadingTriviaWidth(), node.width());
-            super.skip(node);
+            var withBlock = new ControlFlowBlock(node);
+            this._blockStack.push(withBlock);
+            super.visitWithStatement(node);
+            this._blockStack.pop();
         }
 
         public visitReturnStatement(node: ReturnStatementSyntax): void {
             this.checkNoContinuationAndReportError(super.position() + node.returnKeyword.leadingTriviaWidth(), node.width());
-            // the block which contains the return statement is not continuable
+            // get the controlFlowBlock which contains the return statement
             var containerBlock = this._blockStack[this._blockStack.length - 1];
-            containerBlock.noContinuation = true;
-            containerBlock.containReturn = true;
-            super.skip(node);
+
+            // if we encounter return statement, then rest of statements in the block is not reachable
+            containerBlock.isStatementInCurrentBlockReachable = false;
+            containerBlock.isStatementAfterBlockReachable = false;
+            super.visitReturnStatement(node);
         }
 
         public visitThrowStatement(node: ThrowStatementSyntax): void {
-            var notReachaedCurrentNode = this.checkNoContinuationAndReportError(super.position() + node.throwKeyword.leadingTriviaWidth(), node.width());
-            if (notReachaedCurrentNode) {
-                super.skip(node);
-                return;
-            }
-            // the block which contains the throw statement is not continuable
+            this.checkNoContinuationAndReportError(super.position() + node.throwKeyword.leadingTriviaWidth(), node.width());
+            // get the controlFlowBlock which contains the throw statement
             var containerBlock = this._blockStack[this._blockStack.length - 1];
-            containerBlock.noContinuation = true;
-            super.skip(node);
+
+            // if we encounter throw statement, then rest of statements in the block is not reachable
+            containerBlock.isStatementInCurrentBlockReachable = false;
+            containerBlock.isStatementAfterBlockReachable = false;
+            super.visitThrowStatement(node);
         }
 
         public visitBreakStatement(node: BreakStatementSyntax): void {
@@ -181,46 +230,38 @@ module TypeScript {
                 labelName = node.identifier.text();
             }
 
-            // breakStatement makes other statements of the current block to be unreachable
+            // get the controlFlowBlock which contains the break statement
             var containerBlock = this._blockStack[this._blockStack.length - 1];
-            containerBlock.noContinuation = true;
+            // breakStatement makes the rest of statements in the same block to be unreachable
+            containerBlock.isStatementInCurrentBlockReachable = false;
 
+            // find block statement with matched label
+            // if labelName === null, we will update flag of the top most blog
             // find iteration control flow block with matched labelName to the labelName of the breakSatement.
             var iterationOrSwitch: ControlFlowBlock = null;
             for (var i = this._blockStack.length - 1; i >= 0; --i) {
                 var block = this._blockStack[i];
-                var kind = block.nodeKind;
+                var kind = block.node.kind();
                 var label = block.labelName;
 
                 if (kind === SyntaxKind.WhileStatement ||
                     kind === SyntaxKind.ForInStatement ||
                     kind === SyntaxKind.ForStatement ||
-                    kind === SyntaxKind.DoStatement) {
-                    if (label === labelName) {
+                    kind === SyntaxKind.DoStatement ||
+                    kind === SyntaxKind.CaseSwitchClause ||
+                    kind === SyntaxKind.DefaultSwitchClause ||
+                    kind === SyntaxKind.SwitchStatement) {
+                    if (label === labelName || labelName === null) {
                         iterationOrSwitch = block;
-                        iterationOrSwitch.loopTerminated = true;
-                        iterationOrSwitch.reachEndOfLoop = true;
+                        iterationOrSwitch.isStatementAfterBlockReachable = true;
                         break;
                     }
-                    // if we encounter other iteration ControlFlowBlock before able to find matched whileBlock with the label then mark such block to be terminated but not reahed the end
+                    // if we encounter other iteration ControlFlowBlock before able to find matched block with the label 
+                    // then we can't reach the end of the block so statement after the block is not reachable
                     else {
-                        block.loopTerminated = true;
-                        block.reachEndOfLoop = false;
+                        block.isStatementAfterBlockReachable = false;
                     }
                 }
-                // breakStatement in the switchClause
-                else if (kind === SyntaxKind.CaseSwitchClause ||
-                        kind === SyntaxKind.DefaultSwitchClause) {
-                        iterationOrSwitch = block;
-                        iterationOrSwitch.noContinuation = true;
-                        break;
-                }
-            }
-            
-            // breakStatement is not declared in iteration statements(while, for, forIn, doWhile) or switch statements
-            if (iterationOrSwitch === null) {
-                this.diagnostics.push(new Diagnostic(this.fileName, super.position() + node.breakKeyword.leadingTriviaWidth(),
-                    node.width(), DiagnosticCode.Break_statement_declared_outside_of_iteration_or_switch_statement, null));
             }
             super.skip(node);
         }
@@ -239,39 +280,27 @@ module TypeScript {
                 labelName = node.identifier.text();
             }
 
-            // continueStatement makes other statements of the current block to be unreachable
             var containerBlock = this._blockStack[this._blockStack.length - 1];
-            containerBlock.noContinuation = true;
+            // continueStatement makes other statements of the current block to be unreachable
+            containerBlock.isStatementInCurrentBlockReachable = false;
 
             // find iteration ControlFlowBlock with matched labelName to the labelName of the continueStatement.
             var iterationBlock: ControlFlowBlock = null;
             for (var i = this._blockStack.length - 1; i >= 0; --i) {
                 var block = this._blockStack[i];
-                var kind = block.nodeKind;
+                var kind = block.node.kind();
                 var label = block.labelName;
 
                 if (kind === SyntaxKind.WhileStatement ||
                     kind === SyntaxKind.ForInStatement ||
                     kind === SyntaxKind.ForStatement ||
                     kind === SyntaxKind.DoStatement) {
+                    block.isStatementAfterBlockReachable = false;
                     if (label === labelName) {
                         iterationBlock = block;
-                        iterationBlock.loopTerminated = false;
-                        iterationBlock.reachEndOfLoop = false;
                         break;
                     }
-                    // if we encounter other iterationBlock before able to find matched whileBlock with the label then mark such block to be terminated but not reahaed to the end
-                    else {
-                        block.loopTerminated = true;
-                        block.reachEndOfLoop = false;
-                    }
                 }
-            }
-
-            // continueStatement is not declared in iteration statements(while, for, forIn, doWhile)
-            if (iterationBlock === null) {
-                this.diagnostics.push(new Diagnostic(this.fileName, super.position() + node.continueKeyword.leadingTriviaWidth(),
-                    node.width(), DiagnosticCode.Continue_statement_declared_outside_of_iteration_statement, null));
             }
             super.skip(node);
         }
@@ -284,6 +313,7 @@ module TypeScript {
                 super.skip(node);
                 return;
             }
+
             var containerBlock = this._blockStack[this._blockStack.length - 1];
 
             // if containerBlock is reachable, we will visit current ifStatement node
@@ -296,29 +326,30 @@ module TypeScript {
             // evaluate condition when it is true/false literal or condition statement
             if (node.condition.kind() === SyntaxKind.TrueKeyword) {
                 // visit ifClause and get its noContinuation flag
-                var ifBlock = new ControlFlowBlock(null, node.kind());
+                var ifBlock = new ControlFlowBlock(node);
                 this._blockStack.push(ifBlock);
                 super.visitNodeOrToken(node.statement);
 
-                // if there is elseClause then, visit elseClause and mark it is unreachable
+                // if there is elseClause then, visit elseClause though the elseBlock is not reachable as the condition is always true
                 var elseClause = node.elseClause;
                 if (elseClause) {
-                    var elseBlock = new ControlFlowBlock(null, node.kind());
-                    elseBlock.noContinuation = true;
+                    var elseBlock = new ControlFlowBlock(node);
+                    elseBlock.isStatementInCurrentBlockReachable = false;
                     this._blockStack.push(elseBlock);
                     super.visitElseClause(elseClause);
                     this._blockStack.pop();
                 }
 
-                // the flag set by ifBlock will determine containerBlock's continuation as we will only visit ifClause due to true literal in the condition
+                // remove the top most block which will correspond to the ifBlock we push in
                 var resultBlock = this._blockStack.pop();
-                var ifBlockFlag = resultBlock.noContinuation;
-                containerBlock.noContinuation = ifBlockFlag;
+                var ifBlockFlag = resultBlock.isStatementInCurrentBlockReachable;
+                // if statements in ifBlock are reachable, then statements in the block which contains ifBlock are still reachable
+                containerBlock.isStatementInCurrentBlockReachable = ifBlockFlag;
             }
             else if (node.condition.kind() === SyntaxKind.FalseKeyword) {
                 // visit ifClause and mark it is unreachable
-                var ifBlock = new ControlFlowBlock(null, node.kind());
-                ifBlock.noContinuation = true;
+                var ifBlock = new ControlFlowBlock(node);
+                ifBlock.isStatementInCurrentBlockReachable = false;
                 this._blockStack.push(ifBlock);
                 super.visitNodeOrToken(node.statement);
                 this._blockStack.pop();
@@ -327,43 +358,42 @@ module TypeScript {
                 // its continuity will determine containerBlock's continuity
                 var elseClause = node.elseClause;
                 if (elseClause) {
-                    var elseBlock = new ControlFlowBlock(null, node.kind());
+                    var elseBlock = new ControlFlowBlock(node);
                     this._blockStack.push(elseBlock);
                     super.visitElseClause(elseClause);
-                    var elseBlockFlag = this._blockStack.pop().noContinuation;
-                    containerBlock.noContinuation = elseBlockFlag;
+                    var elseBlockFlag = this._blockStack.pop().isStatementInCurrentBlockReachable;
+                    // if statements in elseBlock are reachable, then statements in the block which contains ifBlock are still reachable
+                    containerBlock.isStatementInCurrentBlockReachable = elseBlockFlag;
                 }
                 // if there is no elseClause, then the containerBlock's continuity does not get affected by ifStatement node
             }
             // condition is an expression instead of boolean literal
             else {
                 // visit ifClause
-                var ifBlock = new ControlFlowBlock(null, node.kind());
+                var ifBlock = new ControlFlowBlock(node);
                 this._blockStack.push(ifBlock);
                 super.visitNodeOrToken(node.statement);
-                var ifBlockFlag = this._blockStack.pop().noContinuation;
+                var ifBlockFlag = this._blockStack.pop().isStatementInCurrentBlockReachable;
 
                 // visit elseClause
                 var elseClause = node.elseClause;
                 var elseBlockFlag = false;
                 if (elseClause) {
-                    var elseBlock = new ControlFlowBlock(null, node.kind());
+                    var elseBlock = new ControlFlowBlock(node);
                     this._blockStack.push(elseBlock);
                     super.visitElseClause(elseClause);
-                    elseBlockFlag = this._blockStack.pop().noContinuation;
+                    elseBlockFlag = this._blockStack.pop().isStatementInCurrentBlockReachable;
                 }
 
-                // update ifStatementBlock with noContinuation from ifClause and elseClause
-                // if both ifClause and elseClause are not continuable, then containerBlock is not continuable as well
-                // otherwise the containerBlock is still continuable
-                containerBlock.noContinuation = (elseBlockFlag && ifBlockFlag);
+                // the reachability of ifBlock and elseBlock determine the reachability of the block which contains ifStatement
+                containerBlock.isStatementInCurrentBlockReachable = (elseBlockFlag || ifBlockFlag);
             }
         }
 
         public visitWhileStatement(node: WhileStatementSyntax): void {
             var notReachaedCurrentNode = this.checkNoContinuationAndReportError(super.position() + node.whileKeyword.leadingTriviaWidth(), node.width());
             if (notReachaedCurrentNode) {
-                // since the current one is not reachable then all its children are not reachable
+                // since the current statement is not reachable then all its children are not reachable
                 // also we report an error already we don't need to visit the rest of the node in whileStatement
                 super.skip(node);
                 return;
@@ -380,39 +410,29 @@ module TypeScript {
 
             // check if there is any label associated with this whileStatement
             var label: string = null;
-            if (this._labelStack.length > 0) {
+            if (this._currentLabel !== null) {
                 // if there is a label, then get the top most one on the stack as that is the most recent one
-                label = this._labelStack[this._labelStack.length - 1];
+                label = this._currentLabel;
+                this._currentLabel = null;
             }
 
-            var whileBlock = new ControlFlowBlock(label, node.kind());
+            var whileBlock = new ControlFlowBlock(node, label);
             if (node.condition.kind() === SyntaxKind.TrueKeyword) {
-                // by default if the condition is a true literal, the loop is not terminated and the end of the loop can't be reached
-                whileBlock.loopTerminated = false;
-                whileBlock.reachEndOfLoop = false;
+                // by default the loop is not terminated and we can't reach the next statements after the whileBlock
+                whileBlock.isStatementAfterBlockReachable = false;
+                whileBlock.isStatementInCurrentBlockReachable = true;
                 this._blockStack.push(whileBlock);
                 super.visitNodeOrToken(node.statement);
                 var result = this._blockStack.pop();
 
-                // check if we encounter any breakStatement and, thus, updateEndofLoop flag
-                // if we can't reach the end of the loop but the loop is terminated, then the statement in the same block after the loop will be unreachable
-                if (!result.reachEndOfLoop && result.loopTerminated) {
-                    containerBlock.noContinuation = true;
-                }
-                // if we can reach the end of the loop and the loop is terminated, then the statement in the same block after the loop will reachable
-                else if (result.reachEndOfLoop && result.loopTerminated) {
-                    containerBlock.noContinuation = false;
-                }
-                // if we can't reach the end of the loop and the loop is not terminated, then the statement in the same block after the lopp will be unreachable
-                else {
-                    containerBlock.noContinuation = true;
-                }
+                // the reachability to the next statement after the whileBlock will determine the reachability of the block that contains whileStatement
+                containerBlock.isStatementInCurrentBlockReachable = result.isStatementAfterBlockReachable;
             }
             else if (node.condition.kind() === SyntaxKind.FalseKeyword) {
-                // the while body is unreachable; visit the body and report an error
-                whileBlock.loopTerminated = true;
-                whileBlock.reachEndOfLoop = true;
-                whileBlock.noContinuation = true;
+                // because the condition is already false, the body of whileStatement will never be reached
+                // by default the loop will be terminated
+                whileBlock.isStatementAfterBlockReachable = true;
+                whileBlock.isStatementInCurrentBlockReachable = false;
                 this._blockStack.push(whileBlock);
                 super.visitNodeOrToken(node.statement);
                 this._blockStack.pop();
@@ -420,12 +440,14 @@ module TypeScript {
             else {
                 // not enough information we can't say anything about the whileStatement so visit the while body as normal
                 // report an error that we possibly find inside the body of while statement
-                whileBlock.loopTerminated = true;
-                whileBlock.reachEndOfLoop = true;
-                whileBlock.noContinuation = true;
+                whileBlock.isStatementAfterBlockReachable = true;
+                whileBlock.isStatementInCurrentBlockReachable = true;
                 this._blockStack.push(whileBlock);
                 super.visitNodeOrToken(node.statement);
-                this._blockStack.pop();
+                var result = this._blockStack.pop();
+
+                // the reachability to the next statement after the whileBlock will determine the reachability of the block that contains whileStatement
+                containerBlock.isStatementInCurrentBlockReachable = result.isStatementAfterBlockReachable;
             }
         }
 
@@ -454,46 +476,39 @@ module TypeScript {
 
             // check if there is any label associated with this forStatement
             var label: string = null;
-            if (this._labelStack.length > 0) {
+            if (this._currentLabel !== null) {
                 // if there is a label, then get the top most one on the stack as that is the most recent one
-                label = this._labelStack[this._labelStack.length - 1];
+                label = this._currentLabel;
+                this._currentLabel = null;
             }
 
             // check if we have condition
             // if no condition, then we have infiniteloop
-            var forBlock = new ControlFlowBlock(label, node.kind());
+            var forBlock = new ControlFlowBlock(node,label);
             if (node.condition === null) {
-                // by default if there is no condition, the loop is not terminated and the end of the loop can't be reached
-                forBlock.loopTerminated = false;
-                forBlock.reachEndOfLoop = false;
+                // by default if there is no condition, we have infinite loop which means that we can't reach the next block statement after the loop
+                forBlock.isStatementAfterBlockReachable = false;
+                forBlock.isStatementInCurrentBlockReachable = true;
                 this._blockStack.push(forBlock);
                 super.visitNodeOrToken(node.statement);
                 var result = this._blockStack.pop();
 
-                // check if we encounter any breakStatement and, thus, updateEndofLoop flag
-                // if we can't reach the end of the loop but the loop is terminated, then the statement in the same block after the loop will be unreachable
-                if (!result.reachEndOfLoop && result.loopTerminated) {
-                    containerBlock.noContinuation = true;
-                }
-                // if we can reach the end of the loop and the loop is terminated, then the statement in the same block after the loop will reachable
-                else if (result.reachEndOfLoop && result.loopTerminated) {
-                    containerBlock.noContinuation = false;
-                }
-                // if we can't reach the end of the loop and the loop is not terminated, then the statement in the same block after the lopp will be unreachable
-                else {
-                    containerBlock.noContinuation = true;
-                }
+                 // the reachability to the next statement after the forBlock will determine the reachability of the block that contains forStatement
+                containerBlock.isStatementInCurrentBlockReachable = result.isStatementAfterBlockReachable;
             }
             else {
                 // if we have condition, we can't assume anything.
                 // so by default, it will be terminated, and reach its end.
-                // its continuity is true unless encounter return statement.
+                // its continuity is true unless encounter any terminator statements.
                 // so we will visit all statement in for loop and check its continuity afterward.
+                forBlock.isStatementAfterBlockReachable = true;
+                forBlock.isStatementInCurrentBlockReachable = true;
                 this._blockStack.push(forBlock);
                 super.visitNodeOrToken(node.statement);
                 var result = this._blockStack.pop();
 
-                containerBlock.noContinuation = result.noContinuation;
+                // the reachability to the next statement after the forBlock will determine the reachability of the block that contains forStatement
+                containerBlock.isStatementInCurrentBlockReachable = result.isStatementAfterBlockReachable;
             }
         }
 
@@ -520,12 +535,13 @@ module TypeScript {
 
             // check if there is any label associated with this forInStatement
             var label: string = null;
-            if (this._labelStack.length > 0) {
+            if (this._currentLabel !== null) {
                 // if there is a label, then get the top most one on the stack as that is the most recent one
-                label = this._labelStack[this._labelStack.length - 1];
+                label = this._currentLabel;
+                this._currentLabel = null;
             }
 
-            var forInBlock = new ControlFlowBlock(label, node.kind());
+            var forInBlock = new ControlFlowBlock(node, label);
 
             // by default, forInStatement will be terminated, and reach its end.
             // its continuity is true unless encounter return statement.
@@ -534,7 +550,8 @@ module TypeScript {
             super.visitNodeOrToken(node.statement);
             var result = this._blockStack.pop();
 
-            containerBlock.noContinuation = result.noContinuation;
+            // the reachability to the next statement after the forInBlock will determine the reachability of the block that contains forInStatement
+            containerBlock.isStatementInCurrentBlockReachable = result.isStatementAfterBlockReachable;
         }
 
         public visitDoStatement(node: DoStatementSyntax): void {
@@ -553,52 +570,41 @@ module TypeScript {
 
             // check if there is any label associated with this doStatement
             var label: string = null;
-            if (this._labelStack.length > 0) {
+            if (this._currentLabel !== null) {
                 // if there is a label, then get the top most one on the stack as that is the most recent one
-                label = this._labelStack[this._labelStack.length - 1];
+                label = this._currentLabel;
+                this._currentLabel = null;
             }
 
             // visit statements in the doWhile body
-            var doWhileBlock = new ControlFlowBlock(label, node.kind());
+            var doWhileBlock = new ControlFlowBlock(node, label);
             if (node.condition.kind() === SyntaxKind.TrueKeyword) {
-                // by default if the condition is a true literal, the loop is not terminated and the end of the loop can't be reached
-                doWhileBlock.loopTerminated = false;
-                doWhileBlock.reachEndOfLoop = false;
+                // by default the loop is not terminated and we can't reach the next statements after the doBlock
+                doWhileBlock.isStatementAfterBlockReachable = false;
                 this._blockStack.push(doWhileBlock);
                 super.visitNodeOrToken(node.statement);
                 var result = this._blockStack.pop();
 
-                // check if we encounter any breakStatement and, thus, updateEndofLoop flag
-                // if we can't reach the end of the loop but the loop is terminated, then the statement in the same block after the loop will be unreachable
-                if (!result.reachEndOfLoop && result.loopTerminated) {
-                    containerBlock.noContinuation = true;
-                }
-                // if we can reach the end of the loop and the loop is terminated, then the statement in the same block after the loop will reachable
-                else if (result.reachEndOfLoop && result.loopTerminated) {
-                    containerBlock.noContinuation = false;
-                }
-                // if we can't reach the end of the loop and the loop is not terminated, then the statement in the same block after the lopp will be unreachable
-                else {
-                    containerBlock.noContinuation = true;
-                }
+                containerBlock.isStatementInCurrentBlockReachable = result.isStatementAfterBlockReachable;
             }
             else if (node.condition.kind() === SyntaxKind.FalseKeyword) {
-                // the while body is unreachable; visit the body and report an error
-                doWhileBlock.loopTerminated = true;
-                doWhileBlock.reachEndOfLoop = true;
-                doWhileBlock.noContinuation = true;
+                // because the condition is already false, the body of doStaement will never be reached
+                // by default the loop will be terminated
+                doWhileBlock.isStatementAfterBlockReachable = true;
+                doWhileBlock.isStatementInCurrentBlockReachable = true;
                 this._blockStack.push(doWhileBlock);
                 super.visitNodeOrToken(node.statement);
                 this._blockStack.pop();
             }
             else {
-                // not enough information we can't say anything about the whileStatement so visit the while body as normal
-                doWhileBlock.loopTerminated = true;
-                doWhileBlock.reachEndOfLoop = true;
-                doWhileBlock.noContinuation = true;
+                // not enough information we can't say anything about the doStatement so visit the while body as normal
+                doWhileBlock.isStatementAfterBlockReachable = true;
+                doWhileBlock.isStatementInCurrentBlockReachable = true;
                 this._blockStack.push(doWhileBlock);
                 super.visitNodeOrToken(node.statement);
-                this._blockStack.pop();
+                var result = this._blockStack.pop();
+
+                containerBlock.isStatementInCurrentBlockReachable = result.isStatementAfterBlockReachable;
             }
 
             // skip other elements that are not body of doStatement
@@ -627,29 +633,45 @@ module TypeScript {
             super.skip(node.openBraceToken);
 
             // visit each clause and check the continuity of each clause
-            var clause: ISyntaxNodeOrToken = null;
+            var clause: SwitchClauseSyntax = null;
             var clauseBlock: ControlFlowBlock = null;
             var result: ControlFlowBlock = null;
             var numberOfReturn = 0;  // store number of return in switchClause
+
+            // check if there is any label associated with this doStatement
+            var label: string = null;
+            if (this._currentLabel !== null) {
+                // if there is a label, then get the top most one on the stack as that is the most recent one
+                label = this._currentLabel;
+                this._currentLabel = null;
+            }
+
+            var containerBlock = this._blockStack[this._blockStack.length - 1];
+
+            var switchBlock = new ControlFlowBlock(node, label);
+            switchBlock.isStatementAfterBlockReachable = false;
+            this._blockStack.push(switchBlock);
             for (var i = 0, n = node.switchClauses.childCount(); i < n; ++i) {
-                clause = node.switchClauses.childAt(i);
-                clauseBlock = new ControlFlowBlock(null, clause.kind());
+                clause = <SwitchClauseSyntax>(node.switchClauses.childAt(i));
+
+                // if the clause doesn't contain any statement in the body, we wil skip it
+                if (clause.statements.childCount() === 0) {
+                    super.skip(clause);
+                    continue;
+                }
+
+                clauseBlock = new ControlFlowBlock(clause, label);
                 this._blockStack.push(clauseBlock);
                 super.visitNodeOrToken(clause);
                 result = this._blockStack.pop();
 
-                // the clause is terminated due to return statement
-                if (result.noContinuation && result.containReturn) {
-                    ++numberOfReturn;
+                // if any clause of the switchStatement contains breakStatement then statements after switchstatement are reachable
+                if (result.isStatementAfterBlockReachable) {
+                    switchBlock.isStatementAfterBlockReachable = result.isStatementAfterBlockReachable;
                 }
             }
-
-            // if number of return statement is equal to number of clauses then all clauses must contain return statement
-            // the containerBlock of the switchStatement must be no continuity
-            if (numberOfReturn === node.switchClauses.childCount()) {
-                var containerBlock = this._blockStack[this._blockStack.length - 1];
-                containerBlock.noContinuation = true;
-            }
+            this._blockStack.pop()
+            containerBlock.isStatementInCurrentBlockReachable = switchBlock.isStatementAfterBlockReachable;
             super.skip(node.closeBraceToken);
         }
 
@@ -665,31 +687,33 @@ module TypeScript {
             super.skip(node.tryKeyword);
             // if containerBlock is reachable, we will visit current tryStatement node
             var containerBlock = this._blockStack[this._blockStack.length - 1];
-            var tryBlock = new ControlFlowBlock(null, node.kind());
+            var tryBlock = new ControlFlowBlock(node);
             this._blockStack.push(tryBlock);
             super.visitNode(node.block);
-            var tryNoContinuationFlag = this._blockStack.pop().noContinuation;
+            var tryFlag = this._blockStack.pop().isStatementInCurrentBlockReachable;
 
             // visit catchClause if one exists
-            var catchNoContinuationFlag = false;
+            var catchFlag = true;
             if (node.catchClause !== null) {
-                var catchBlock = new ControlFlowBlock(null, node.catchClause.kind());
+                var catchBlock = new ControlFlowBlock(node);
                 this._blockStack.push(catchBlock);
                 super.visitNode(node.catchClause);
-                catchNoContinuationFlag = this._blockStack.pop().noContinuation;
+                catchFlag = this._blockStack.pop().isStatementInCurrentBlockReachable;
             }
 
             // visit finallyClause if one exists
-            var finallyNoContinuationFlag = false;
+            var finallyFlag = true;
             if (node.finallyClause !== null) {
-                var finallyBlock = new ControlFlowBlock(null, node.finallyClause.kind());
+                var finallyBlock = new ControlFlowBlock(node);
                 this._blockStack.push(finallyBlock);
                 super.visitNode(node.finallyClause);
-                finallyNoContinuationFlag = this._blockStack.pop().noContinuation;
+                finallyFlag = this._blockStack.pop().isStatementInCurrentBlockReachable;
             }
 
-            // containerBlock is not continuable if BOTH try and catch clauses are not continuable or finally clause is not continuable
-            containerBlock.noContinuation = (tryNoContinuationFlag && catchNoContinuationFlag) || finallyNoContinuationFlag;
+            // if both tryBlock and catchBlock are reachable as well as finallyBlock then other statements in the same block will not be reachable
+            // if both tryBlock and catchBlock are not reachable the other statements in the same block will not be reachable
+            // if finallyBlock is not reachable then other statements in the same block are not reachable (regardless of tryBlock and catchBlock)
+            containerBlock.isStatementInCurrentBlockReachable = (tryFlag || catchFlag) && finallyFlag;
         }
     }
 }

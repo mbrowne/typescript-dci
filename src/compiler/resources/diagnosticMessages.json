@@ -1567,12 +1567,4 @@
 		"category": "Error",
 		"code": 8001
 	},
-	"Break statement declared outside of iteration or switch statement": {
-		"category": "Error",
-		"code": 8002
-	},
-	"Continue statement declared outside of iteration statement": {
-		"category": "Error",
-		"code": 8003
-	}
 }

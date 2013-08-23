@@ -1,4 +1,14 @@
 unreachableCode.ts line 3 col 5: error TS8001: Unreachable code detected.
-unreachableCode.ts line 8 col 5: error TS8003: Continue statement declared outside of iteration statement
-unreachableCode.ts line 13 col 5: error TS8001: Unreachable code detected.
-unreachableCode.ts line 19 col 5: error TS8001: Unreachable code detected.
+unreachableCode.ts line 9 col 5: error TS8001: Unreachable code detected.
+unreachableCode.ts line 15 col 5: error TS8001: Unreachable code detected.
+unreachableCode.ts line 28 col 9: error TS8001: Unreachable code detected.
+unreachableCode.ts line 33 col 13: error TS8001: Unreachable code detected.
+unreachableCode.ts line 39 col 11: error TS2135: All symbols within a with block will be resolved to 'any'.
+unreachableCode.ts line 41 col 9: error TS8001: Unreachable code detected.
+unreachableCode.ts line 45 col 9: error TS8001: Unreachable code detected.
+unreachableCode.ts line 52 col 5: error TS8001: Unreachable code detected.
+unreachableCode.ts line 62 col 9: error TS8001: Unreachable code detected.
+unreachableCode.ts line 69 col 9: error TS8001: Unreachable code detected.
+unreachableCode.ts line 74 col 9: error TS8001: Unreachable code detected.
+unreachableCode.ts line 93 col 17: error TS8001: Unreachable code detected.
+unreachableCode.ts line 96 col 9: error TS8001: Unreachable code detected.

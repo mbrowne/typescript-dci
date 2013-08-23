@@ -392,7 +392,5 @@ module TypeScript {
         Array_Literal_implicitly_has_an_any_type_from_widening: "Array Literal implicitly has an 'any' type from widening.",
         Warn_on_unreachable_code: "Warn on unreachable code.",
         Unreachable_code_detected: "Unreachable code detected.",
-        Break_statement_declared_outside_of_iteration_or_switch_statement: "Break statement declared outside of iteration or switch statement",
-        Continue_statement_declared_outside_of_iteration_statement: "Continue statement declared outside of iteration statement",
     };
 }
