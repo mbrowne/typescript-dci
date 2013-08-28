@@ -59260,6 +59260,7 @@ var Services;
             }
 
             var symbol = symbolInfoAtPosition.symbol;
+
             return this.getReferencesInFile(fileName, symbol);
         };
 
@@ -59644,7 +59645,150 @@ var Services;
         };
 
         LanguageService.prototype.getNavigateToItems = function (searchValue) {
-            return null;
+            this.refresh();
+
+            var terms = searchValue.split(" ");
+            var regExpTerms = new Array(terms.length);
+            for (var i = 0; i < terms.length; i++) {
+                terms[i] = terms[i].trim().toLocaleLowerCase();
+                regExpTerms[i] = new RegExp(terms[i], "i");
+            }
+
+            var items = [];
+
+            var fileNames = this.compilerState.getFileNames();
+            for (var i = 0, len = fileNames.length; i < len; i++) {
+                var fileName = this.compilerState.getHostFileName(fileNames[i]);
+                var declarations = this.compilerState.getTopLevelDeclarations(TypeScript.switchToForwardSlashes(fileName));
+                if (!declarations) {
+                    return null;
+                }
+                this.findSearchValueInPullDecl(fileName, declarations, items, terms, regExpTerms);
+            }
+            return items;
+        };
+
+        LanguageService.prototype.findSearchValueInPullDecl = function (fileName, declarations, results, searchTerms, searchRegExpTerms, parentName, parentkindName) {
+            var item;
+            var declaration;
+            var term;
+            var regExpTerm;
+            var declName;
+            var kindName;
+            var matchKind;
+            var fullName;
+            var resultArray;
+
+            for (var i = 0, declLength = declarations.length; i < declLength; ++i) {
+                declaration = declarations[i];
+                declName = declaration.getDisplayName();
+                kindName = this.mapPullElementKind(declaration.kind);
+                matchKind = null;
+
+                for (var j = 0, termsLength = searchTerms.length; j < termsLength; ++j) {
+                    term = searchTerms[j];
+                    regExpTerm = searchRegExpTerms[j];
+                    resultArray = regExpTerm.exec(declName);
+                    if (resultArray) {
+                        if (declName.length === term.length && resultArray.index === 0) {
+                            matchKind = Services.MatchKind.exact;
+                            break;
+                        }
+                        if (declName.length > term.length && resultArray.index === 0) {
+                            matchKind = Services.MatchKind.prefix;
+                            break;
+                        }
+                        if (declName.length > term.length && resultArray.index > 0) {
+                            matchKind = Services.MatchKind.subString;
+                            break;
+                        }
+                    }
+                }
+
+                if (this.shouldIncludeDeclarationInNavigationItems(declaration)) {
+                    fullName = parentName ? parentName + "." + declName : declName;
+                    if (matchKind) {
+                        item = new Services.NavigateToItem();
+                        item.name = declName;
+                        item.matchKind = matchKind;
+                        item.kind = this.mapPullElementKind(declaration.kind);
+                        item.kindModifiers = this.getScriptElementKindModifiersFromDecl(declaration);
+                        item.fileName = this.compilerState.getHostFileName(fileName);
+                        item.minChar = declaration.getSpan().start();
+                        item.limChar = declaration.getSpan().end();
+                        item.containerName = parentName || "";
+                        item.containerKind = parentkindName || "";
+                        results.push(item);
+                    }
+                }
+                if (this.isContainerDeclaration(declaration)) {
+                    this.findSearchValueInPullDecl(fileName, declaration.getChildDecls(), results, searchTerms, searchRegExpTerms, fullName, kindName);
+                }
+            }
+        };
+
+        LanguageService.prototype.getScriptElementKindModifiersFromDecl = function (decl) {
+            var result = [];
+            var flags = decl.flags;
+
+            if (flags & 1 /* Exported */) {
+                result.push(Services.ScriptElementKindModifier.exportedModifier);
+            }
+
+            if (flags & 8 /* Ambient */) {
+                result.push(Services.ScriptElementKindModifier.ambientModifier);
+            }
+
+            if (flags & 4 /* Public */) {
+                result.push(Services.ScriptElementKindModifier.publicMemberModifier);
+            }
+
+            if (flags & 2 /* Private */) {
+                result.push(Services.ScriptElementKindModifier.privateMemberModifier);
+            }
+
+            if (flags & 16 /* Static */) {
+                result.push(Services.ScriptElementKindModifier.staticModifier);
+            }
+
+            return result.length > 0 ? result.join(',') : Services.ScriptElementKindModifier.none;
+        };
+
+        LanguageService.prototype.isContainerDeclaration = function (declaration) {
+            switch (declaration.kind) {
+                case 1 /* Script */:
+                case 4 /* Container */:
+                case 8 /* Class */:
+                case 16 /* Interface */:
+                case 32 /* DynamicModule */:
+                case 64 /* Enum */:
+                    return true;
+            }
+
+            return false;
+        };
+
+        LanguageService.prototype.shouldIncludeDeclarationInNavigationItems = function (declaration) {
+            switch (declaration.kind) {
+                case 1 /* Script */:
+                    return false;
+                case 1024 /* Variable */:
+                case 4096 /* Property */:
+                    return (declaration.flags & (16384 /* ClassConstructorVariable */ | 32768 /* InitializedModule */ | 65536 /* InitializedDynamicModule */ | 131072 /* InitializedEnum */)) === 0;
+                case 67108864 /* EnumMember */:
+                    return true;
+                case 131072 /* FunctionExpression */:
+                case 16384 /* Function */:
+                    return declaration.name !== "";
+                case 32768 /* ConstructorMethod */:
+                    return false;
+            }
+
+            if (this.isContainerDeclaration(declaration)) {
+                return true;
+            }
+
+            return true;
         };
 
         LanguageService.prototype.getSyntacticDiagnostics = function (fileName) {
@@ -60336,8 +60480,7 @@ var Services;
 
             var syntaxTree = this.getSyntaxTreeInternal(fileName);
             var items = [];
-            var visitor = new Services.GetScriptLexicalStructureWalker(items, fileName);
-            syntaxTree.sourceUnit().accept(visitor);
+            Services.GetScriptLexicalStructureWalker.getListsOfAllScriptLexicalStructure(items, fileName, syntaxTree.sourceUnit());
 
             return items;
         };
@@ -62226,9 +62369,13 @@ var Services;
             this.currentVariableStatement = null;
             this.currentInterfaceDeclaration = null;
         }
+        GetScriptLexicalStructureWalker.getListsOfAllScriptLexicalStructure = function (items, fileName, unit) {
+            var visitor = new GetScriptLexicalStructureWalker(items, fileName);
+            unit.accept(visitor);
+        };
+
         GetScriptLexicalStructureWalker.prototype.createItem = function (node, modifiers, kind, name) {
             var item = new Services.NavigateToItem();
-
             item.name = name;
             item.kind = kind;
             item.matchKind = Services.MatchKind.exact;
@@ -62240,8 +62387,6 @@ var Services;
             item.containerKind = this.kindStack.length === 0 ? "" : TypeScript.ArrayUtilities.last(this.kindStack);
 
             this.items.push(item);
-
-            return item;
         };
 
         GetScriptLexicalStructureWalker.prototype.getKindModifiers = function (modifiers) {
@@ -62280,10 +62425,12 @@ var Services;
                 _super.prototype.visitModuleDeclaration.call(this, node);
             } else {
                 var modifiers = nameIndex === 0 ? node.modifiers : TypeScript.Syntax.list([TypeScript.Syntax.token(47 /* ExportKeyword */)]);
-                var item = this.createItem(node, node.modifiers, Services.ScriptElementKind.moduleElement, names[nameIndex]);
+                var name = names[nameIndex];
+                var kind = Services.ScriptElementKind.moduleElement;
+                this.createItem(node, node.modifiers, kind, name);
 
-                this.nameStack.push(item.name);
-                this.kindStack.push(item.kind);
+                this.nameStack.push(name);
+                this.kindStack.push(kind);
 
                 this.visitModuleDeclarationWorker(node, names, nameIndex + 1);
 
@@ -62315,10 +62462,13 @@ var Services;
         };
 
         GetScriptLexicalStructureWalker.prototype.visitClassDeclaration = function (node) {
-            var item = this.createItem(node, node.modifiers, Services.ScriptElementKind.classElement, node.identifier.text());
+            var name = node.identifier.text();
+            var kind = Services.ScriptElementKind.classElement;
 
-            this.nameStack.push(item.name);
-            this.kindStack.push(item.kind);
+            this.createItem(node, node.modifiers, kind, name);
+
+            this.nameStack.push(name);
+            this.kindStack.push(kind);
 
             _super.prototype.visitClassDeclaration.call(this, node);
 
@@ -62327,10 +62477,13 @@ var Services;
         };
 
         GetScriptLexicalStructureWalker.prototype.visitInterfaceDeclaration = function (node) {
-            var item = this.createItem(node, node.modifiers, Services.ScriptElementKind.interfaceElement, node.identifier.text());
+            var name = node.identifier.text();
+            var kind = Services.ScriptElementKind.interfaceElement;
 
-            this.nameStack.push(item.name);
-            this.kindStack.push(item.kind);
+            this.createItem(node, node.modifiers, kind, name);
+
+            this.nameStack.push(name);
+            this.kindStack.push(kind);
 
             this.currentInterfaceDeclaration = node;
             _super.prototype.visitInterfaceDeclaration.call(this, node);
@@ -62349,10 +62502,13 @@ var Services;
         };
 
         GetScriptLexicalStructureWalker.prototype.visitEnumDeclaration = function (node) {
-            var item = this.createItem(node, node.modifiers, Services.ScriptElementKind.enumElement, node.identifier.text());
+            var name = node.identifier.text();
+            var kind = Services.ScriptElementKind.enumElement;
 
-            this.nameStack.push(item.name);
-            this.kindStack.push(item.kind);
+            this.createItem(node, node.modifiers, kind, name);
+
+            this.nameStack.push(name);
+            this.kindStack.push(kind);
 
             _super.prototype.visitEnumDeclaration.call(this, node);
 
