@@ -34653,7 +34653,7 @@ var TypeScript;
 
         var searchForExistingSpecialization = typeArguments != null;
 
-        if (typeArguments === null || (context.specializingToAny && typeArguments.length)) {
+        if (typeArguments === null || (context.specializingToAny && typeArguments.length) || typeToSpecialize.hasBaseTypeConflict()) {
             typeArguments = [];
         }
 
