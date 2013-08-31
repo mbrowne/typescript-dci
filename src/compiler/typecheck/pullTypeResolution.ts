@@ -1235,7 +1235,11 @@ module TypeScript {
                 // Store off and resolve the reference type after we've finished checking the file
                 // (This way, we'll still properly resolve the type even if its parent was already resolved during
                 // base type resolution, making the type otherwise inaccessible).
-                PullTypeResolver.typeCheckCallBacks.push(() => { this.resolveDeclaredSymbol(typeDeclSymbol, enclosingDecl, context) });
+                PullTypeResolver.typeCheckCallBacks.push(() => {
+                    // Make sure we are not in basetype resolution, or we will be stuck in an infinite loop
+                    context.doneBaseTypeResolution(false);
+                    this.resolveDeclaredSymbol(typeDeclSymbol, enclosingDecl, context);
+                });
 
                 return typeDeclSymbol;
             }
