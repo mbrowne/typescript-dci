@@ -96,7 +96,7 @@ module TypeScript {
         private _cachedIArgumentsInterfaceType: PullTypeSymbol = null;
         private _cachedRegExpInterfaceType: PullTypeSymbol = null;
 
-        static typeCheckCallBacks: { (): void ; }[] = [];
+        static typeCheckCallBacks: { (context: PullTypeResolutionContext): void ; }[] = [];
 
         private cachedFunctionArgumentsSymbol: PullSymbol = null;
 
@@ -1235,9 +1235,7 @@ module TypeScript {
                 // Store off and resolve the reference type after we've finished checking the file
                 // (This way, we'll still properly resolve the type even if its parent was already resolved during
                 // base type resolution, making the type otherwise inaccessible).
-                PullTypeResolver.typeCheckCallBacks.push(() => {
-                    // Make sure we are not in basetype resolution, or we will be stuck in an infinite loop
-                    context.doneBaseTypeResolution(false);
+                PullTypeResolver.typeCheckCallBacks.push((context) => {
                     this.resolveDeclaredSymbol(typeDeclSymbol, enclosingDecl, context);
                 });
 
@@ -2752,7 +2750,7 @@ module TypeScript {
             context: PullTypeResolutionContext) {
 
             if (context.inTypeCheck && (!context.inSpecialization || !signature.isGeneric())) {
-                PullTypeResolver.typeCheckCallBacks.push(() => {
+                PullTypeResolver.typeCheckCallBacks.push((context) => {
 
                     if (signature.hasBeenChecked || signature.getRootSymbol() != signature) {
                         return;
@@ -5110,7 +5108,7 @@ module TypeScript {
             funcDeclSymbol.setResolved();
 
             if (context.typeCheck()) {
-                PullTypeResolver.typeCheckCallBacks.push(() => {
+                PullTypeResolver.typeCheckCallBacks.push((context) => {
                     var currentUnitPath = this.unitPath;
                     this.setUnitPath(functionDecl.getScriptName());
                     this.seenSuperConstructorCall = false;
@@ -8989,12 +8987,12 @@ module TypeScript {
             resolver.validateVariableDeclarationGroups(scriptDecl, context);
 
             PullTypeResolver.globalTypeCheckPhase++;
-            var callBack: { (): void } = null;
+            var callBack: { (context: PullTypeResolutionContext): void } = null;
 
             while (PullTypeResolver.typeCheckCallBacks.length) {
                 callBack = PullTypeResolver.typeCheckCallBacks[PullTypeResolver.typeCheckCallBacks.length - 1];
                 PullTypeResolver.typeCheckCallBacks.pop();
-                callBack();
+                callBack(context);
             }
 
             unit.setTypeChecked();
