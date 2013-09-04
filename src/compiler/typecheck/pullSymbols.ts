@@ -2814,6 +2814,7 @@ module TypeScript {
                 }   
 
                 resolver.resolveAST(declAST, false, newTypeDecl, context, true);
+
                 decl.setSpecializingSignatureSymbol(prevSpecializationSignature);
 
                 parameters = signature.parameters;
@@ -2889,6 +2890,7 @@ module TypeScript {
                 } 
 
                 resolver.resolveAST(declAST, false, newTypeDecl, context, true);
+
                 decl.setSpecializingSignatureSymbol(prevSpecializationSignature);
 
                 parameters = signature.parameters;
@@ -2966,6 +2968,7 @@ module TypeScript {
                 } 
 
                 resolver.resolveAST(declAST, false, newTypeDecl, context, true);
+
                 decl.setSpecializingSignatureSymbol(prevSpecializationSignature);
 
                 parameters = signature.parameters;
@@ -3254,12 +3257,10 @@ module TypeScript {
                 substitution += types[i].pullSymbolIDString + "#";
             }
             else {
-                members = types[i].getMembers();
+                var structure = getIDForTypeSubstitutionsFromObjectType(types[i]);
 
-                if (types[i].isResolved && members && members.length) {
-                    for (var j = 0; j < members.length; j++) {
-                        substitution += members[j].name + "@" + getIDForTypeSubstitutions([members[j].type]);
-                    }
+                if (structure) {
+                    substitution += structure;
                 }
                 else {
                     substitution += types[i].pullSymbolIDString + "#";
@@ -3268,5 +3269,58 @@ module TypeScript {
         }
 
         return substitution;
+    }
+
+    function getIDForTypeSubstitutionsFromObjectType(type: PullTypeSymbol): string {
+        var structure = "";
+
+        if (type.isResolved) {
+            var members = type.getMembers();
+            if (members && members.length) {
+                for (var j = 0; j < members.length; j++) {
+                    structure += members[j].name + "@" + getIDForTypeSubstitutions([members[j].type]);
+                }
+            }
+
+            var callSignatures = type.getCallSignatures();
+            if (callSignatures && callSignatures.length) {
+                for (var j = 0; j < callSignatures.length; j++) {
+                    structure += getIDForTypeSubstitutionFromSignature(callSignatures[j]);
+                }
+            }
+
+            var constructSignatures = type.getConstructSignatures();
+            if (constructSignatures && constructSignatures.length) {
+                for (var j = 0; j < constructSignatures.length; j++) {
+                    structure += "new" + getIDForTypeSubstitutionFromSignature(constructSignatures[j]);
+                }
+            }
+
+            var indexSignatures = type.getIndexSignatures();
+            if (indexSignatures && indexSignatures.length) {
+                for (var j = 0; j < indexSignatures.length; j++) {
+                    structure += "[]" + getIDForTypeSubstitutionFromSignature(indexSignatures[j]);
+                }
+            }
+        }
+
+        if (structure !== "") {
+            return "{" + structure + "}";
+        }
+
+        return null;
+    }
+
+    function getIDForTypeSubstitutionFromSignature(signature: PullSignatureSymbol): string {
+        var structure = "(";
+        var parameters = signature.parameters;
+        if (parameters && parameters.length) {
+            for (var k = 0; k < parameters.length; k++) {
+                structure += parameters[k].name + "@" + getIDForTypeSubstitutions([parameters[k].type]);
+            }
+        }
+
+        structure += ")" + getIDForTypeSubstitutions([signature.returnType]);
+        return structure;
     }
 }
