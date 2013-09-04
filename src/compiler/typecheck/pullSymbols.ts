@@ -2508,6 +2508,10 @@ module TypeScript {
             return typeToSpecialize;
         }
 
+        if (context.recursiveMemberSpecializationDepth == maxRecursiveMemberSpecializationDepth || context.recursiveSignatureSpecializationDepth == maxRecursiveSignatureSpecializationDepth) {
+            return resolver.semanticInfoChain.anyTypeSymbol;
+        }
+
         var searchForExistingSpecialization = typeArguments != null;
 
         // if a base-type conflict exists, specialization may probe unpredictable, so we'll substitute in 'any'
@@ -2813,6 +2817,8 @@ module TypeScript {
                     resolver.resolveDeclaredSymbol(signature, enclosingDecl, new PullTypeResolutionContext());
                 }   
 
+                context.recursiveSignatureSpecializationDepth++;
+
                 resolver.resolveAST(declAST, false, newTypeDecl, context, true);
 
                 decl.setSpecializingSignatureSymbol(prevSpecializationSignature);
@@ -2838,6 +2844,8 @@ module TypeScript {
                 placeHolderSignature = newSignature;
                 newSignature = specializeSignature(newSignature, true, typeReplacementMap, null, resolver, newTypeDecl, context);
                 signature.setIsSpecialized();
+
+                context.recursiveSignatureSpecializationDepth--;
 
                 if (newSignature != placeHolderSignature) {
                     newSignature.setRootSymbol(signature);
@@ -2889,6 +2897,8 @@ module TypeScript {
                     resolver.resolveDeclaredSymbol(signature, enclosingDecl, new PullTypeResolutionContext());
                 } 
 
+                context.recursiveSignatureSpecializationDepth++;
+
                 resolver.resolveAST(declAST, false, newTypeDecl, context, true);
 
                 decl.setSpecializingSignatureSymbol(prevSpecializationSignature);
@@ -2916,6 +2926,7 @@ module TypeScript {
                 placeHolderSignature = newSignature;
                 newSignature = specializeSignature(newSignature, true, typeReplacementMap, null, resolver, newTypeDecl, context);
                 signature.setIsSpecialized();
+                context.recursiveSignatureSpecializationDepth--;
 
                 if (newSignature != placeHolderSignature) {
                     newSignature.setRootSymbol(signature);
@@ -2967,6 +2978,8 @@ module TypeScript {
                     resolver.resolveDeclaredSymbol(signature, enclosingDecl, new PullTypeResolutionContext());
                 } 
 
+                context.recursiveSignatureSpecializationDepth++;
+
                 resolver.resolveAST(declAST, false, newTypeDecl, context, true);
 
                 decl.setSpecializingSignatureSymbol(prevSpecializationSignature);
@@ -2994,6 +3007,7 @@ module TypeScript {
                 placeHolderSignature = newSignature;
                 newSignature = specializeSignature(newSignature, true, typeReplacementMap, null, resolver, newTypeDecl, context);
                 signature.setIsSpecialized();
+                context.recursiveSignatureSpecializationDepth--;
 
                 if (newSignature != placeHolderSignature) {
                     newSignature.setRootSymbol(signature);
@@ -3067,7 +3081,9 @@ module TypeScript {
 
                     context.pushTypeSpecializationCache(typeReplacementMap);
 
+                    context.recursiveMemberSpecializationDepth++;
                     newFieldType = specializeType(fieldType, !fieldType.getIsSpecialized() ? typeArguments : null, resolver, newTypeDecl, context, ast);
+                    context.recursiveMemberSpecializationDepth--;
 
                     resolver.setUnitPath(unitPath);
 
