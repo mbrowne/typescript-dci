@@ -37,9 +37,6 @@ module TypeScript {
         private astCallResolutionDataMap: Collections.HashTable<number, PullAdditionalCallResolutionData> =
             Collections.createHashTable<number, PullAdditionalCallResolutionData>(Collections.DefaultHashTableCapacity, k => k);
 
-        private syntaxElementSymbolMap: DataMap = new DataMap();
-        private symbolSyntaxElementMap: DataMap = new DataMap();
-
         private properties = new SemanticInfoProperties(); 
 
         private hasBeenTypeChecked = false;
@@ -62,6 +59,8 @@ module TypeScript {
             this.astSymbolMap = new DataMap();
             this.symbolASTMap = new DataMap();
             //this.hasBeenTypeChecked = false;
+            this.astAliasSymbolMap = new DataMap();
+            this.astCallResolutionDataMap = Collections.createHashTable<number, PullAdditionalCallResolutionData>(Collections.DefaultHashTableCapacity, k => k);
         }
 
         public getTopLevelDecls() { return this.topLevelDecls; }
