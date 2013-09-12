@@ -59,6 +59,7 @@ var compilerSources = [
 	"resources/diagnosticCode.generated.ts",
 	"resources/diagnosticInformationMap.generated.ts",
 	"resources/references.ts",
+	"semantics/IType.ts",
 	"syntax/characterInfo.ts",
 	"syntax/constants.ts",
 	"syntax/depthLimitedWalker.ts",

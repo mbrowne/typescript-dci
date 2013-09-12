@@ -9,6 +9,7 @@
 ///<reference path='diagnosticInfo.ts' />
 ///<reference path='errors.ts' />
 ///<reference path='hash.ts' />
+///<reference path='hashSet.ts' />
 ///<reference path='hashTable.ts' />
 ///<reference path='diagnostic.ts' />
 ///<reference path='environment.ts' />
