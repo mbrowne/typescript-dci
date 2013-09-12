@@ -19,6 +19,7 @@ module TypeScript {
         isAnonymousType(): boolean;
         isTypeParameter(): boolean;
 
+        // We probably don't want this here.  
         name(): string;
     }
 

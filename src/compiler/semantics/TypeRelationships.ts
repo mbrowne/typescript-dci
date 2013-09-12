@@ -3,7 +3,7 @@ module TypeScript {
         constructor(private compilation: Compilation) {
         }
 
-        public apperantType(type: IType): IType {
+        public apperentType(type: IType): IType {
             switch (type.typeKind()) {
                 // If T is the primitive type Number, Boolean, or String, the apparent type of T is
                 // the global interface type ‘Number’, ‘Boolean’, or ‘String’
@@ -21,7 +21,7 @@ module TypeScript {
                 // if T is a type parameter, the apparent type of T is the base constraint (section 
                 // 3.4.1) of T.
                 case TypeKind.TypeParameter:
-                    return this.apperantType((<ITypeParameter>type).constraint());
+                    return this.apperentType((<ITypeParameter>type).constraint());
 
                 // Otherwise, the apparent type of T is T itself.
                 default:
@@ -216,8 +216,28 @@ module TypeScript {
             // have identical type parameter constraints, identical number of parameters of 
             // identical kinds and types, and identical return types.
             if (signature1.isCallSignature() === signature2.isCallSignature()) {
-                if (signature1.typeParameters().length === signature2.typeParameters().length) {
-                    var indexedTypeParameters = IndexedTypeParameter.take(signature1.typeParameters().length);
+                var parameters1 = signature1.parameters();
+                var parameters2 = signature2.parameters();
+
+                if (signature1.typeParameters().length === signature2.typeParameters().length &&
+                    parameters1.length === parameters2.length) {
+
+                    // var indexedTypeParameters = IndexedTypeParameter.take(signature1.typeParameters().length);
+                    if (signature1.typeParameters().length > 0) {
+                        // Handle the case where these are generic and we want to compare them 
+                        // while considering the type parameters pairwise identical.
+                        throw Errors.notYetImplemented();
+                    }
+
+                    for (var i = 0, n = parameters1.length; i < n; i++) {
+                        var parameter1 = parameters1[i];
+                        var parameter2 = parameters2[i];
+
+                        // TODO: what does (identical kind) mean?
+                        if (!this.typesAreIdenticalWorker(parameter1.type(), parameter2.type(), cache)) {
+
+                        }
+                    }
                 }
             }
 
