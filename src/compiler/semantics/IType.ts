@@ -19,8 +19,7 @@ module TypeScript {
         isAnonymousType(): boolean;
         isTypeParameter(): boolean;
 
-        // We probably don't want this here.  
-        name(): string;
+        instantiate(typeParameterMap: Collections.IHashTable<ITypeParameter, IType>): IType;
     }
 
     export interface IObjectType extends IType {
@@ -44,6 +43,7 @@ module TypeScript {
     }
 
     export interface INamedTypeReference extends IObjectType {
+        name(): string;
         originatingDeclaration(): Declaration;
         typeArguments(): IType[];
     }

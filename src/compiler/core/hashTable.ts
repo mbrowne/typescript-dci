@@ -3,7 +3,12 @@
 module TypeScript.Collections {
     export var DefaultHashTableCapacity = 1024;
 
-    class HashTableEntry<TKey, TValue> {
+    export interface KeyValuePair<TKey, TValue> {
+        Key: TKey;
+        Value: TValue;
+    }
+
+    class HashTableEntry<TKey, TValue> implements KeyValuePair<TKey, TValue> {
         constructor(public Key: TKey,
                     public Value: TValue,
                     public HashCode: number,
@@ -11,14 +16,56 @@ module TypeScript.Collections {
         }
     }
 
-    export class HashTable<TKey, TValue> {
-        private entries: HashTableEntry<TKey, TValue>[];
-        private count: number = 0;
+    export interface IHashTable<TKey, TValue> extends IEnumerable<KeyValuePair<TKey, TValue>> {
+        set(key: TKey, value: TValue): void;
+        add(key: TKey, value: TValue): void;
+        containsKey(key: TKey): boolean;
+        get(key: TKey): TValue;
+        count(): number;
+    }
+
+    class Enumerator<TKey, TValue> implements IEnumerator<KeyValuePair<TKey, TValue>> {
+        private index: number = -1;
+
+        constructor(private hashTable: HashTable<TKey, TValue>) {
+        }
+
+        public moveNext(): boolean {
+            var entries = this.hashTable.entries;
+
+            while (true) {
+                this.index++;
+                if (this.index >= entries.length) {
+                    return false;
+                }
+
+                if (entries[this.index]) {
+                    return true;
+                }
+            }
+        }
+
+        public current(): KeyValuePair<TKey, TValue> {
+            return this.hashTable.entries[this.index];
+        }
+    }
+
+    class HashTable<TKey, TValue> implements IHashTable<TKey, TValue> {
+        public entries: HashTableEntry<TKey, TValue>[];
+        private _count: number = 0;
 
         constructor(capacity: number,
                     private hash: (k: TKey) => number) {
             var size = Hash.getPrime(capacity);
             this.entries = ArrayUtilities.createArray(size, null);
+        }
+
+        public getEnumerator(): IEnumerator<KeyValuePair<TKey, TValue>> {
+            return new Enumerator<TKey, TValue>(this);
+        }
+
+        public count(): number {
+            return this._count;
         }
 
         // Maps 'key' to 'value' in this table.  Does not throw if 'key' is already in the table.
@@ -92,11 +139,11 @@ module TypeScript.Collections {
 
             this.entries[index] = e;
 
-            if (this.count >= (this.entries.length / 2)) {
+            if (this._count >= (this.entries.length / 2)) {
                 this.grow();
             }
 
-            this.count++;
+            this._count++;
             return e.Key;
         }
 
@@ -147,7 +194,7 @@ module TypeScript.Collections {
     }
 
     export function createHashTable<TKey,TValue>(capacity: number = DefaultHashTableCapacity,
-                                                 hash: (k: TKey) => number = null): HashTable<TKey,TValue> {
+                                                 hash: (k: TKey) => number = null): IHashTable<TKey,TValue> {
         return new HashTable<TKey,TValue>(capacity, hash);
     }
 

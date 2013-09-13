@@ -47,6 +47,8 @@ module TypeScript {
         isGenericSignature(): boolean;
 
         nonOptionalParameterCount(): number;
+
+        instantiate(typeParameterMap: Collections.IHashTable<ITypeParameter, IType>): ICallOrConstructSignature;
     }
 
     export interface IIndexSignature extends IMember {

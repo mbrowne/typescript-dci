@@ -293,6 +293,30 @@ module TypeScript {
             return false;
         }
 
+        /** Returns true if type1 is a assignable to type2. */
+        public isAssignableTo(type1: IType, type2: IType): boolean {
+            var S = type1;
+            var T = type2;
+
+            // The assignment compatibility and subtyping rules differ only in that
+            if (this.isSubtype(S, T)) {
+                return true;
+            }
+
+            // •	the Any type is assignable to, but not a subtype of, all types, and
+            if (S.isAny()) {
+                // The T.isAny() case was handled in the subtype code.
+                return true;
+            }
+
+            // •	the primitive type Number is assignable to, but not a subtype of, all enum types.
+            if (S.isNumber() && T.isEnum()) {
+                return true;
+            }
+
+            return false;
+        }
+
         private objectTypeIsSubtype(S_prime: IObjectType, T: IObjectType): boolean {
             // •	S’ and T are object types and, for each member M in T, one of the following is true:
             var T_members = T.members();
@@ -410,14 +434,16 @@ module TypeScript {
                     // 	N can be successfully instantiated in the context of M (section 3.8.5),
                     var N_instantiated = this.instantiateInTheContextOf(N, M);
 
-                    // 	each parameter type in the instantiation of N is a subtype or supertype 
-                    // of the corresponding parameter type in M for parameter positions that are present
-                    // in both signatures, and
-                    if (this.eachParameterTypeIsSubtypeOrSupertype(N, M)) {
-                        // 	the result type of M is Void, or the result type of the instantiation of N 
-                        // is a subtype of that of M.
-                        if (M.returnType().isVoid() || this.isSubtype(N_instantiated.returnType(), M.returnType())) {
-                            return true;
+                    if (N_instantiated !== null) {
+                        // 	each parameter type in the instantiation of N is a subtype or supertype 
+                        // of the corresponding parameter type in M for parameter positions that are present
+                        // in both signatures, and
+                        if (this.eachParameterTypeIsSubtypeOrSupertype(N, M)) {
+                            // 	the result type of M is Void, or the result type of the instantiation of N 
+                            // is a subtype of that of M.
+                            if (M.returnType().isVoid() || this.isSubtype(N_instantiated.returnType(), M.returnType())) {
+                                return true;
+                            }
                         }
                     }
                 }
@@ -490,6 +516,101 @@ module TypeScript {
         private isDirectlyOrIndirectlyConstrainedTo(S: IType, T: IType): boolean {
             // NOTE: when implemented, we will have to check for recursion with constraints.
             throw Errors.notYetImplemented();
+        }
+
+        private instantiateInTheContextOf(A: ICallOrConstructSignature, B: ICallOrConstructSignature): ICallOrConstructSignature {
+            // In sections 3.8.3 and 3.8.4, to determine whether a call or construct signature A is
+            // a subtype of or assignable to a call or construct signature B, A is instantiated in
+            // the context of B. 
+            Debug.assert(A.isCallSignature() === B.isCallSignature());
+
+            // If A is a non-generic signature, the result of this process is simply A. Otherwise, 
+            // type arguments for A are inferred from B producing an instantiation of A that can be
+            // related to B:
+            if (!A.isGenericSignature()) {
+                return A;
+            }
+
+            var typeParameterToCandidatesMap: Collections.IHashTable<ITypeParameter, Collections.ISet<IType>>;
+            var typeParameterMap: Collections.IHashTable<ITypeParameter, IType>;
+
+            for (var e1 = typeParameterToCandidatesMap.getEnumerator(); e1.moveNext();) {
+                var typeParameter = e1.current().Key;
+                var candidates = e1.current().Value;
+
+                // •	The inferred type argument for each type parameter is the best common type
+                // (section 3.10) of the set of inferences made for that type parameter.
+                var inferredTypeArgument = this.bestCommonType(candidates);
+                typeParameterMap.add(typeParameter, inferredTypeArgument);
+            }
+
+            // •	Provided all inferred type arguments satisfy their corresponding type 
+            // parameter constraints, the result is an instantiation of A with the inferred 
+            // type arguments.
+            for (var e2 = typeParameterMap.getEnumerator(); e2.moveNext();) {
+                var typeParameter = e2.current().Key;
+                var inferredTypeArgument = e2.current().Value;
+
+                if (!this.satisfiesConstraint(inferredTypeArgument, typeParameter, typeParameterMap)) {
+                    return null;
+                }
+            }
+
+            // the result is an instantiation of A with the inferred type arguments.
+            return A.instantiate(typeParameterMap);
+        }
+
+        private satisfiesConstraint(typeArgument: IType, typeParameter: ITypeParameter, typeParameterMap: Collections.IHashTable<ITypeParameter, IType>): boolean {
+            // A type argument satisfies a type parameter constraint if the type argument is 
+            // assignable to(section 3.8.4) the constraint type once type arguments are substituted
+            // for type parameters
+            var instantiatedConstraint = typeParameter.constraint().instantiate(typeParameterMap);
+            return this.isAssignableTo(typeArgument, instantiatedConstraint);
+        }
+
+        private bestCommonType(types: Collections.ISet<IType>): IType {
+            // For an empty set of types, the best common type is the Undefined type
+            if (types.count() === 0) {
+                return this.compilation.undefinedType();
+            }
+
+            var currentBest = null;
+
+            outer:
+            for (var e1 = types.getEnumerator(); e1.moveNext();) {
+                var t1 = e1.current();
+
+                for (var e2 = types.getEnumerator(); e2.moveNext();) {
+                    var t2 = e2.current();
+
+                    if (t1 === t2) {
+                        continue;
+                    }
+
+                    // For a non - empty set of types { T1, T2, …, Tn }, the best common type is
+                    //  the one Tx in the set that is a supertype of every Tn
+                    if (!this.isSupertype(t1, t2)) {
+                        // t1 was not a supertype of t2.  It can't be the best common type.
+                        continue outer;
+                    }
+                }
+
+                if (currentBest === null) {
+                    // Haven't seen a best type yet.  So this is the current best candidate.
+                    currentBest = t1;
+                }
+                else {
+                    // It is possible that no such type exists or more than one such type exists, 
+                    // in which case the best common type is an empty object type(the type {}).
+                    return this.compilation.emptyObjectType();
+                }
+            }
+
+            // It is possible that no such type exists or more than one such type exists, 
+            // in which case the best common type is an empty object type(the type {}).
+            return currentBest === null
+                ? this.compilation.emptyObjectType()
+                : currentBest;
         }
     }
 
