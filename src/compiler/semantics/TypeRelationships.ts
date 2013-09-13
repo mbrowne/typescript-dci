@@ -2,6 +2,8 @@
 
 module TypeScript {
     export class TypeRelationships {
+        private identicalTypeRelationCache = new TypeRelationCache();
+
         constructor(private compilation: Compilation) {
         }
 
@@ -31,15 +33,7 @@ module TypeScript {
             }
         }
 
-        public typesAreIdentical(type1: IType, type2: IType): boolean {
-            var typeRelationCache = acquireTypeRelationCache();
-            var result = this.typesAreIdenticalWorker(type1, type2, typeRelationCache);
-            returnTypeRelationCache(typeRelationCache);
-
-            return result;
-        }
-
-        private typesAreIdenticalWorker(type1: IType, type2: IType, cache: TypeRelationCache): boolean {
+        private typesAreIdentical(type1: IType, type2: IType): boolean {
             // Two types are considered identical when
             //      they are the same primitive type,
             if (type1.isPrimitive() && type2.isPrimitive()) {
@@ -53,46 +47,52 @@ module TypeScript {
 
             // they are object types with identical sets of members
             if (type1.isObjectType() && type2.isObjectType()) {
-                // Classes and interfaces can reference themselves in their internal structure, in
-                // effect creating recursive types with infinite nesting. Types such as this are 
-                // perfectly valid but require special treatment when determining type relationships. 
-                // Specifically, when comparing references to two named types S and T for a given 
-                // relationship(identity, subtype, or assignability), the relationship in question is 
-                // assumed to be true for every directly or indirectly nested occurrence of references 
-                // to the same S and T(where same means originating in the same declaration). For 
-                // example, consider the identity relationship between ‘A’ above and ‘B’ below:
-
                 if (type1.isNamedTypeReference() && type2.isNamedTypeReference()) {
-                    if (type1 === type2) {
-                        // Quick short circuit.
-                        return true;
-                    }
-
-                    var namedType1 = <INamedTypeReference>type1;
-                    var namedType2 = <INamedTypeReference>type2;
-
-                    // If we've already been examining this relation, then we assume things to be
-                    // true if we were to recurse.
-                    if (cache.containsRelation(namedType1, namedType2)) {
-                        return true;
-                    }
-
-                    // Add a relation between these two types.  If we see them again while 
-                    // recursing, then we'll immediately stop.
-                    cache.addRelation(namedType1, namedType2);
+                    return this.namedTypesAreIdentical(<INamedTypeReference>type1, <INamedTypeReference>type2);
                 }
-
-                var objectType1 = <IObjectType>type1;
-                var objectType2 = <IObjectType>type2;
-
-                // they are object types with identical sets of members.
-                return this.objectTypeMembersAreIdentical(objectType1, objectType2, cache);
+                else {
+                    // they are object types with identical sets of members.
+                    return this.objectTypeMembersAreIdentical(<IObjectType>type1, <IObjectType>type2);
+                }
             }
 
             return false;
         }
 
-        private objectTypeMembersAreIdentical(objectType1: IObjectType, objectType2: IObjectType, cache: TypeRelationCache): boolean {
+        private namedTypesAreIdentical(type1: INamedTypeReference, type2: INamedTypeReference): boolean {
+            // Defer to our cache which will take care of infinite recursion.
+            return this.identicalTypeRelationCache.determineRelationship(type1, type2, this.namedTypesAreIdenticalWorker);
+        }
+
+        private namedTypesAreIdenticalWorker(type1: INamedTypeReference, type2: INamedTypeReference): boolean {
+            // two type references are considered the same when they originate in the same
+            // declaration and have identical type arguments
+
+            if (type1.originatingDeclaration() === type2.originatingDeclaration() &&
+                this.typeArraysAreIdentical(type1.typeArguments(), type2.typeArguments())) {
+                return true;
+            }
+
+            // Two types are considered identical when
+            // •	they are object types with identical sets of members.
+            return this.objectTypeMembersAreIdentical(type1, type2);
+        }
+
+        private typeArraysAreIdentical(types1: IType[], types2: IType[]): boolean {
+            if (types1.length === types2.length) {
+                for (var i = 0, n = types1.length; i < n; i++) {
+                    if (!this.typesAreIdentical(types1[i], types2[i])) {
+                        return false;
+                    }
+                }
+
+                return true;
+            }
+
+            return false;
+        }
+
+        private objectTypeMembersAreIdentical(objectType1: IObjectType, objectType2: IObjectType): boolean {
             if (objectType1.properties().length === objectType2.members().length &&
                 objectType1.callSignatures().length === objectType2.callSignatures().length &&
                 objectType1.constructSignatures().length === objectType2.constructSignatures().length &&
@@ -103,43 +103,22 @@ module TypeScript {
                     var property1 = properties1[i];
                     var property2 = objectType2.getProperty(property1.name());
 
-                    if (!this.propertiesAreIdentical(property1, property2, cache)) {
+                    if (!this.propertiesAreIdentical(property1, property2)) {
                         return false;
                     }
                 }
 
-                if (!this.memberArraysAreIdentical(objectType1.callSignatures(), objectType2.callSignatures(), cache)) {
+                if (!this.memberArraysAreIdentical(objectType1.callSignatures(), objectType2.callSignatures())) {
                     return false;
                 }
 
-                if (!this.memberArraysAreIdentical(objectType1.constructSignatures(), objectType2.constructSignatures(), cache)) {
+                if (!this.memberArraysAreIdentical(objectType1.constructSignatures(), objectType2.constructSignatures())) {
                     return false;
                 }
 
-                if (!this.memberArraysAreIdentical(objectType1.indexSignatures(), objectType2.indexSignatures(), cache)) {
+                if (!this.memberArraysAreIdentical(objectType1.indexSignatures(), objectType2.indexSignatures())) {
                     return false;
                 }
-
-                    /*
-                    var callSignatures1 = objectType1.callSignatures();
-                    var callSignatures2 = objectType1.callSignatures();
-                    for (var i = 0, n = callSignatures1.length; i < n; i++) {
-                        var callSignature1 = callSignatures1[i];
-                        if (!this.anyMembersAreIdentical(callSignatures1[i], callSignatures2)) {
-                            return false;
-                        }
-                    }
-
-
-                        var constructSignatures1 = objectType1.constructSignatures();
-                        var constructSignatures2 = objectType1.constructSignatures();
-                        for (var i = 0, n = constructSignatures1.length; i < n; i++) {
-                            var constructSignature1 = constructSignatures1[i];
-                            if (!this.anyMembersAreIdentical(constructSignatures1[i], constructSignatures2)) {
-                                return false;
-                            }
-                        }
-    */
 
                 return true;
             }
@@ -147,11 +126,11 @@ module TypeScript {
             return false;
         }
 
-        private memberArraysAreIdentical(members1: IMember[], members2: IMember[], cache: TypeRelationCache): boolean {
+        private memberArraysAreIdentical(members1: IMember[], members2: IMember[]): boolean {
             for (var i = 0, n = members1.length; i < n; i++) {
                 var member1 = members1[i];
 
-                if (!this.memberArrayContainsIdenticalMember(member1, members2, cache)) {
+                if (!this.memberArrayContainsIdenticalMember(member1, members2)) {
                     return false;
                 }
             }
@@ -159,11 +138,11 @@ module TypeScript {
             return true;
         }
 
-        private memberArrayContainsIdenticalMember(member1: IMember, members2: IMember[], cache: TypeRelationCache): boolean {
+        private memberArrayContainsIdenticalMember(member1: IMember, members2: IMember[]): boolean {
             for (var i = 0, n = members2.length; i < n; i++) {
                 var member2 = members2[i];
 
-                if (this.membersAreIdentical(member1, member2, cache)) {
+                if (this.membersAreIdentical(member1, member2)) {
                     return true;
                 }
             }
@@ -171,51 +150,51 @@ module TypeScript {
             return false;
         }
 
-        private membersAreIdentical(member1: IMember, member2: IMember, cache: TypeRelationCache): boolean {
+        private membersAreIdentical(member1: IMember, member2: IMember): boolean {
             if (member1.memberKind() !== member2.memberKind()) {
                 return false;
             }
 
             switch (member1.memberKind()) {
                 case MemberKind.Property:
-                    return this.propertiesAreIdentical(<IProperty>member1, <IProperty>member2, cache);
+                    return this.propertiesAreIdentical(<IProperty>member1, <IProperty>member2);
                 case MemberKind.IndexSignature:
-                    return this.indexSignaturesAreIdentical(<IIndexSignature>member1, <IIndexSignature>member2, cache);
+                    return this.indexSignaturesAreIdentical(<IIndexSignature>member1, <IIndexSignature>member2);
                 case MemberKind.CallSignature: // fall through
                 case MemberKind.ConstructSignature:
-                    return this.callOrConstructSignaturesAreIdentical(<ICallOrConstructSignature>member1, <ICallOrConstructSignature>member2, cache);
+                    return this.callOrConstructSignaturesAreIdentical(<ICallOrConstructSignature>member1, <ICallOrConstructSignature>member2);
                 default:
                     throw Errors.invalidOperation();
             }
         }
 
-        private propertiesAreIdentical(property1: IProperty, property2: IProperty, cache: TypeRelationCache): boolean {
+        private propertiesAreIdentical(property1: IProperty, property2: IProperty): boolean {
             // Two members are considered identical when
             if (property1.accessibility() === property2.accessibility()) {
                 if (property1.accessibility() === Accessibility.Public) {
                     // •	they are public properties with identical names, optionality, and types,
                     return property1.isOptional() === property2.isOptional() &&
                            property1.name() === property2.name() &&
-                           this.typesAreIdenticalWorker(property1.type(), property2.type(), cache);
+                           this.typesAreIdentical(property1.type(), property2.type());
                 }
                 else {
                     // •	they are private properties originating in the same declaration and having identical types
                     return property1.originatingDeclaration() === property2.originatingDeclaration() &&
-                           this.typesAreIdenticalWorker(property1.type(), property2.type(), cache);
+                           this.typesAreIdentical(property1.type(), property2.type());
                 }
             }
 
             return false;
         }
 
-        private indexSignaturesAreIdentical(indexSignature1: IIndexSignature, indexSignature2: IIndexSignature, cache: TypeRelationCache): boolean {
+        private indexSignaturesAreIdentical(indexSignature1: IIndexSignature, indexSignature2: IIndexSignature): boolean {
             // Two members are considered identical when
             // •	they are index signatures of identical kind with identical types.
             return indexSignature1.isNumbericIndexSignature() === indexSignature2.isNumbericIndexSignature() &&
-                   this.typesAreIdenticalWorker(indexSignature1.type(), indexSignature2.type(), cache);
+                   this.typesAreIdentical(indexSignature1.type(), indexSignature2.type());
         }
 
-        private callOrConstructSignaturesAreIdentical(signature1: ICallOrConstructSignature, signature2: ICallOrConstructSignature, cache: TypeRelationCache): boolean {
+        private callOrConstructSignaturesAreIdentical(signature1: ICallOrConstructSignature, signature2: ICallOrConstructSignature): boolean {
             // Two call or construct signatures are considered identical when they have the same 
             // number of type parameters and, considering those type parameters pairwise identical,
             // have identical type parameter constraints, identical number of parameters of 
@@ -239,12 +218,12 @@ module TypeScript {
                         var parameter2 = parameters2[i];
 
                         // TODO: what does (identical kind) mean?
-                        if (!this.typesAreIdenticalWorker(parameter1.type(), parameter2.type(), cache)) {
+                        if (!this.typesAreIdentical(parameter1.type(), parameter2.type())) {
                             return false;
                         }
                     }
 
-                    if (!this.typesAreIdenticalWorker(signature1.returnType(), signature2.returnType(), cache)) {
+                    if (!this.typesAreIdentical(signature1.returnType(), signature2.returnType())) {
                         return false;
                     }
 
@@ -267,38 +246,55 @@ module TypeScript {
     }
 
     class TypeRelationCache {
-        public clear(): void {
+        public determineRelationship(type1: INamedTypeReference, type2: INamedTypeReference, predicate: (t1: INamedTypeReference, t2: INamedTypeReference) => boolean): boolean {
+            // Classes and interfaces can reference themselves in their internal structure, in
+            // effect creating recursive types with infinite nesting. Types such as this are 
+            // perfectly valid but require special treatment when determining type relationships. 
+            // Specifically, when comparing references to two named types S and T for a given 
+            // relationship(identity, subtype, or assignability), the relationship in question is 
+            // assumed to be true for every directly or indirectly nested occurrence of references 
+            // to the same S and T(where same means originating in the same declaration). For 
+            // example, consider the identity relationship between ‘A’ above and ‘B’ below:
+
+            var currentRelation = this.currentRelation(type1, type2);
+            switch (currentRelation) {
+                default: throw Errors.invalidOperation();
+
+                // if we've already computed the relation, then return that result.
+                case TypeRelationKind.Yes: return true;
+                case TypeRelationKind.No: return false;
+                case TypeRelationKind.Computing:
+                    // If we've already been examining this relation, then we assume things
+                    // to be true now that we've recursed.
+                    this.setRelation(type1, type2, TypeRelationKind.Yes);
+                    return true;
+                case TypeRelationKind.Unknown:
+                    // We've never looked for a relation between these two types before.  
+                    // Mark that we're computing the relation.  That way if we see the 
+                    // types again we'll consider them identical.
+                    this.setRelation(type1, type2, TypeRelationKind.Computing);
+                    break;
+            }
+
+            var result = predicate(type1, type2);
+            this.setRelation(type1, type2, result ? TypeRelationKind.Yes : TypeRelationKind.No);
+
+            return result;
+        }
+
+        private currentRelation(type1: INamedTypeReference, type2: INamedTypeReference): TypeRelationKind {
             throw Errors.notYetImplemented();
         }
 
-        public containsRelation(type1: INamedTypeReference, type2: INamedTypeReference): boolean {
-            throw Errors.notYetImplemented()
+        private setRelation(type1: INamedTypeReference, type2: INamedTypeReference, kind: TypeRelationKind): void {
+            throw Errors.notYetImplemented();
         }
-
-        public addRelation(type1: INamedTypeReference, type2: INamedTypeReference): void {
-            throw Errors.notYetImplemented()
-        }
-    }
-
-    var typeRelationCachePool: TypeRelationCache[] = [];
-
-    function acquireTypeRelationCache(): TypeRelationCache {
-        if (typeRelationCachePool.length === 0) {
-            return new TypeRelationCache();
-        }
-
-        return typeRelationCachePool.pop();
-    }
-
-    function returnTypeRelationCache(cache: TypeRelationCache): void {
-        cache.clear();
-        typeRelationCachePool.push(cache);
     }
 
     enum TypeRelationKind {
-        RelationUnknown,
-        DeterminingRelation,
-        HasRelation,
-        HasNoRelation,
+        Unknown,
+        Computing,
+        Yes,
+        No,
     }
 }
