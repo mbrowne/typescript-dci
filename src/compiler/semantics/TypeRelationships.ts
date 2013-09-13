@@ -367,15 +367,26 @@ module TypeScript {
                         var S_prime_indexSignature = S_prime_indexSignatures[i];
 
                         if (S_prime_indexSignature.isStringIndexSignature() &&
-                            this.isSubtype(S_prime_indexSignature.type(), M_indexSignature.type()) {
+                            this.isSubtype(S_prime_indexSignature.type(), M_indexSignature.type())) {
 
                             return true;
                         }
                     }
                 }
-            }
-// o	M is a numeric index signature of type U and S’ contains a string or numeric index signature of a type that is a subtype of U.
 
+                // o	M is a numeric index signature of type U and S’ contains a string or 
+                // numeric index signature of a type that is a subtype of U.
+                if (M_indexSignature.isNumbericIndexSignature()) {
+                    var S_prime_indexSignatures = S_prime.indexSignatures();
+                    for (var i = 0, n = S_prime_indexSignatures.length; i < n; i++) {
+                        var S_prime_indexSignature = S_prime_indexSignatures[i];
+
+                        if (this.isSubtype(S_prime_indexSignature.type(), M_indexSignature.type())) {
+                            return true;
+                        }
+                    }
+                }
+            }
 
             return false;
         }

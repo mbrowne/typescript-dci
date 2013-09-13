@@ -32,6 +32,12 @@ module TypeScript {
         callSignatures(): ICallOrConstructSignature[];
         constructSignatures(): ICallOrConstructSignature[];
         indexSignatures(): IIndexSignature[];
+
+        // An object type containing call signatures is said to be a function type.
+        isFunctionType(): boolean;
+
+        // A type containing construct signatures is said to be a constructor type.
+        isConstructorType(): boolean;
     }
 
     export class Declaration {
