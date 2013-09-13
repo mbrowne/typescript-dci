@@ -1,4 +1,4 @@
-/// <reference path='references.ts' />
+ï»¿/// <reference path='references.ts' />
 
 module TypeScript {
     export class TypeRelationships {
@@ -11,7 +11,7 @@ module TypeScript {
         public apperentType(type: IType): IType {
             switch (type.typeKind()) {
                 // If T is the primitive type Number, Boolean, or String, the apparent type of T is
-                // the global interface type ‘Number’, ‘Boolean’, or ‘String’
+                // the global interface type â€˜Numberâ€™, â€˜Booleanâ€™, or â€˜Stringâ€™
                 case TypeKind.Number:
                     return this.compilation.globalNumberInterfaceType();
                 case TypeKind.Boolean:
@@ -19,7 +19,7 @@ module TypeScript {
                 case TypeKind.String:
                     return this.compilation.globalStringInterfaceType();
 
-                // if T is an enum type, the apparent type of T is the global interface type ‘Number’
+                // if T is an enum type, the apparent type of T is the global interface type â€˜Numberâ€™
                 case TypeKind.Enum:
                     return this.compilation.globalNumberInterfaceType();
 
@@ -71,7 +71,7 @@ module TypeScript {
             }
 
             // Two types are considered identical when
-            // •	they are object types with identical sets of members.
+            // â€¢	they are object types with identical sets of members.
             return this.objectTypeMembersAreIdentical(type1, type2);
         }
 
@@ -169,13 +169,13 @@ module TypeScript {
             // Two members are considered identical when
             if (property1.accessibility() === property2.accessibility()) {
                 if (property1.accessibility() === Accessibility.Public) {
-                    // •	they are public properties with identical names, optionality, and types,
+                    // â€¢	they are public properties with identical names, optionality, and types,
                     return property1.isOptional() === property2.isOptional() &&
                            property1.name() === property2.name() &&
                            this.typesAreIdentical(property1.type(), property2.type());
                 }
                 else {
-                    // •	they are private properties originating in the same declaration and having identical types
+                    // â€¢	they are private properties originating in the same declaration and having identical types
                     return property1.originatingDeclaration() === property2.originatingDeclaration() &&
                            this.typesAreIdentical(property1.type(), property2.type());
                 }
@@ -186,7 +186,7 @@ module TypeScript {
 
         private indexSignaturesAreIdentical(indexSignature1: IIndexSignature, indexSignature2: IIndexSignature): boolean {
             // Two members are considered identical when
-            // •	they are index signatures of identical kind with identical types.
+            // â€¢	they are index signatures of identical kind with identical types.
             return indexSignature1.isNumbericIndexSignature() === indexSignature2.isNumbericIndexSignature() &&
                    this.typesAreIdentical(indexSignature1.type(), indexSignature2.type());
         }
@@ -239,48 +239,48 @@ module TypeScript {
         /** Returns true if type1 is a subtype of type2. */
         public isSubtype(type1: IType, type2: IType): boolean {
             // S is a subtype of a type T, and T is a supertype of S, if one of the following is 
-            // true, where S’ denotes the apparent type(section 3.8.1) of S:
+            // true, where Sâ€™ denotes the apparent type(section 3.8.1) of S:
 
             var S = type1;
             var T = type2;
             var S_prime = this.apperentType(S);
 
-            // •	S and T are identical types.
+            // â€¢	S and T are identical types.
             if (this.typesAreIdentical(S, T)) {
                 return true;
             }
 
-            // •	T is the Any type.
+            // â€¢	T is the Any type.
             if (T.isAny()) {
                 return true;
             }
 
-            // •	S is the Undefined type.
+            // â€¢	S is the Undefined type.
             if (S.isUndefined()) {
                 return true;
             }
 
-            // •	S is the Null type and T is not the Undefined type.
+            // â€¢	S is the Null type and T is not the Undefined type.
             if (S.isNull() && !T.isUndefined()) {
                 return true;
             }
 
-            // •	S is an enum type and T is the primitive type Number.
+            // â€¢	S is an enum type and T is the primitive type Number.
             if (S.isEnum() && T.isNumber()) {
                 return true;
             }
 
-            // •	S is a string literal type and T is the primitive type String.
+            // â€¢	S is a string literal type and T is the primitive type String.
             if (S.isStringLiteral() && T.isString()) {
                 return true;
             }
 
-            // •	S and T are type parameters, and S is directly or indirectly constrained to T.
+            // â€¢	S and T are type parameters, and S is directly or indirectly constrained to T.
             if (S.isTypeParameter() && T.isTypeParameter()) {
                 return this.isDirectlyOrIndirectlyConstrainedTo(S, T);
             }
 
-            // •	S’ and T are object types and, for each member M in T, one of the following is true
+            // â€¢	Sâ€™ and T are object types and, for each member M in T, one of the following is true
             if (S_prime.isObjectType() && T.isObjectType()) {
                 if (S_prime.isNamedTypeReference() && T.isNamedTypeReference()) {
                     return this.subtypeRelationCache.determineRelationship(<INamedTypeReference>S_prime, <INamedTypeReference>T, this.objectTypeIsSubtype);
@@ -289,10 +289,12 @@ module TypeScript {
                     return this.objectTypeIsSubtype(<IObjectType>S_prime, <IObjectType>T);
                 }
             }
+
+            return false;
         }
 
         private objectTypeIsSubtype(S_prime: IObjectType, T: IObjectType): boolean {
-            // •	S’ and T are object types and, for each member M in T, one of the following is true:
+            // â€¢	Sâ€™ and T are object types and, for each member M in T, one of the following is true:
             var T_members = T.members();
             for (var i = 0, n = T_members.length; i < n; i++) {
                 var M = T_members[i];
@@ -306,12 +308,12 @@ module TypeScript {
         }
 
         private canFindCorrespondingSubtypeMember(S_prime: IObjectType, M: IMember): boolean {
-            // •	S’ and T are object types and, for each member M in T, one of the following is true:
+            // â€¢	Sâ€™ and T are object types and, for each member M in T, one of the following is true:
 
             if (M.isProperty()) {
                 var M_property = <IProperty>M;
                 
-                // o	M is a public property and S’ contains a public property of the same name as M 
+                // o	M is a public property and Sâ€™ contains a public property of the same name as M 
                 //      and a type that is a subtype of that of M.
                 if (M_property.accessibility() === Accessibility.Public) {
                     var S_prime_property = S_prime.getProperty(M_property.name());
@@ -324,7 +326,7 @@ module TypeScript {
                     }
                 }
                 
-                // o	M is a private property and S’ contains a private property that 
+                // o	M is a private property and Sâ€™ contains a private property that 
                 // originates in the same declaration as M and has a type that is a subtype 
                 // of that of M.
                 if (M_property.accessibility() === Accessibility.Private) {
@@ -338,7 +340,7 @@ module TypeScript {
                     }
                 }
 
-                // o	M is an optional property and S’ contains no property of the same name as M.
+                // o	M is an optional property and Sâ€™ contains no property of the same name as M.
                 if (M_property.isOptional()) {
                     if (S_prime.getProperty(M_property.name()) === null) {
                         return true;
@@ -346,12 +348,14 @@ module TypeScript {
                 }
             }
 
-            // o	M is a non-specialized call or construct signature and S’ contains a call 
+            // o	M is a non-specialized call or construct signature and Sâ€™ contains a call 
             //      or construct signature N where
             if (M.isCallSignature() || M.isConstructSignature()) {
                 var M_callOrConstructSignature = <ICallOrConstructSignature>M;
 
-                if (this.canFindCorrespondingSubtypeCallOrConstructSignature(S_prime, M_callOrConstructSignature)) {
+                if (!M_callOrConstructSignature.isSpecialized() &&
+                    this.canFindCorrespondingSubtypeCallOrConstructSignature(S_prime, M_callOrConstructSignature)) {
+
                     return true;
                 }
             }
@@ -359,7 +363,7 @@ module TypeScript {
             if (M.isIndexSignature()) {
                 var M_indexSignature = <IIndexSignature>M;
 
-                // o	M is a string index signature of type U and S’ contains a string index 
+                // o	M is a string index signature of type U and Sâ€™ contains a string index 
                 //      signature of a type that is a subtype of U.
                 if (M_indexSignature.isStringIndexSignature()) {
                     var S_prime_indexSignatures = S_prime.indexSignatures();
@@ -374,7 +378,7 @@ module TypeScript {
                     }
                 }
 
-                // o	M is a numeric index signature of type U and S’ contains a string or 
+                // o	M is a numeric index signature of type U and Sâ€™ contains a string or 
                 // numeric index signature of a type that is a subtype of U.
                 if (M_indexSignature.isNumbericIndexSignature()) {
                     var S_prime_indexSignatures = S_prime.indexSignatures();
@@ -389,6 +393,98 @@ module TypeScript {
             }
 
             return false;
+        }
+
+        private canFindCorrespondingSubtypeCallOrConstructSignature(S_prime: IObjectType, M: ICallOrConstructSignature): boolean {
+            // o	M is a non-specialized call or construct signature and Sâ€™ contains a call or 
+            // construct signature N where,
+
+            // ï‚§	the signatures are of the same kind(call or construct),
+            var S_prime_signatures = M.isCallSignature() ? S_prime.callSignatures() : S_prime.constructSignatures();
+
+            for (var i = 0, n = S_prime_signatures.length; i < n; i++) {
+                var N = S_prime_signatures[i];
+
+                // ï‚§	the number of non-optional parameters in N is less than or equal to that of M,
+                if (N.nonOptionalParameterCount() <= M.nonOptionalParameterCount()) {
+                    // ï‚§	N can be successfully instantiated in the context of M (section 3.8.5),
+                    var N_instantiated = this.instantiateInTheContextOf(N, M);
+
+                    // ï‚§	each parameter type in the instantiation of N is a subtype or supertype 
+                    // of the corresponding parameter type in M for parameter positions that are present
+                    // in both signatures, and
+                    if (this.eachParameterTypeIsSubtypeOrSupertype(N, M)) {
+                        // ï‚§	the result type of M is Void, or the result type of the instantiation of N 
+                        // is a subtype of that of M.
+                        if (M.returnType().isVoid() || this.isSubtype(N_instantiated.returnType(), M.returnType())) {
+                            return true;
+                        }
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        private eachParameterTypeIsSubtypeOrSupertype(N: ICallOrConstructSignature, M: ICallOrConstructSignature): boolean {
+            // ï‚§	each parameter type in the instantiation of N is a subtype or supertype 
+            // of the corresponding parameter type in M for parameter positions that are present
+            // in both signatures, and
+
+            // When comparing call or construct signatures, parameter names are ignored and rest 
+            // parameters correspond to an unbounded expansion of optional parameters of the rest 
+            // parameter element type.
+            var N_parameters = N.parameters();
+            var M_parameters = M.parameters();
+
+            var N_isRest = N_parameters.length > 0 && ArrayUtilities.last(N_parameters).isRest();
+            var M_isRest = M_parameters.length > 0 && ArrayUtilities.last(M_parameters).isRest();
+
+            var max_index = MathPrototype.max(
+                N_isRest ? N_parameters.length - 1 : N_parameters.length,
+                M_isRest ? M_parameters.length - 1 : M_parameters.length);
+
+            for (var i = 0; i < max_index; i++) {
+                var N_parameterType = this.getParameterTypeWithRestExpansion(N_parameters, N_isRest, i);
+                var M_parameterType = this.getParameterTypeWithRestExpansion(M_parameters, M_isRest, i);
+
+                if (N_parameterType === null || M_parameterType === null) {
+                    // Reached the end of one of the parameter lists.  Everything was good.
+                    break;
+                }
+
+                if (!this.isSubtype(N_parameterType, M_parameterType) && !this.isSupertype(N_parameterType, M_parameterType)) {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private getParameterTypeWithRestExpansion(parameters: IParameter[], isRest: boolean, index: number): IType {
+            if (isRest) {
+                if (index < (parameters.length - 1)) {
+                    // Index is before all the rest parameters.
+                    return parameters[index].type();
+                }
+                else {
+                    // Index is into the rest parameter.
+                    var restParameter = ArrayUtilities.last(parameters);
+                    var restParameterType = restParameter.type();
+                    Debug.assert(restParameterType.isNamedTypeReference() && restParameterType.name() === "Array");
+
+                    var restParameterNamedType = <INamedTypeReference>restParameterType;
+                    Debug.assert(restParameterNamedType.typeArguments().length === 1);
+
+                    return restParameterNamedType.typeArguments()[0];
+                }
+            }
+            else {
+                // Simple case.  There were no rest parameters.
+                return index < parameters.length
+                    ? parameters[index].type()
+                    : null;
+            }
         }
 
         private isDirectlyOrIndirectlyConstrainedTo(S: IType, T: IType): boolean {
@@ -406,7 +502,7 @@ module TypeScript {
             // relationship(identity, subtype, or assignability), the relationship in question is 
             // assumed to be true for every directly or indirectly nested occurrence of references 
             // to the same S and T(where same means originating in the same declaration). For 
-            // example, consider the identity relationship between ‘A’ above and ‘B’ below:
+            // example, consider the identity relationship between â€˜Aâ€™ above and â€˜Bâ€™ below:
 
             var currentRelation = this.currentRelation(type1, type2);
             switch (currentRelation) {

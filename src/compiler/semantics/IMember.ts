@@ -27,6 +27,7 @@ module TypeScript {
         name(): string;
         type(): IType;
         isOptional(): boolean;
+        isRest(): boolean;
     }
 
     export interface ICallOrConstructSignature extends IMember {
@@ -44,6 +45,8 @@ module TypeScript {
         // signature. Conversely, a call signature with no TypeParameters is called a non-generic 
         // call signature
         isGenericSignature(): boolean;
+
+        nonOptionalParameterCount(): number;
     }
 
     export interface IIndexSignature extends IMember {
