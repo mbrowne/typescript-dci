@@ -1,3 +1,5 @@
+/// <reference path='references.ts' />
+
 module TypeScript {
     export class TypeRelationships {
         constructor(private compilation: Compilation) {
@@ -175,10 +177,13 @@ module TypeScript {
             }
 
             switch (member1.memberKind()) {
-                case MemberKind.Property: return this.propertiesAreIdentical(<IProperty>member1, <IProperty>member2, cache);
-                case MemberKind.CallSignature: return this.callOrConstructSignaturesAreIdentical(<ICallOrConstructSignature>member1, <ICallOrConstructSignature>member2, cache);
-                case MemberKind.ConstructSignature: return this.callOrConstructSignaturesAreIdentical(<ICallOrConstructSignature>member1, <ICallOrConstructSignature>member2, cache);
-                case MemberKind.IndexSignature: return this.indexSignaturesAreIdentical(<IIndexSignature>member1, <IIndexSignature>member2, cache);
+                case MemberKind.Property:
+                    return this.propertiesAreIdentical(<IProperty>member1, <IProperty>member2, cache);
+                case MemberKind.IndexSignature:
+                    return this.indexSignaturesAreIdentical(<IIndexSignature>member1, <IIndexSignature>member2, cache);
+                case MemberKind.CallSignature: // fall through
+                case MemberKind.ConstructSignature:
+                    return this.callOrConstructSignaturesAreIdentical(<ICallOrConstructSignature>member1, <ICallOrConstructSignature>member2, cache);
                 default:
                     throw Errors.invalidOperation();
             }
@@ -235,13 +240,29 @@ module TypeScript {
 
                         // TODO: what does (identical kind) mean?
                         if (!this.typesAreIdenticalWorker(parameter1.type(), parameter2.type(), cache)) {
-
+                            return false;
                         }
                     }
+
+                    if (!this.typesAreIdenticalWorker(signature1.returnType(), signature2.returnType(), cache)) {
+                        return false;
+                    }
+
+                        return true;
                 }
             }
 
             return false;
+        }
+
+        /** Returns true if type1 is a supertype of type2. */
+        public isSupertype(type1: IType, type2: IType): boolean {
+            return this.isSubtype(type2, type1);
+        }
+
+        /** Returns true if type1 is a subtype of type2. */
+        public isSubtype(type1: IType, type2: IType): boolean {
+            throw Errors.notYetImplemented();
         }
     }
 
@@ -272,5 +293,12 @@ module TypeScript {
     function returnTypeRelationCache(cache: TypeRelationCache): void {
         cache.clear();
         typeRelationCachePool.push(cache);
+    }
+
+    enum TypeRelationKind {
+        RelationUnknown,
+        DeterminingRelation,
+        HasRelation,
+        HasNoRelation,
     }
 }
