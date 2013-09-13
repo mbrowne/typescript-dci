@@ -3,6 +3,7 @@
 module TypeScript {
     export class TypeRelationships {
         private identicalTypeRelationCache = new TypeRelationCache();
+        private subtypeRelationCache = new TypeRelationCache();
 
         constructor(private compilation: Compilation) {
         }
@@ -48,7 +49,8 @@ module TypeScript {
             // they are object types with identical sets of members
             if (type1.isObjectType() && type2.isObjectType()) {
                 if (type1.isNamedTypeReference() && type2.isNamedTypeReference()) {
-                    return this.namedTypesAreIdentical(<INamedTypeReference>type1, <INamedTypeReference>type2);
+                    // Defer to our cache which will take care of infinite recursion.
+                    return this.identicalTypeRelationCache.determineRelationship(<INamedTypeReference>type1, <INamedTypeReference>type2, this.namedTypesAreIdentical);
                 }
                 else {
                     // they are object types with identical sets of members.
@@ -60,11 +62,6 @@ module TypeScript {
         }
 
         private namedTypesAreIdentical(type1: INamedTypeReference, type2: INamedTypeReference): boolean {
-            // Defer to our cache which will take care of infinite recursion.
-            return this.identicalTypeRelationCache.determineRelationship(type1, type2, this.namedTypesAreIdenticalWorker);
-        }
-
-        private namedTypesAreIdenticalWorker(type1: INamedTypeReference, type2: INamedTypeReference): boolean {
             // two type references are considered the same when they originate in the same
             // declaration and have identical type arguments
 
@@ -241,12 +238,156 @@ module TypeScript {
 
         /** Returns true if type1 is a subtype of type2. */
         public isSubtype(type1: IType, type2: IType): boolean {
+            // S is a subtype of a type T, and T is a supertype of S, if one of the following is 
+            // true, where S’ denotes the apparent type(section 3.8.1) of S:
+
+            var S = type1;
+            var T = type2;
+            var S_prime = this.apperentType(S);
+
+            // •	S and T are identical types.
+            if (this.typesAreIdentical(S, T)) {
+                return true;
+            }
+
+            // •	T is the Any type.
+            if (T.isAny()) {
+                return true;
+            }
+
+            // •	S is the Undefined type.
+            if (S.isUndefined()) {
+                return true;
+            }
+
+            // •	S is the Null type and T is not the Undefined type.
+            if (S.isNull() && !T.isUndefined()) {
+                return true;
+            }
+
+            // •	S is an enum type and T is the primitive type Number.
+            if (S.isEnum() && T.isNumber()) {
+                return true;
+            }
+
+            // •	S is a string literal type and T is the primitive type String.
+            if (S.isStringLiteral() && T.isString()) {
+                return true;
+            }
+
+            // •	S and T are type parameters, and S is directly or indirectly constrained to T.
+            if (S.isTypeParameter() && T.isTypeParameter()) {
+                return this.isDirectlyOrIndirectlyConstrainedTo(S, T);
+            }
+
+            // •	S’ and T are object types and, for each member M in T, one of the following is true
+            if (S_prime.isObjectType() && T.isObjectType()) {
+                if (S_prime.isNamedTypeReference() && T.isNamedTypeReference()) {
+                    return this.subtypeRelationCache.determineRelationship(<INamedTypeReference>S_prime, <INamedTypeReference>T, this.objectTypeIsSubtype);
+                }
+                else {
+                    return this.objectTypeIsSubtype(<IObjectType>S_prime, <IObjectType>T);
+                }
+            }
+        }
+
+        private objectTypeIsSubtype(S_prime: IObjectType, T: IObjectType): boolean {
+            // •	S’ and T are object types and, for each member M in T, one of the following is true:
+            var T_members = T.members();
+            for (var i = 0, n = T_members.length; i < n; i++) {
+                var M = T_members[i];
+
+                if (!this.canFindCorrespondingSubtypeMember(S_prime, M)) {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private canFindCorrespondingSubtypeMember(S_prime: IObjectType, M: IMember): boolean {
+            // •	S’ and T are object types and, for each member M in T, one of the following is true:
+
+            if (M.isProperty()) {
+                var M_property = <IProperty>M;
+                
+                // o	M is a public property and S’ contains a public property of the same name as M 
+                //      and a type that is a subtype of that of M.
+                if (M_property.accessibility() === Accessibility.Public) {
+                    var S_prime_property = S_prime.getProperty(M_property.name());
+
+                    if (S_prime_property !== null &&
+                        S_prime_property.accessibility() === Accessibility.Public &&
+                        this.isSubtype(S_prime_property.type(), M_property.type())) {
+
+                        return true;
+                    }
+                }
+                
+                // o	M is a private property and S’ contains a private property that 
+                // originates in the same declaration as M and has a type that is a subtype 
+                // of that of M.
+                if (M_property.accessibility() === Accessibility.Private) {
+                    var S_prime_property = S_prime.getProperty(M_property.name());
+                    if (S_prime_property !== null &&
+                        S_prime_property.accessibility() === Accessibility.Private &&
+                        S_prime_property.originatingDeclaration() === M_property.originatingDeclaration() &&
+                        this.isSubtype(S_prime_property.type(), M_property.type())) {
+
+                        return true;
+                    }
+                }
+
+                // o	M is an optional property and S’ contains no property of the same name as M.
+                if (M_property.isOptional()) {
+                    if (S_prime.getProperty(M_property.name()) === null) {
+                        return true;
+                    }
+                }
+            }
+
+            // o	M is a non-specialized call or construct signature and S’ contains a call 
+            //      or construct signature N where
+            if (M.isCallSignature() || M.isConstructSignature()) {
+                var M_callOrConstructSignature = <ICallOrConstructSignature>M;
+
+                if (this.canFindCorrespondingSubtypeCallOrConstructSignature(S_prime, M_callOrConstructSignature)) {
+                    return true;
+                }
+            }
+
+            if (M.isIndexSignature()) {
+                var M_indexSignature = <IIndexSignature>M;
+
+                // o	M is a string index signature of type U and S’ contains a string index 
+                //      signature of a type that is a subtype of U.
+                if (M_indexSignature.isStringIndexSignature()) {
+                    var S_prime_indexSignatures = S_prime.indexSignatures();
+                    for (var i = 0, n = S_prime_indexSignatures.length; i < n; i++) {
+                        var S_prime_indexSignature = S_prime_indexSignatures[i];
+
+                        if (S_prime_indexSignature.isStringIndexSignature() &&
+                            this.isSubtype(S_prime_indexSignature.type(), M_indexSignature.type()) {
+
+                            return true;
+                        }
+                    }
+                }
+            }
+// o	M is a numeric index signature of type U and S’ contains a string or numeric index signature of a type that is a subtype of U.
+
+
+            return false;
+        }
+
+        private isDirectlyOrIndirectlyConstrainedTo(S: IType, T: IType): boolean {
+            // NOTE: when implemented, we will have to check for recursion with constraints.
             throw Errors.notYetImplemented();
         }
     }
 
     class TypeRelationCache {
-        public determineRelationship(type1: INamedTypeReference, type2: INamedTypeReference, predicate: (t1: INamedTypeReference, t2: INamedTypeReference) => boolean): boolean {
+        public determineRelationship(type1: INamedTypeReference, type2: INamedTypeReference, predicate: (t1: IObjectType, t2: IObjectType) => boolean): boolean {
             // Classes and interfaces can reference themselves in their internal structure, in
             // effect creating recursive types with infinite nesting. Types such as this are 
             // perfectly valid but require special treatment when determining type relationships. 
