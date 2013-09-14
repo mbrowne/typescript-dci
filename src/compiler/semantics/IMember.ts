@@ -30,8 +30,7 @@ module TypeScript {
         isRest(): boolean;
     }
 
-    export interface ICallOrConstructSignature extends IMember {
-        typeParameters(): ITypeParameter[];
+    export interface IInstantiatedCallOrConstructSignature {
         parameters(): IParameter[];
         returnType(): IType;
 
@@ -41,14 +40,18 @@ module TypeScript {
         // the function result to become further specialized.
         isSpecialized(): boolean;
 
+        nonOptionalParameterCount(): number;
+    }
+
+    export interface ICallOrConstructSignature extends IMember, IInstantiatedCallOrConstructSignature {
+        typeParameters(): ITypeParameter[];
+
         // A call signature that includes TypeParameters (section 3.4.1) is called a generic call 
         // signature. Conversely, a call signature with no TypeParameters is called a non-generic 
         // call signature
         isGenericSignature(): boolean;
 
-        nonOptionalParameterCount(): number;
-
-        instantiate(typeParameterMap: Collections.IHashTable<ITypeParameter, IType>): ICallOrConstructSignature;
+        instantiate(typeArguments: IType[]): IInstantiatedCallOrConstructSignature;
     }
 
     export interface IIndexSignature extends IMember {

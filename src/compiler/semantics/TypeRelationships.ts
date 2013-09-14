@@ -452,7 +452,7 @@ module TypeScript {
             return false;
         }
 
-        private eachParameterTypeIsSubtypeOrSupertype(N: ICallOrConstructSignature, M: ICallOrConstructSignature): boolean {
+        private eachParameterTypeIsSubtypeOrSupertype(N: IInstantiatedCallOrConstructSignature, M: ICallOrConstructSignature): boolean {
             // 	each parameter type in the instantiation of N is a subtype or supertype 
             // of the corresponding parameter type in M for parameter positions that are present
             // in both signatures, and
@@ -497,10 +497,10 @@ module TypeScript {
                     // Index is into the rest parameter.
                     var restParameter = ArrayUtilities.last(parameters);
                     var restParameterType = restParameter.type();
-                    Debug.assert(restParameterType.isNamedTypeReference() && restParameterType.name() === "Array");
+                    Debug.assert(restParameterType.isNamedTypeReference());
 
                     var restParameterNamedType = <INamedTypeReference>restParameterType;
-                    Debug.assert(restParameterNamedType.typeArguments().length === 1);
+                    Debug.assert(restParameterNamedType.name() === "Array" && restParameterNamedType.typeArguments().length === 1);
 
                     return restParameterNamedType.typeArguments()[0];
                 }
@@ -518,7 +518,7 @@ module TypeScript {
             throw Errors.notYetImplemented();
         }
 
-        private instantiateInTheContextOf(A: ICallOrConstructSignature, B: ICallOrConstructSignature): ICallOrConstructSignature {
+        private instantiateInTheContextOf(A: ICallOrConstructSignature, B: ICallOrConstructSignature): IInstantiatedCallOrConstructSignature {
             // In sections 3.8.3 and 3.8.4, to determine whether a call or construct signature A is
             // a subtype of or assignable to a call or construct signature B, A is instantiated in
             // the context of B. 
@@ -534,22 +534,27 @@ module TypeScript {
             var typeParameterToCandidatesMap: Collections.IHashTable<ITypeParameter, Collections.ISet<IType>>;
             var typeParameterMap: Collections.IHashTable<ITypeParameter, IType>;
 
-            for (var e1 = typeParameterToCandidatesMap.getEnumerator(); e1.moveNext();) {
-                var typeParameter = e1.current().Key;
-                var candidates = e1.current().Value;
+            var typeParameters = A.typeParameters();
+            var inferredTypeArguments: IType[] = [];
+
+            for (var i = 0, n = typeParameters.length; i < n; i++) {
+                var typeParameter = typeParameters[i];
+                var candidates = typeParameterToCandidatesMap.get(typeParameter);
 
                 // •	The inferred type argument for each type parameter is the best common type
                 // (section 3.10) of the set of inferences made for that type parameter.
                 var inferredTypeArgument = this.bestCommonType(candidates);
+                inferredTypeArguments.push(inferredTypeArgument);
+
                 typeParameterMap.add(typeParameter, inferredTypeArgument);
             }
 
             // •	Provided all inferred type arguments satisfy their corresponding type 
             // parameter constraints, the result is an instantiation of A with the inferred 
             // type arguments.
-            for (var e2 = typeParameterMap.getEnumerator(); e2.moveNext();) {
-                var typeParameter = e2.current().Key;
-                var inferredTypeArgument = e2.current().Value;
+            for (var i = 0, n = typeParameters.length; i < n; i++) {
+                var typeParameter = typeParameters[i];
+                var inferredTypeArgument = inferredTypeArguments[i];
 
                 if (!this.satisfiesConstraint(inferredTypeArgument, typeParameter, typeParameterMap)) {
                     return null;
@@ -557,7 +562,7 @@ module TypeScript {
             }
 
             // the result is an instantiation of A with the inferred type arguments.
-            return A.instantiate(typeParameterMap);
+            return A.instantiate(inferredTypeArguments);
         }
 
         private satisfiesConstraint(typeArgument: IType, typeParameter: ITypeParameter, typeParameterMap: Collections.IHashTable<ITypeParameter, IType>): boolean {
@@ -569,9 +574,9 @@ module TypeScript {
         }
 
         private bestCommonType(types: Collections.ISet<IType>): IType {
-            // For an empty set of types, the best common type is the Undefined type
+            // For an empty set of types, the best common type is an empty object type (the type {}).
             if (types.count() === 0) {
-                return this.compilation.undefinedType();
+                return this.compilation.emptyObjectType();
             }
 
             var currentBest = null;
