@@ -6,7 +6,14 @@ module TypeScript {
     export class TypeRelationships {
         private identicalTypeRelationCache = new TypeRelationCache(/*resultUponRecursion:*/ true);
         private subtypeRelationCache = new TypeRelationCache(/*resultUponRecursion:*/ true);
+
+        // If we're checking if a type is contained with another type, and we recurse, then the
+        // type was not contained.
         private isOrContainsRelationCache = new TypeRelationCache(/*resultUponRecursion:*/ false);
+
+        // if we recurse while checking if a type parameter is constrained to another type 
+        // parameter, then the relation does *not* hold.
+        private isConstrainedToRelationCache = new TypeRelationCache(/*resultUponRecursion:*/ false);
 
         constructor(private compilation: Compilation) {
         }
@@ -233,6 +240,11 @@ module TypeScript {
 
             return false;
         }
+        
+        /** Returns true if type1 is or contains type2. */
+        public isOrContains(type1: IType, type2: IType): boolean {
+            throw Errors.notYetImplemented();
+        }
 
         /** Returns true if type1 is a supertype of type2. */
         public isSupertype(type1: IType, type2: IType): boolean {
@@ -280,7 +292,7 @@ module TypeScript {
 
             // •	S and T are type parameters, and S is directly or indirectly constrained to T.
             if (S.isTypeParameter() && T.isTypeParameter()) {
-                return this.isDirectlyOrIndirectlyConstrainedTo(S, T);
+                return this.isDirectlyOrIndirectlyConstrainedTo(<ITypeParameter>S, <ITypeParameter>T);
             }
 
             // •	S’ and T are object types and, for each member M in T, one of the following is true
@@ -477,9 +489,21 @@ module TypeScript {
             return true;
         }
 
-        private isDirectlyOrIndirectlyConstrainedTo(S: IType, T: IType): boolean {
-            // NOTE: when implemented, we will have to check for recursion with constraints.
-            throw Errors.notYetImplemented();
+        private isDirectlyOrIndirectlyConstrainedTo(S: ITypeParameter, T: ITypeParameter): boolean {
+            // Quick check.  If S doesn't even have a type parameter constraint, then these two
+            // tyeps couldn't not be related.
+            if (!S.constraint().isTypeParameter()) {
+                return false;
+            }
+
+            // Check for direct constraint.
+            if (S.constraint() === T) {
+                return true;
+            }
+
+            // Wasn't directly constrained.  Check for an indirect relation between the constraint 
+            // and T.  Use the relation cache to prevent recursion.
+            return this.isConstrainedToRelationCache.determineRelationship(S.constraint(), T, this.isDirectlyOrIndirectlyConstrainedTo);
         }
 
         private instantiateInTheContextOf(A: ICallOrConstructSignature, B: ICallOrConstructSignature): IInstantiatedCallOrConstructSignature {
@@ -612,7 +636,7 @@ module TypeScript {
         constructor(private resultUponRecursion: boolean) {
         }
 
-        public determineRelationship(type1: INamedTypeReference, type2: INamedTypeReference, predicate: (t1: IObjectType, t2: IObjectType) => boolean): boolean {
+        public determineRelationship(type1: IType, type2: IType, predicate: (t1: IType, t2: IType) => boolean): boolean {
             // Classes and interfaces can reference themselves in their internal structure, in
             // effect creating recursive types with infinite nesting. Types such as this are 
             // perfectly valid but require special treatment when determining type relationships. 
@@ -648,11 +672,11 @@ module TypeScript {
             return result;
         }
 
-        private currentRelation(type1: INamedTypeReference, type2: INamedTypeReference): TypeRelationKind {
+        private currentRelation(type1: IType, type2: IType): TypeRelationKind {
             throw Errors.notYetImplemented();
         }
 
-        private setRelation(type1: INamedTypeReference, type2: INamedTypeReference, kind: TypeRelationKind): void {
+        private setRelation(type1: IType, type2: IType, kind: TypeRelationKind): void {
             throw Errors.notYetImplemented();
         }
     }
