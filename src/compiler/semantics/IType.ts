@@ -18,9 +18,7 @@ module TypeScript {
         isNamedTypeReference(): boolean;
         isAnonymousType(): boolean;
         isTypeParameter(): boolean;
-        isWildCard(): boolean;
 
-        isOrContainsWildCardType(): boolean;
         substituteTypes(typeParameterMap: Collections.IHashTable<ITypeParameter, IType>): IType;
     }
 

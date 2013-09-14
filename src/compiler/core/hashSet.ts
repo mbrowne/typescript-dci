@@ -22,6 +22,7 @@ module TypeScript.Collections {
 
     export interface ISet<T> extends IEnumerable<T> {
         add(value: T): void;
+        addRange(values: T[]): void;
         contains(value: T): boolean;
         count(): number;
         equals(set: ISet<T>): boolean;
@@ -86,6 +87,12 @@ module TypeScript.Collections {
             Debug.assert(hashCode >= 0);
 
             return hashCode;
+        }
+
+        public addRange(values: TValue[]): void {
+            for (var i = 0, n = values.length; i < n; i++) {
+                this.add(values[i]);
+            }
         }
 
         public add(value: TValue): void {

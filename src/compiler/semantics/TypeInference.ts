@@ -3,7 +3,7 @@
 module TypeScript {
     export class TypeInference {
         private typeParameterToCandidatesMap: Collections.IHashTable<ITypeParameter, Collections.ISet<IType>>;
-        private nestedTypeParameters: ITypeParameter[] = [];
+        private nestedTypeParameters: ISet<IType> = Collections.createHashSet(/*capacity:*/ 1);
 
         constructor(private typeParameters: ITypeParameter[]) {
             this.typeParameterToCandidatesMap = Collections.createHashTable(typeParameters.length * 2);
@@ -16,11 +16,17 @@ module TypeScript {
         private getOrCreateCandidates(T: ITypeParameter): ISet<IType> {
             var set = this.typeParameterToCandidatesMap.get(T);
             if (set === null) {
-                set = Collections.createHashSet(/*capacity:*/ 4);
+                set = Collections.createHashSet(/*capacity:*/ 1);
                 this.typeParameterToCandidatesMap.add(T, set);
             }
 
             return set;
+        }
+
+        // The wildcard type used in the rules above exists solely to ensure that inner type 
+        // parameters are not inferred as type arguments for outer type parameters
+        private isOrContainsNestedTypeParameter(type: IType): boolean {
+            throw Errors.notYetImplemented();
         }
 
         // In certain contexts, inferences for a given set of type parameters are made from a type
@@ -36,7 +42,7 @@ module TypeScript {
             // type occurring in a member of S is not the wildcard type, S is added to the set of 
             // inferences for that type parameter.
             if (T.isTypeParameter() && ArrayUtilities.contains(this.typeParameters, T)) {
-                if (!S.isOrContainsWildCardType()) {
+                if (!this.isOrContainsNestedTypeParameter(S)) {
                     var candidates = this.getOrCreateCandidates(<ITypeParameter>T);
                     candidates.add(S);
                 }
@@ -54,7 +60,8 @@ module TypeScript {
             // then for each member M in T:
 
             this.inferTypesForObjectTypesProperties(S, T);
-            this.inferTypesForObjectTypesCallOrConstructSignatures(S, T);
+            this.inferTypesForObjectTypesCallOrConstructSignatures(S, T, /*callSignatures:*/ true);
+            this.inferTypesForObjectTypesCallOrConstructSignatures(S, T, /*callSignatures:*/ false);
             this.inferTypesForObjectTypesIndexSignatures(S, T);
         }
 
@@ -99,6 +106,37 @@ module TypeScript {
                         var N = S_indexSignatures[j];
 
                         this.inferTypes(N.type(), M.type());
+                    }
+                }
+            }
+        }
+
+        private inferTypesForObjectTypesCallOrConstructSignatures(S: IObjectType, T: IObjectType, callSignatures: boolean): void {
+            // o	If M is a call signature then for each call signature N in S, if the number of
+            // non - optional parameters in N is greater than or equal to that of M, N is 
+            // instantiated with the wildcard type as an argument for each type parameter (if any) 
+            // and inferences are made from parameter types in N to parameter types in the same 
+            // position in M, and from the return type of N to the return type of M.
+            var T_signatures = callSignatures ? T.callSignatures() : T.constructSignatures();
+            var S_signatures = callSignatures ? S.callSignatures() : S.constructSignatures();
+
+            for (var i = 0, i_max = T_signatures.length; i < i_max; i++) {
+                var M = T_signatures[i];
+
+                for (var j = 0, j_max = S_signatures.length; j < j_max; j++) {
+                    // Note: instead of doing instantiation as per above.  We instead simply store
+                    // the nested type parameters we see, and we filter when we try to add 
+                    // candidates.  This allows us to avoid allocations and tracking of wildcards.
+                    var N = S_signatures[j];
+                    if (N.nonOptionalParameterCount() >= M.nonOptionalParameterCount()) {
+                        this.nestedTypeParameters.addRange(N.typeParameters());
+
+                        var maxIndex = MathPrototype.min(M.parameters().length, N.parameters().length);
+                        for (var k = 0; k < maxIndex; k++) {
+                            this.inferTypes(N.getParameterTypeWithRestExpansion(k), M.getParameterTypeWithRestExpansion(k));
+                        }
+
+                        this.inferTypes(N.returnType(), M.returnType());
                     }
                 }
             }
