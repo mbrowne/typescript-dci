@@ -31,6 +31,18 @@ module TypeScript {
     }
 
     export interface IInstantiatedCallOrConstructSignature {
+        // Gets the type of the parameter at the specified index.  This method takes into account
+        // rest parameters and considers them expanded when retrieving the type.  i.e. if you have
+        //
+        //  (a: string, ...b: number[]) => void;
+        //
+        // Then the following results will be returned:
+        //  0 -> string
+        //  1 -> number
+        //  2 -> number
+        //  ...
+        //  n -> number
+        getParameterTypeWithRestExpansion(index: number): IType;
         parameters(): IParameter[];
         returnType(): IType;
 

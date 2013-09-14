@@ -171,13 +171,13 @@ module TypeScript {
                 if (property1.accessibility() === Accessibility.Public) {
                     // •	they are public properties with identical names, optionality, and types,
                     return property1.isOptional() === property2.isOptional() &&
-                           property1.name() === property2.name() &&
-                           this.typesAreIdentical(property1.type(), property2.type());
+                        property1.name() === property2.name() &&
+                        this.typesAreIdentical(property1.type(), property2.type());
                 }
                 else {
                     // •	they are private properties originating in the same declaration and having identical types
                     return property1.originatingDeclaration() === property2.originatingDeclaration() &&
-                           this.typesAreIdentical(property1.type(), property2.type());
+                        this.typesAreIdentical(property1.type(), property2.type());
                 }
             }
 
@@ -188,7 +188,7 @@ module TypeScript {
             // Two members are considered identical when
             // •	they are index signatures of identical kind with identical types.
             return indexSignature1.isNumbericIndexSignature() === indexSignature2.isNumbericIndexSignature() &&
-                   this.typesAreIdentical(indexSignature1.type(), indexSignature2.type());
+                this.typesAreIdentical(indexSignature1.type(), indexSignature2.type());
         }
 
         private callOrConstructSignaturesAreIdentical(signature1: ICallOrConstructSignature, signature2: ICallOrConstructSignature): boolean {
@@ -224,7 +224,7 @@ module TypeScript {
                         return false;
                     }
 
-                        return true;
+                    return true;
                 }
             }
 
@@ -336,7 +336,7 @@ module TypeScript {
 
             if (M.isProperty()) {
                 var M_property = <IProperty>M;
-                
+
                 // o	M is a public property and S’ contains a public property of the same name as M 
                 //      and a type that is a subtype of that of M.
                 if (M_property.accessibility() === Accessibility.Public) {
@@ -349,7 +349,7 @@ module TypeScript {
                         return true;
                     }
                 }
-                
+
                 // o	M is a private property and S’ contains a private property that 
                 // originates in the same declaration as M and has a type that is a subtype 
                 // of that of M.
@@ -457,28 +457,24 @@ module TypeScript {
             // of the corresponding parameter type in M for parameter positions that are present
             // in both signatures, and
 
+            // Note: by using going up to the last parameter, that means that if we have a 'rest'
+            // parameter, then we'll at least index into the first element of it.  i.e. if we're
+            // comparing:
+            //
+            //      (a: Object, ...: Object[]) => void;
+            //      (a: Number, ...: String[]) => void;
+            //
+            // We'll compare "Number" to "Object", and then "String" to "Object".
+            var maxIndex = MathPrototype.min(N.parameters().length, M.parameters().length);
+
             // When comparing call or construct signatures, parameter names are ignored and rest 
             // parameters correspond to an unbounded expansion of optional parameters of the rest 
             // parameter element type.
-            var N_parameters = N.parameters();
-            var M_parameters = M.parameters();
+            for (var i = 0; i < maxIndex; i++) {
+                var N_parameterType = N.getParameterTypeWithRestExpansion(i);
+                var M_parameterType = M.getParameterTypeWithRestExpansion(i);
 
-            var N_isRest = N_parameters.length > 0 && ArrayUtilities.last(N_parameters).isRest();
-            var M_isRest = M_parameters.length > 0 && ArrayUtilities.last(M_parameters).isRest();
-
-            var max_index = MathPrototype.max(
-                N_isRest ? N_parameters.length - 1 : N_parameters.length,
-                M_isRest ? M_parameters.length - 1 : M_parameters.length);
-
-            for (var i = 0; i < max_index; i++) {
-                var N_parameterType = this.getParameterTypeWithRestExpansion(N_parameters, N_isRest, i);
-                var M_parameterType = this.getParameterTypeWithRestExpansion(M_parameters, M_isRest, i);
-
-                if (N_parameterType === null || M_parameterType === null) {
-                    // Reached the end of one of the parameter lists.  Everything was good.
-                    break;
-                }
-
+                Debug.assert(N_parameterType !== null && M_parameterType !== null);
                 if (!this.isSubtype(N_parameterType, M_parameterType) && !this.isSupertype(N_parameterType, M_parameterType)) {
                     return false;
                 }
@@ -487,6 +483,7 @@ module TypeScript {
             return true;
         }
 
+        /*
         private getParameterTypeWithRestExpansion(parameters: IParameter[], isRest: boolean, index: number): IType {
             if (isRest) {
                 if (index < (parameters.length - 1)) {
@@ -512,6 +509,7 @@ module TypeScript {
                     : null;
             }
         }
+            */
 
         private isDirectlyOrIndirectlyConstrainedTo(S: IType, T: IType): boolean {
             // NOTE: when implemented, we will have to check for recursion with constraints.
@@ -531,38 +529,75 @@ module TypeScript {
                 return A;
             }
 
+            // •	Using the process described in 3.8.6, inferences for A’s type parameters are 
+            // made from each parameter type in B to the corresponding parameter type in A for 
+            // those parameter positions that are present in both signatures.
             var typeParameterToCandidatesMap: Collections.IHashTable<ITypeParameter, Collections.ISet<IType>>;
-            var typeParameterMap: Collections.IHashTable<ITypeParameter, IType>;
 
-            var typeParameters = A.typeParameters();
+            // Note: by using going up to the last parameter, that means that if we have a 'rest'
+            // parameter, then we'll at least index into the first element of it.  i.e. if we're
+            // comparing:
+            //
+            //      <T>(a: Object, ...: T[]) => void;
+            //         (a: Object, Number) => void;
+            //
+            // We'll compare "Number" to "Object", and then "Number" to "T".
+            var maxIndex = MathPrototype.min(A.parameters().length, B.parameters().length);
+            var A_typeParameters = A.typeParameters();
+
+            for (var i = 0; i < maxIndex; i++) {
+                var A_parameterType = A.getParameterTypeWithRestExpansion(i);
+                var B_parameterType = B.getParameterTypeWithRestExpansion(i);
+
+                this.inferTypes(A_typeParameters, B_parameterType, A_parameterType, typeParameterToCandidatesMap);
+            }
+
             var inferredTypeArguments: IType[] = [];
+            var typeParameterMap = Collections.createHashTable<ITypeParameter, IType>(/*capacity:*/ 8);
 
-            for (var i = 0, n = typeParameters.length; i < n; i++) {
-                var typeParameter = typeParameters[i];
-                var candidates = typeParameterToCandidatesMap.get(typeParameter);
+            for (var i = 0, n = A_typeParameters.length; i < n; i++) {
+                var A_typeParameter = A_typeParameters[i];
+                var candidates = typeParameterToCandidatesMap.get(A_typeParameter);
 
                 // •	The inferred type argument for each type parameter is the best common type
                 // (section 3.10) of the set of inferences made for that type parameter.
                 var inferredTypeArgument = this.bestCommonType(candidates);
                 inferredTypeArguments.push(inferredTypeArgument);
 
-                typeParameterMap.add(typeParameter, inferredTypeArgument);
+                typeParameterMap.add(A_typeParameter, inferredTypeArgument);
             }
 
             // •	Provided all inferred type arguments satisfy their corresponding type 
             // parameter constraints, the result is an instantiation of A with the inferred 
             // type arguments.
-            for (var i = 0, n = typeParameters.length; i < n; i++) {
-                var typeParameter = typeParameters[i];
+            for (var i = 0, n = A_typeParameters.length; i < n; i++) {
+                var A_typeParameter = A_typeParameters[i];
                 var inferredTypeArgument = inferredTypeArguments[i];
 
-                if (!this.satisfiesConstraint(inferredTypeArgument, typeParameter, typeParameterMap)) {
+                if (!this.satisfiesConstraint(inferredTypeArgument, A_typeParameter, typeParameterMap)) {
                     return null;
                 }
             }
 
             // the result is an instantiation of A with the inferred type arguments.
             return A.instantiate(inferredTypeArguments);
+        }
+
+        // In certain contexts, inferences for a given set of type parameters are made from a type
+        // S, in which those type parameters do not occur, to another type T, in which those type
+        // parameters do occur.  Inferences consist of a set of candidate type arguments collected 
+        // for each of the type parameters.  The inference process recursively relates S and T to 
+        // gather as many inferences as possible:
+        //
+        // TODO: consider making typeParameters a set.  In practice though the list should be tiny
+        // (1-4 tops).  So having it be an array is fine.
+        private inferTypes(
+            typeParameters: ITypeParameter[],
+            S: IType,
+            T: IType,
+            typeParameterToCandidateMap: Collections.IHashTable<ITypeParameter, Collections.ISet<IType>>): void {
+
+
         }
 
         private satisfiesConstraint(typeArgument: IType, typeParameter: ITypeParameter, typeParameterMap: Collections.IHashTable<ITypeParameter, IType>): boolean {
@@ -618,6 +653,73 @@ module TypeScript {
                 : currentBest;
         }
     }
+    /*
+    class CommonParameterTypesWithRestExpansionEnumerator implements Collections.IEnumerator<IType> {
+        private A_isRest: boolean;
+        private B_isRest: boolean;
+        private maxIndex: number;
+        private currentIndex = -1;
+
+        constructor(private A_parameters: IParameter[], private B_parameters: IParameter[]) {
+            var A_isRest = A_parameters.length > 0 && ArrayUtilities.last(A_parameters).isRest();
+            var B_isRest = B_parameters.length > 0 && ArrayUtilities.last(B_parameters).isRest();
+
+            var max_index = MathPrototype.min(A_parameters.length, B_parameters.length);
+        }
+
+        public moveNext(): boolean {
+            this.currentIndex++;
+            return this.currentIndex >= 0 && this.currentIndex < this.maxIndex;
+        }
+
+        public current(): IType {
+            Debug.assert(this.currentIndex >= 0 && this.currentIndex < this.maxIndex);
+
+        }
+
+        private static getParameterTypeWithRestExpansion(parameters: IParameter[], isRest: boolean, index: number): IType {
+            if (isRest) {
+                if (index < (parameters.length - 1)) {
+                    // Index is before all the rest parameters.
+                    return parameters[index].type();
+                }
+                else {
+                    // Index is into the rest parameter.
+                    var restParameter = ArrayUtilities.last(parameters);
+                    var restParameterType = restParameter.type();
+                    Debug.assert(restParameterType.isNamedTypeReference());
+
+                    var restParameterNamedType = <INamedTypeReference>restParameterType;
+                    Debug.assert(restParameterNamedType.name() === "Array" && restParameterNamedType.typeArguments().length === 1);
+
+                    return restParameterNamedType.typeArguments()[0];
+                }
+            }
+            else {
+                // Simple case.  There were no rest parameters.
+                return index < parameters.length
+                    ? parameters[index].type()
+                    : null;
+            }
+        }
+
+        foo() {
+            var N_isRest = N_parameters.length > 0 && ArrayUtilities.last(N_parameters).isRest();
+            var M_isRest = M_parameters.length > 0 && ArrayUtilities.last(M_parameters).isRest();
+
+            var max_index = MathPrototype.max(
+                N_isRest ? N_parameters.length - 1 : N_parameters.length,
+                M_isRest ? M_parameters.length - 1 : M_parameters.length);
+
+            for (var i = 0; i < max_index; i++) {
+                var N_parameterType = this.getParameterTypeWithRestExpansion(N_parameters, N_isRest, i);
+                var M_parameterType = this.getParameterTypeWithRestExpansion(M_parameters, M_isRest, i);
+
+
+        }
+
+    }
+*/
 
     class TypeRelationCache {
         public determineRelationship(type1: INamedTypeReference, type2: INamedTypeReference, predicate: (t1: IObjectType, t2: IObjectType) => boolean): boolean {
