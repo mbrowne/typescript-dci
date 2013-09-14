@@ -483,34 +483,6 @@ module TypeScript {
             return true;
         }
 
-        /*
-        private getParameterTypeWithRestExpansion(parameters: IParameter[], isRest: boolean, index: number): IType {
-            if (isRest) {
-                if (index < (parameters.length - 1)) {
-                    // Index is before all the rest parameters.
-                    return parameters[index].type();
-                }
-                else {
-                    // Index is into the rest parameter.
-                    var restParameter = ArrayUtilities.last(parameters);
-                    var restParameterType = restParameter.type();
-                    Debug.assert(restParameterType.isNamedTypeReference());
-
-                    var restParameterNamedType = <INamedTypeReference>restParameterType;
-                    Debug.assert(restParameterNamedType.name() === "Array" && restParameterNamedType.typeArguments().length === 1);
-
-                    return restParameterNamedType.typeArguments()[0];
-                }
-            }
-            else {
-                // Simple case.  There were no rest parameters.
-                return index < parameters.length
-                    ? parameters[index].type()
-                    : null;
-            }
-        }
-            */
-
         private isDirectlyOrIndirectlyConstrainedTo(S: IType, T: IType): boolean {
             // NOTE: when implemented, we will have to check for recursion with constraints.
             throw Errors.notYetImplemented();
@@ -597,7 +569,7 @@ module TypeScript {
             T: IType,
             typeParameterToCandidateMap: Collections.IHashTable<ITypeParameter, Collections.ISet<IType>>): void {
 
-
+                throw Errors.notYetImplemented();
         }
 
         private satisfiesConstraint(typeArgument: IType, typeParameter: ITypeParameter, typeParameterMap: Collections.IHashTable<ITypeParameter, IType>): boolean {
@@ -653,73 +625,6 @@ module TypeScript {
                 : currentBest;
         }
     }
-    /*
-    class CommonParameterTypesWithRestExpansionEnumerator implements Collections.IEnumerator<IType> {
-        private A_isRest: boolean;
-        private B_isRest: boolean;
-        private maxIndex: number;
-        private currentIndex = -1;
-
-        constructor(private A_parameters: IParameter[], private B_parameters: IParameter[]) {
-            var A_isRest = A_parameters.length > 0 && ArrayUtilities.last(A_parameters).isRest();
-            var B_isRest = B_parameters.length > 0 && ArrayUtilities.last(B_parameters).isRest();
-
-            var max_index = MathPrototype.min(A_parameters.length, B_parameters.length);
-        }
-
-        public moveNext(): boolean {
-            this.currentIndex++;
-            return this.currentIndex >= 0 && this.currentIndex < this.maxIndex;
-        }
-
-        public current(): IType {
-            Debug.assert(this.currentIndex >= 0 && this.currentIndex < this.maxIndex);
-
-        }
-
-        private static getParameterTypeWithRestExpansion(parameters: IParameter[], isRest: boolean, index: number): IType {
-            if (isRest) {
-                if (index < (parameters.length - 1)) {
-                    // Index is before all the rest parameters.
-                    return parameters[index].type();
-                }
-                else {
-                    // Index is into the rest parameter.
-                    var restParameter = ArrayUtilities.last(parameters);
-                    var restParameterType = restParameter.type();
-                    Debug.assert(restParameterType.isNamedTypeReference());
-
-                    var restParameterNamedType = <INamedTypeReference>restParameterType;
-                    Debug.assert(restParameterNamedType.name() === "Array" && restParameterNamedType.typeArguments().length === 1);
-
-                    return restParameterNamedType.typeArguments()[0];
-                }
-            }
-            else {
-                // Simple case.  There were no rest parameters.
-                return index < parameters.length
-                    ? parameters[index].type()
-                    : null;
-            }
-        }
-
-        foo() {
-            var N_isRest = N_parameters.length > 0 && ArrayUtilities.last(N_parameters).isRest();
-            var M_isRest = M_parameters.length > 0 && ArrayUtilities.last(M_parameters).isRest();
-
-            var max_index = MathPrototype.max(
-                N_isRest ? N_parameters.length - 1 : N_parameters.length,
-                M_isRest ? M_parameters.length - 1 : M_parameters.length);
-
-            for (var i = 0; i < max_index; i++) {
-                var N_parameterType = this.getParameterTypeWithRestExpansion(N_parameters, N_isRest, i);
-                var M_parameterType = this.getParameterTypeWithRestExpansion(M_parameters, M_isRest, i);
-
-
-        }
-
-    }
-*/
 
     class TypeRelationCache {
         public determineRelationship(type1: INamedTypeReference, type2: INamedTypeReference, predicate: (t1: IObjectType, t2: IObjectType) => boolean): boolean {

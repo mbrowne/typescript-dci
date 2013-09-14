@@ -55,6 +55,34 @@ module TypeScript {
         nonOptionalParameterCount(): number;
     }
 
+    function getParameterTypeWithRestExpansion(parameters: IParameter[], index: number): IType {
+        var isRest = parameters.length > 0 && ArrayUtilities.last(parameters).isRest();
+
+        if (isRest) {
+            if (index < (parameters.length - 1)) {
+                // Index is before all the rest parameters.
+                return parameters[index].type();
+            }
+            else {
+                // Index is into the rest parameter.
+                var restParameter = ArrayUtilities.last(parameters);
+                var restParameterType = restParameter.type();
+                Debug.assert(restParameterType.isNamedTypeReference());
+
+                var restParameterNamedType = <INamedTypeReference>restParameterType;
+                Debug.assert(restParameterNamedType.name() === "Array" && restParameterNamedType.typeArguments().length === 1);
+
+                return restParameterNamedType.typeArguments()[0];
+            }
+        }
+        else {
+            // Simple case.  There were no rest parameters.
+            return index < parameters.length
+                ? parameters[index].type()
+                : null;
+        }
+    }
+
     export interface ICallOrConstructSignature extends IMember, IInstantiatedCallOrConstructSignature {
         typeParameters(): ITypeParameter[];
 
