@@ -1005,7 +1005,7 @@ module TypeScript {
                 
                 var statements = new ASTList([returnStatement]);
 
-                var block = new Block(statements, expression);
+                var block = new Block(statements, new ASTSpan());
                 return block;
             }
         }
@@ -1799,17 +1799,6 @@ module TypeScript {
                 argumentList ? argumentList.argumentList : null, argumentList ? argumentList.closeParenSpan : null);
             this.setSpan(result, start, node);
 
-            if (expression.nodeType() === NodeType.TypeRef) {
-                var typeRef = <TypeReference>expression;
-
-                if (typeRef.arrayCount === 0) {
-                    var term = typeRef.term;
-                    if (term.nodeType() === NodeType.MemberAccessExpression || term.nodeType() === NodeType.Name) {
-                        expression = term;
-                    }
-                }
-            }
-
             return result;
         }
 
@@ -2272,12 +2261,14 @@ module TypeScript {
     }
 
     function applyDelta(ast: TypeScript.ASTSpan, delta: number) {
-        if (ast.minChar !== -1) {
-            ast.minChar += delta;
-        }
+        if (ast) {
+            if (ast.minChar !== -1) {
+                ast.minChar += delta;
+            }
 
-        if (ast.limChar !== -1) {
-            ast.limChar += delta;
+            if (ast.limChar !== -1) {
+                ast.limChar += delta;
+            }
         }
     }
 
