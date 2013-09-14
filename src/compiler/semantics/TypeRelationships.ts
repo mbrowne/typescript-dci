@@ -1,4 +1,6 @@
 ﻿/// <reference path='references.ts' />
+import IHashTable = TypeScript.Collections.IHashTable;
+import ISet = TypeScript.Collections.ISet;
 
 module TypeScript {
     export class TypeRelationships {
@@ -334,33 +336,24 @@ module TypeScript {
         private canFindCorrespondingSubtypeMember(S_prime: IObjectType, M: IMember): boolean {
             // •	S’ and T are object types and, for each member M in T, one of the following is true:
 
+            // o	M is a property and S’ contains a property N where
             if (M.isProperty()) {
                 var M_property = <IProperty>M;
 
-                // o	M is a public property and S’ contains a public property of the same name as M 
-                //      and a type that is a subtype of that of M.
-                if (M_property.accessibility() === Accessibility.Public) {
-                    var S_prime_property = S_prime.getProperty(M_property.name());
-
-                    if (S_prime_property !== null &&
-                        S_prime_property.accessibility() === Accessibility.Public &&
-                        this.isSubtype(S_prime_property.type(), M_property.type())) {
-
-                        return true;
-                    }
-                }
-
-                // o	M is a private property and S’ contains a private property that 
-                // originates in the same declaration as M and has a type that is a subtype 
-                // of that of M.
-                if (M_property.accessibility() === Accessibility.Private) {
-                    var S_prime_property = S_prime.getProperty(M_property.name());
-                    if (S_prime_property !== null &&
-                        S_prime_property.accessibility() === Accessibility.Private &&
-                        S_prime_property.originatingDeclaration() === M_property.originatingDeclaration() &&
-                        this.isSubtype(S_prime_property.type(), M_property.type())) {
-
-                        return true;
+                var N = S_prime.getProperty(M_property.name());
+                if (N !== null) {
+                    // 	M and N have the same name,
+                    // 	the type of N is a subtype of that of M,
+                    // 	M and N are both public or both private, and
+                    // 	if M is a required property, N is also a required property.
+                    if (M_property.accessibility() === N.accessibility()) {
+                        // If M is optional, then there is no restriction on N.  If M is required, 
+                        // then N must be required (i.e. not-optional) as well.
+                        if (M_property.isOptional() || !N.isOptional()) {
+                            if (this.isSubtype(N.type(), M_property.type())) {
+                                return true;
+                            }
+                        }
                     }
                 }
 
@@ -504,7 +497,7 @@ module TypeScript {
             // •	Using the process described in 3.8.6, inferences for A’s type parameters are 
             // made from each parameter type in B to the corresponding parameter type in A for 
             // those parameter positions that are present in both signatures.
-            var typeParameterToCandidatesMap: Collections.IHashTable<ITypeParameter, Collections.ISet<IType>>;
+            var typeParameterToCandidatesMap: IHashTable<ITypeParameter, ISet<IType>>;
 
             // Note: by using going up to the last parameter, that means that if we have a 'rest'
             // parameter, then we'll at least index into the first element of it.  i.e. if we're
@@ -555,6 +548,16 @@ module TypeScript {
             return A.instantiate(inferredTypeArguments);
         }
 
+        private getCandidates(typeParameterToCandidateMap: IHashTable<ITypeParameter, ISet<IType>>, T: ITypeParameter): ISet<IType> {
+            var set = typeParameterToCandidateMap.get(T);
+            if (set === null) {
+                set = Collections.createHashSet(/*capacity:*/ 4);
+                typeParameterToCandidateMap.add(T, set);
+            }
+
+            return set;
+        }
+
         // In certain contexts, inferences for a given set of type parameters are made from a type
         // S, in which those type parameters do not occur, to another type T, in which those type
         // parameters do occur.  Inferences consist of a set of candidate type arguments collected 
@@ -563,16 +566,26 @@ module TypeScript {
         //
         // TODO: consider making typeParameters a set.  In practice though the list should be tiny
         // (1-4 tops).  So having it be an array is fine.
-        private inferTypes(
-            typeParameters: ITypeParameter[],
-            S: IType,
-            T: IType,
-            typeParameterToCandidateMap: Collections.IHashTable<ITypeParameter, Collections.ISet<IType>>): void {
+        private inferTypes(typeParameters: ITypeParameter[], S: IType, T: IType, typeParameterToCandidateMap: IHashTable<ITypeParameter, ISet<IType>>): void {
 
+            //•	If T is one of the type parameters for which inferences are being made and S or any
+            // type occurring in a member of S is not the wildcard type, S is added to the set of 
+            // inferences for that type parameter.
+            if (T.isTypeParameter() && ArrayUtilities.contains(typeParameters, T)) {
+                if (!S.isOrContainsWildCardType()) {
+                    var candidates = this.getCandidates(typeParameterToCandidateMap, <ITypeParameter>T);
+                    candidates.add(S);
+                }
+            }
+
+            // •	Otherwise, if S and T are object types, 
+            if (T.isObjectType() && S.isObjectType()) {
+                // then for each member M in T:
                 throw Errors.notYetImplemented();
+            }
         }
 
-        private satisfiesConstraint(typeArgument: IType, typeParameter: ITypeParameter, typeParameterMap: Collections.IHashTable<ITypeParameter, IType>): boolean {
+        private satisfiesConstraint(typeArgument: IType, typeParameter: ITypeParameter, typeParameterMap: IHashTable<ITypeParameter, IType>): boolean {
             // A type argument satisfies a type parameter constraint if the type argument is 
             // assignable to(section 3.8.4) the constraint type once type arguments are substituted
             // for type parameters
@@ -580,7 +593,7 @@ module TypeScript {
             return this.isAssignableTo(typeArgument, instantiatedConstraint);
         }
 
-        private bestCommonType(types: Collections.ISet<IType>): IType {
+        private bestCommonType(types: ISet<IType>): IType {
             // For an empty set of types, the best common type is an empty object type (the type {}).
             if (types.count() === 0) {
                 return this.compilation.emptyObjectType();

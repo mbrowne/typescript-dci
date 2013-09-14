@@ -14,5 +14,6 @@ module TypeScript {
         NamedTypeReference,
         AnonymousType,
         TypeParameter,
+        WildCard
     }
 }
