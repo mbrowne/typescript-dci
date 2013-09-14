@@ -4,8 +4,9 @@ import ISet = TypeScript.Collections.ISet;
 
 module TypeScript {
     export class TypeRelationships {
-        private identicalTypeRelationCache = new TypeRelationCache();
-        private subtypeRelationCache = new TypeRelationCache();
+        private identicalTypeRelationCache = new TypeRelationCache(/*resultUponRecursion:*/ true);
+        private subtypeRelationCache = new TypeRelationCache(/*resultUponRecursion:*/ true);
+        private isOrContainsRelationCache = new TypeRelationCache(/*resultUponRecursion:*/ false);
 
         constructor(private compilation: Compilation) {
         }
@@ -510,7 +511,7 @@ module TypeScript {
             var maxIndex = MathPrototype.min(A.parameters().length, B.parameters().length);
             var A_typeParameters = A.typeParameters();
 
-            var typeInference = new TypeInference(A_typeParameters);
+            var typeInference = new TypeInference(A_typeParameters, this);
 
             for (var i = 0; i < maxIndex; i++) {
                 var A_parameterType = A.getParameterTypeWithRestExpansion(i);
@@ -605,6 +606,12 @@ module TypeScript {
     }
 
     class TypeRelationCache {
+        // Specifies the if the relation holds if recursion is seen.  For example, subtyping 
+        // assumes the relation exists if recursion is encountered.  However, containment 
+        // assumes the relation does not exist if recursion is encountered.
+        constructor(private resultUponRecursion: boolean) {
+        }
+
         public determineRelationship(type1: INamedTypeReference, type2: INamedTypeReference, predicate: (t1: IObjectType, t2: IObjectType) => boolean): boolean {
             // Classes and interfaces can reference themselves in their internal structure, in
             // effect creating recursive types with infinite nesting. Types such as this are 
@@ -623,10 +630,10 @@ module TypeScript {
                 case TypeRelationKind.Yes: return true;
                 case TypeRelationKind.No: return false;
                 case TypeRelationKind.Computing:
-                    // If we've already been examining this relation, then we assume things
-                    // to be true now that we've recursed.
-                    this.setRelation(type1, type2, TypeRelationKind.Yes);
-                    return true;
+                    // If we've already been examining this relation, then set to the 
+                    // value specified for recursion.
+                    this.setRelation(type1, type2, this.resultUponRecursion ? TypeRelationKind.Yes : TypeRelationKind.No);
+                    return this.resultUponRecursion;
                 case TypeRelationKind.Unknown:
                     // We've never looked for a relation between these two types before.  
                     // Mark that we're computing the relation.  That way if we see the 

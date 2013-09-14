@@ -5,7 +5,7 @@ module TypeScript {
         private typeParameterToCandidatesMap: Collections.IHashTable<ITypeParameter, Collections.ISet<IType>>;
         private nestedTypeParameters: ISet<IType> = Collections.createHashSet(/*capacity:*/ 1);
 
-        constructor(private typeParameters: ITypeParameter[]) {
+        constructor(private typeParameters: ITypeParameter[], private typeRelationships: TypeRelationships) {
             this.typeParameterToCandidatesMap = Collections.createHashTable(typeParameters.length * 2);
         }
 
@@ -26,7 +26,13 @@ module TypeScript {
         // The wildcard type used in the rules above exists solely to ensure that inner type 
         // parameters are not inferred as type arguments for outer type parameters
         private isOrContainsNestedTypeParameter(type: IType): boolean {
-            throw Errors.notYetImplemented();
+            for (var e = this.nestedTypeParameters.getEnumerator(); e.moveNext();) {
+                if (this.typeRelationships.isOrContains(type, e.current())) {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         // In certain contexts, inferences for a given set of type parameters are made from a type
