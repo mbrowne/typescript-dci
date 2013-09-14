@@ -21,7 +21,7 @@ module TypeScript {
         isWildCard(): boolean;
 
         isOrContainsWildCardType(): boolean;
-        instantiate(typeParameterMap: Collections.IHashTable<ITypeParameter, IType>): IType;
+        substituteTypes(typeParameterMap: Collections.IHashTable<ITypeParameter, IType>): IType;
     }
 
     export interface IObjectType extends IType {

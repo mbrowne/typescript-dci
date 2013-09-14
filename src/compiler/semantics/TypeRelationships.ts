@@ -510,11 +510,13 @@ module TypeScript {
             var maxIndex = MathPrototype.min(A.parameters().length, B.parameters().length);
             var A_typeParameters = A.typeParameters();
 
+            var typeInference = new TypeInference(A_typeParameters);
+
             for (var i = 0; i < maxIndex; i++) {
                 var A_parameterType = A.getParameterTypeWithRestExpansion(i);
                 var B_parameterType = B.getParameterTypeWithRestExpansion(i);
 
-                this.inferTypes(A_typeParameters, B_parameterType, A_parameterType, typeParameterToCandidatesMap);
+                typeInference.inferTypes(B_parameterType, A_parameterType);
             }
 
             var inferredTypeArguments: IType[] = [];
@@ -522,7 +524,7 @@ module TypeScript {
 
             for (var i = 0, n = A_typeParameters.length; i < n; i++) {
                 var A_typeParameter = A_typeParameters[i];
-                var candidates = typeParameterToCandidatesMap.get(A_typeParameter);
+                var candidates = typeInference.getCandidates(A_typeParameter);
 
                 // •	The inferred type argument for each type parameter is the best common type
                 // (section 3.10) of the set of inferences made for that type parameter.
@@ -548,54 +550,17 @@ module TypeScript {
             return A.instantiate(inferredTypeArguments);
         }
 
-        private getCandidates(typeParameterToCandidateMap: IHashTable<ITypeParameter, ISet<IType>>, T: ITypeParameter): ISet<IType> {
-            var set = typeParameterToCandidateMap.get(T);
-            if (set === null) {
-                set = Collections.createHashSet(/*capacity:*/ 4);
-                typeParameterToCandidateMap.add(T, set);
-            }
-
-            return set;
-        }
-
-        // In certain contexts, inferences for a given set of type parameters are made from a type
-        // S, in which those type parameters do not occur, to another type T, in which those type
-        // parameters do occur.  Inferences consist of a set of candidate type arguments collected 
-        // for each of the type parameters.  The inference process recursively relates S and T to 
-        // gather as many inferences as possible:
-        //
-        // TODO: consider making typeParameters a set.  In practice though the list should be tiny
-        // (1-4 tops).  So having it be an array is fine.
-        private inferTypes(typeParameters: ITypeParameter[], S: IType, T: IType, typeParameterToCandidateMap: IHashTable<ITypeParameter, ISet<IType>>): void {
-
-            //•	If T is one of the type parameters for which inferences are being made and S or any
-            // type occurring in a member of S is not the wildcard type, S is added to the set of 
-            // inferences for that type parameter.
-            if (T.isTypeParameter() && ArrayUtilities.contains(typeParameters, T)) {
-                if (!S.isOrContainsWildCardType()) {
-                    var candidates = this.getCandidates(typeParameterToCandidateMap, <ITypeParameter>T);
-                    candidates.add(S);
-                }
-            }
-
-            // •	Otherwise, if S and T are object types, 
-            if (T.isObjectType() && S.isObjectType()) {
-                // then for each member M in T:
-                throw Errors.notYetImplemented();
-            }
-        }
-
         private satisfiesConstraint(typeArgument: IType, typeParameter: ITypeParameter, typeParameterMap: IHashTable<ITypeParameter, IType>): boolean {
             // A type argument satisfies a type parameter constraint if the type argument is 
             // assignable to(section 3.8.4) the constraint type once type arguments are substituted
             // for type parameters
-            var instantiatedConstraint = typeParameter.constraint().instantiate(typeParameterMap);
+            var instantiatedConstraint = typeParameter.constraint().substituteTypes(typeParameterMap);
             return this.isAssignableTo(typeArgument, instantiatedConstraint);
         }
 
         private bestCommonType(types: ISet<IType>): IType {
             // For an empty set of types, the best common type is an empty object type (the type {}).
-            if (types.count() === 0) {
+            if (types === null || types.count() === 0) {
                 return this.compilation.emptyObjectType();
             }
 

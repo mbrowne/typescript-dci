@@ -5,5 +5,6 @@
 /// <reference path='IMember.ts' />
 /// <reference path='IType.ts' />
 /// <reference path='MemberKind.ts' />
+/// <reference path='TypeInference.ts' />
 /// <reference path='TypeKind.ts' />
 /// <reference path='TypeRelationships.ts' />
