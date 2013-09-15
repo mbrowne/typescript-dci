@@ -3,7 +3,7 @@
 module TypeScript {
     export class TypeInference {
         private typeParameterToCandidatesMap: Collections.IHashTable<ITypeParameter, Collections.ISet<IType>>;
-        private nestedTypeParameters: ISet<IType> = Collections.createHashSet(/*capacity:*/ 1);
+        private nestedTypeParameters: ISet<ITypeParameter> = Collections.createHashSet(/*capacity:*/ 1);
 
         constructor(private typeParameters: ITypeParameter[], private typeRelationships: TypeRelationships) {
             this.typeParameterToCandidatesMap = Collections.createHashTable(typeParameters.length * 2);
@@ -27,7 +27,7 @@ module TypeScript {
         // parameters are not inferred as type arguments for outer type parameters
         private isOrContainsNestedTypeParameter(type: IType): boolean {
             for (var e = this.nestedTypeParameters.getEnumerator(); e.moveNext();) {
-                if (this.typeRelationships.isOrContains(type, e.current())) {
+                if (this.typeRelationships.isOrContainsTypeParameter(type, e.current())) {
                     return true;
                 }
             }

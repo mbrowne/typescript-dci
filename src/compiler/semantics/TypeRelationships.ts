@@ -7,9 +7,9 @@ module TypeScript {
         private identicalTypeRelationCache = new TypeRelationCache(/*resultUponRecursion:*/ true);
         private subtypeRelationCache = new TypeRelationCache(/*resultUponRecursion:*/ true);
 
-        // If we're checking if a type is contained with another type, and we recurse, then the
-        // type was not contained.
-        private isOrContainsRelationCache = new TypeRelationCache(/*resultUponRecursion:*/ false);
+        // If we're checking if a type prameter is contained with another type, and we recurse, 
+        // then the type was not contained.
+        private isOrContainsTypeParameterRelationCache = new TypeRelationCache(/*resultUponRecursion:*/ false);
 
         // if we recurse while checking if a type parameter is constrained to another type 
         // parameter, then the relation does *not* hold.
@@ -242,8 +242,79 @@ module TypeScript {
         }
         
         /** Returns true if type1 is or contains type2. */
-        public isOrContains(type1: IType, type2: IType): boolean {
-            throw Errors.notYetImplemented();
+        public isOrContainsTypeParameter(type1: IType, typeParameter: ITypeParameter): boolean {
+            if (type1 === typeParameter) {
+                return true;
+            }
+
+            if (type1.isObjectType()) {
+                return this.isOrContainsTypeParameterRelationCache.determineRelationship(type1, typeParameter, this.objectTypeIsOrContainsTypeParameter);
+            }
+
+            return false;
+        }
+
+        private objectTypeIsOrContainsTypeParameter(type1: IObjectType, typeParameter: ITypeParameter): boolean {
+            // Note: we don't special case INamedTypeReferences.  Even if we have I<TP> and we're 
+            // looking for TP that does *not* count as containment.  After all, I could be an empty
+            // object type.
+
+            // Also, we do need to check the constraints of a call/construct signature we encounter.
+            // Any type parameter we encounter will either be filtered out itself because it is 
+            // a nested type parameter.  Or it will be an ok type parameter (at the starting level
+            // or above).  In either case, such a type parameter would not be able to refer to a 
+            // nested type parameter in its constraint.
+            var properties = type1.properties();
+            for (var i = 0, n = properties.length; i < n; i++) {
+                var property = properties[i];
+                if (this.isOrContainsTypeParameter(property.type(), typeParameter)) {
+                    return true;
+                }
+            }
+
+            var indexSignatures = type1.indexSignatures();
+            for (var i = 0, n = indexSignatures.length; i < n; i++) {
+                var indexSignature = indexSignatures[i];
+                if (this.isOrContainsTypeParameter(indexSignature.type(), typeParameter)) {
+                    return true;
+                }
+            }
+
+            if (this.callOrConstructSignaturesContainsTypeParameter(type1.callSignatures(), typeParameter) ||
+                this.callOrConstructSignaturesContainsTypeParameter(type1.constructSignatures(), typeParameter)) {
+
+                return true;
+            }
+
+            return false;
+        }
+
+        private callOrConstructSignaturesContainsTypeParameter(signatures: ICallOrConstructSignature[], typeParameter: ITypeParameter): boolean {
+            for (var i = 0, i_max = signatures.length; i < i_max; i++) {
+                var signature = signatures[i];
+
+                if (this.isOrContainsTypeParameter(signature.returnType(), typeParameter)) {
+                    return true;
+                }
+
+                // Small optimization/deviation.  We do rest expansion here.  That means that if
+                // we have a signature like: (a: string, ...b: T[])=>void, we test out 'string' and
+                // 'T'.  This allows us to avoid having to check all the members of Array.  
+                //
+                // I don't believe there is any problem that can occur from this.  Even if someone
+                // has extended Array, they can't have added a member that uses a different type
+                // parameter.  If this turns out to be false, then we can address it by not doing
+                // rest expansion here.
+                var parameters = signature.parameters();
+                for (var j = 0, j_max = parameters.length; j < j_max; j++) {
+                    var parameterType = signature.getParameterTypeWithRestExpansion(j);
+                    if (this.isOrContainsTypeParameter(parameterType, typeParameter)) {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
         }
 
         /** Returns true if type1 is a supertype of type2. */
