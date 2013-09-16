@@ -44696,8 +44696,6 @@ var TypeScript;
             this.astCallResolutionDataMap = TypeScript.Collections.createHashTable(TypeScript.Collections.DefaultHashTableCapacity, function (k) {
                 return k;
             });
-            this.syntaxElementSymbolMap = new TypeScript.DataMap();
-            this.symbolSyntaxElementMap = new TypeScript.DataMap();
             this.properties = new SemanticInfoProperties();
             this.hasBeenTypeChecked = false;
             this.compilationUnitPath = compilationUnitPath;
@@ -44716,6 +44714,11 @@ var TypeScript;
         SemanticInfo.prototype.invalidate = function () {
             this.astSymbolMap = new TypeScript.DataMap();
             this.symbolASTMap = new TypeScript.DataMap();
+
+            this.astAliasSymbolMap = new TypeScript.DataMap();
+            this.astCallResolutionDataMap = TypeScript.Collections.createHashTable(TypeScript.Collections.DefaultHashTableCapacity, function (k) {
+                return k;
+            });
         };
 
         SemanticInfo.prototype.getTopLevelDecls = function () {
@@ -50609,6 +50612,25 @@ var TypeScript;
     })();
     TypeScript.SyntaxTreeToAstVisitor = SyntaxTreeToAstVisitor;
 
+    function applyDelta(ast, delta) {
+        if (ast.minChar !== -1) {
+            ast.minChar += delta;
+        }
+
+        if (ast.limChar !== -1) {
+            ast.limChar += delta;
+        }
+    }
+
+    function applyDeltaToComments(comments, delta) {
+        if (comments && comments.length > 0) {
+            for (var i = 0; i < comments.length; i++) {
+                var comment = comments[i];
+                applyDelta(comment, delta);
+            }
+        }
+    }
+
     var SyntaxTreeToIncrementalAstVisitor = (function (_super) {
         __extends(SyntaxTreeToIncrementalAstVisitor, _super);
         function SyntaxTreeToIncrementalAstVisitor() {
@@ -50619,28 +50641,40 @@ var TypeScript;
                 return;
             }
 
-            var applyDelta = function (ast) {
-                if (ast.minChar !== -1) {
-                    ast.minChar += delta;
-                }
-                if (ast.limChar !== -1) {
-                    ast.limChar += delta;
-                }
-            };
-
-            var applyDeltaToComments = function (comments) {
-                if (comments && comments.length > 0) {
-                    for (var i = 0; i < comments.length; i++) {
-                        var comment = comments[i];
-                        applyDelta(comment);
-                    }
-                }
-            };
-
             var pre = function (cur, parent, walker) {
-                applyDelta(cur);
-                applyDeltaToComments(cur.preComments());
-                applyDeltaToComments(cur.postComments());
+                applyDelta(cur, delta);
+                applyDeltaToComments(cur.preComments(), delta);
+                applyDeltaToComments(cur.postComments(), delta);
+
+                switch (cur.nodeType()) {
+                    case 82 /* Block */:
+                        applyDelta((cur).closeBraceSpan, delta);
+                        break;
+
+                    case 38 /* ObjectCreationExpression */:
+                        applyDelta((cur).closeParenSpan, delta);
+                        break;
+
+                    case 37 /* InvocationExpression */:
+                        applyDelta((cur).closeParenSpan, delta);
+                        break;
+
+                    case 16 /* ModuleDeclaration */:
+                        applyDelta((cur).endingToken, delta);
+                        break;
+
+                    case 14 /* ClassDeclaration */:
+                        applyDelta((cur).endingToken, delta);
+                        break;
+
+                    case 86 /* DoStatement */:
+                        applyDelta((cur).whileSpan, delta);
+                        break;
+
+                    case 95 /* SwitchStatement */:
+                        applyDelta((cur).statement, delta);
+                        break;
+                }
 
                 return cur;
             };
