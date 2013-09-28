@@ -2135,6 +2135,20 @@ module TypeScript.Parser {
                    this.isMemberVariableDeclaration(inErrorRecovery) ||
                    this.isIndexSignature();
         }
+		
+		//DCI
+        private isRoleElement(inErrorRecovery: boolean): boolean {
+            if (this.currentNode() !== null && this.currentNode().isRoleElement()) {
+                return true;
+            }
+
+            // Note: the order of these calls is important.  Specifically, isMemberVariableDeclaration
+            // checks for a subset of the conditions of the previous two calls.
+            return this.isMemberFunctionDeclaration(inErrorRecovery) ||
+                   this.isMemberAccessorDeclaration(inErrorRecovery) ||
+                   this.isMemberVariableDeclaration(inErrorRecovery) ||
+                   this.isIndexSignature();
+        }
 
         private parseConstructorDeclaration(): ConstructorDeclarationSyntax {
             // Debug.assert(this.isConstructorDeclaration());
@@ -2322,6 +2336,31 @@ module TypeScript.Parser {
                 return this.parseConstructorDeclaration();
             }
             else if (this.isMemberFunctionDeclaration(inErrorRecovery)) {
+                return this.parseMemberFunctionDeclaration();
+            }
+            else if (this.isMemberAccessorDeclaration(inErrorRecovery)) {
+                return this.parseMemberAccessorDeclaration();
+            }
+            else if (this.isMemberVariableDeclaration(inErrorRecovery)) {
+                return this.parseMemberVariableDeclaration();
+            }
+            else if (this.isIndexSignature()) {
+                return this.parseIndexSignature();
+            }
+            else {
+                throw Errors.invalidOperation();
+            }
+        }
+		
+		//DCI
+        private parseRoleElement(inErrorRecovery: boolean): IRoleElementSyntax {
+            // Debug.assert(this.isClassElement());
+
+            if (this.currentNode() !== null && this.currentNode().isRoleElement()) {
+                return <IRoleElementSyntax>this.eatNode();
+            }
+
+            if (this.isMemberFunctionDeclaration(inErrorRecovery)) {
                 return this.parseMemberFunctionDeclaration();
             }
             else if (this.isMemberAccessorDeclaration(inErrorRecovery)) {
@@ -5466,6 +5505,10 @@ module TypeScript.Parser {
 
                 case ListParsingState.ClassDeclaration_ClassElements:
                     return this.isClassElement(inErrorRecovery);
+				
+				//DCI
+                case ListParsingState.RoleDeclaration_RoleElements:
+                    return this.isRoleElement(inErrorRecovery);
 
                 case ListParsingState.ModuleDeclaration_ModuleElements:
                     return this.isModuleElement(inErrorRecovery);
@@ -5548,6 +5591,10 @@ module TypeScript.Parser {
 
                 case ListParsingState.ClassDeclaration_ClassElements:
                     return this.parseClassElement(/*inErrorRecovery:*/ false);
+					
+				//DCI
+                case ListParsingState.RoleDeclaration_RoleElements:
+                    return this.parseRoleElement(/*inErrorRecovery:*/ false);
 
                 case ListParsingState.ModuleDeclaration_ModuleElements:
                     return this.parseModuleElement();

@@ -333,6 +333,11 @@ module TypeScript {
         public isClassElement(): boolean {
             return false;
         }
+		
+		//DCI
+        public isRoleElement(): boolean {
+            return false;
+        }
 
         public isTypeMember(): boolean {
             return false;
