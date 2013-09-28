@@ -129,6 +129,7 @@ module TypeScript.Parser {
     enum ListParsingState {
         SourceUnit_ModuleElements = 1 << 0,
         ClassDeclaration_ClassElements = 1 << 1,
+		RoleDeclaration_RoleElements = 1 << 100, //DCI
         ModuleDeclaration_ModuleElements = 1 << 2,
         SwitchStatement_SwitchClauses = 1 << 3,
         SwitchClause_Statements = 1 << 4,
@@ -2502,10 +2503,19 @@ module TypeScript.Parser {
 
             var roleKeyword = this.eatKeyword(SyntaxKind.RoleKeyword);
             var identifier = this.eatIdentifierToken();
-            var objectType = this.parseObjectType();
+			var openBraceToken = this.eatToken(SyntaxKind.OpenBraceToken);
+			var roleElements: ISyntaxList = Syntax.emptyList;
 			
+            if (openBraceToken.width() > 0) {
+                var result = this.parseSyntaxList(ListParsingState.RoleDeclaration_RoleElements);
+
+                roleElements = result.list;
+                openBraceToken = this.addSkippedTokensAfterToken(openBraceToken, result.skippedTokens);
+            }
+
+            var closeBraceToken = this.eatToken(SyntaxKind.CloseBraceToken);
             return this.factory.roleDeclaration(
-                roleKeyword, identifier, objectType);
+                roleKeyword, identifier, openBraceToken, roleElements, closeBraceToken);
         }
 
         private parseObjectType(): ObjectTypeSyntax {

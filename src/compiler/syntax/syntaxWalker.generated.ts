@@ -110,7 +110,9 @@ module TypeScript {
         public visitRoleDeclaration(node: RoleDeclarationSyntax): void {
             this.visitToken(node.roleKeyword);
             this.visitToken(node.identifier);
-            this.visitNode(node.body);
+            this.visitToken(node.openBraceToken);
+            this.visitList(node.roleElements);
+            this.visitToken(node.closeBraceToken);
         }
 
         public visitHeritageClause(node: HeritageClauseSyntax): void {

@@ -78,6 +78,10 @@ module TypeScript {
 
     export interface IClassElementSyntax extends ISyntaxNode {
     }
+	
+	//DCI
+    export interface IRoleElementSyntax extends ISyntaxNode {
+    }
 
     export interface IMemberDeclarationSyntax extends IClassElementSyntax {
     }

@@ -9,7 +9,7 @@ module TypeScript.Syntax {
         exportAssignment(exportKeyword: ISyntaxToken, equalsToken: ISyntaxToken, identifier: ISyntaxToken, semicolonToken: ISyntaxToken): ExportAssignmentSyntax;
         classDeclaration(modifiers: ISyntaxList, classKeyword: ISyntaxToken, identifier: ISyntaxToken, typeParameterList: TypeParameterListSyntax, heritageClauses: ISyntaxList, openBraceToken: ISyntaxToken, classElements: ISyntaxList, closeBraceToken: ISyntaxToken): ClassDeclarationSyntax;
         interfaceDeclaration(modifiers: ISyntaxList, interfaceKeyword: ISyntaxToken, identifier: ISyntaxToken, typeParameterList: TypeParameterListSyntax, heritageClauses: ISyntaxList, body: ObjectTypeSyntax): InterfaceDeclarationSyntax;
-        roleDeclaration(roleKeyword: ISyntaxToken, identifier: ISyntaxToken, body: ObjectTypeSyntax): RoleDeclarationSyntax;
+        roleDeclaration(roleKeyword: ISyntaxToken, identifier: ISyntaxToken, openBraceToken: ISyntaxToken, roleElements: ISyntaxList, closeBraceToken: ISyntaxToken): RoleDeclarationSyntax;
         heritageClause(extendsOrImplementsKeyword: ISyntaxToken, typeNames: ISeparatedSyntaxList): HeritageClauseSyntax;
         moduleDeclaration(modifiers: ISyntaxList, moduleKeyword: ISyntaxToken, moduleName: INameSyntax, stringLiteral: ISyntaxToken, openBraceToken: ISyntaxToken, moduleElements: ISyntaxList, closeBraceToken: ISyntaxToken): ModuleDeclarationSyntax;
         functionDeclaration(modifiers: ISyntaxList, functionKeyword: ISyntaxToken, identifier: ISyntaxToken, callSignature: CallSignatureSyntax, block: BlockSyntax, semicolonToken: ISyntaxToken): FunctionDeclarationSyntax;
@@ -113,8 +113,8 @@ module TypeScript.Syntax {
         interfaceDeclaration(modifiers: ISyntaxList, interfaceKeyword: ISyntaxToken, identifier: ISyntaxToken, typeParameterList: TypeParameterListSyntax, heritageClauses: ISyntaxList, body: ObjectTypeSyntax): InterfaceDeclarationSyntax {
             return new InterfaceDeclarationSyntax(modifiers, interfaceKeyword, identifier, typeParameterList, heritageClauses, body, /*parsedInStrictMode:*/ false);
         }
-        roleDeclaration(roleKeyword: ISyntaxToken, identifier: ISyntaxToken, body: ObjectTypeSyntax): RoleDeclarationSyntax {
-            return new RoleDeclarationSyntax(roleKeyword, identifier, body, /*parsedInStrictMode:*/ false);
+        roleDeclaration(roleKeyword: ISyntaxToken, identifier: ISyntaxToken, openBraceToken: ISyntaxToken, roleElements: ISyntaxList, closeBraceToken: ISyntaxToken): RoleDeclarationSyntax {
+            return new RoleDeclarationSyntax(roleKeyword, identifier, openBraceToken, roleElements, closeBraceToken, /*parsedInStrictMode:*/ false);
         }
         heritageClause(extendsOrImplementsKeyword: ISyntaxToken, typeNames: ISeparatedSyntaxList): HeritageClauseSyntax {
             return new HeritageClauseSyntax(extendsOrImplementsKeyword, typeNames, /*parsedInStrictMode:*/ false);
@@ -377,8 +377,8 @@ module TypeScript.Syntax {
         interfaceDeclaration(modifiers: ISyntaxList, interfaceKeyword: ISyntaxToken, identifier: ISyntaxToken, typeParameterList: TypeParameterListSyntax, heritageClauses: ISyntaxList, body: ObjectTypeSyntax): InterfaceDeclarationSyntax {
             return new InterfaceDeclarationSyntax(modifiers, interfaceKeyword, identifier, typeParameterList, heritageClauses, body, /*parsedInStrictMode:*/ true);
         }
-        roleDeclaration(roleKeyword: ISyntaxToken, identifier: ISyntaxToken, body: ObjectTypeSyntax): RoleDeclarationSyntax {
-            return new RoleDeclarationSyntax(roleKeyword, identifier, body, /*parsedInStrictMode:*/ true);
+        roleDeclaration(roleKeyword: ISyntaxToken, identifier: ISyntaxToken, openBraceToken: ISyntaxToken, roleElements: ISyntaxList, closeBraceToken: ISyntaxToken): RoleDeclarationSyntax {
+            return new RoleDeclarationSyntax(roleKeyword, identifier, openBraceToken, roleElements, closeBraceToken, /*parsedInStrictMode:*/ true);
         }
         heritageClause(extendsOrImplementsKeyword: ISyntaxToken, typeNames: ISeparatedSyntaxList): HeritageClauseSyntax {
             return new HeritageClauseSyntax(extendsOrImplementsKeyword, typeNames, /*parsedInStrictMode:*/ true);

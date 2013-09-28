@@ -112,7 +112,7 @@ interface IRoleTypeSymbol extends IMemberSymbol, IObjectTypeSymbol, IGenericSymb
      * symbol by (say) type substitution, this gets the original symbol, as it was defined in
      * source.
      */
-    originalDefinition(): IInterfaceTypeSymbol;
+    originalDefinition(): IRoleTypeSymbol;
 }
 
 interface IAnonymousTypeSymbol extends IObjectTypeSymbol {

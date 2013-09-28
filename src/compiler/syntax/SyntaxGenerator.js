@@ -4031,10 +4031,13 @@ var definitions = [
     {
         name: 'RoleDeclarationSyntax',
         baseType: 'SyntaxNode',
+        interfaces: ['IModuleElementSyntax'],
         children: [
             { name: 'roleKeyword', isToken: true },
             { name: 'identifier', isToken: true, tokenKinds: ['IdentifierName'] },
-            { name: 'body', type: 'ObjectTypeSyntax' }
+            { name: 'openBraceToken', isToken: true },
+            { name: 'roleElements', isList: true, elementType: 'IRoleElementSyntax' },
+            { name: 'closeBraceToken', isToken: true }
         ],
         isTypeScriptSpecific: true
     },

@@ -651,11 +651,13 @@ module TypeScript {
     }
     }
 
-    export class RoleDeclarationSyntax extends SyntaxNode {
+    export class RoleDeclarationSyntax extends SyntaxNode implements IModuleElementSyntax {
 
         constructor(public roleKeyword: ISyntaxToken,
                     public identifier: ISyntaxToken,
-                    public body: ObjectTypeSyntax,
+                    public openBraceToken: ISyntaxToken,
+                    public roleElements: ISyntaxList,
+                    public closeBraceToken: ISyntaxToken,
                     parsedInStrictMode: boolean) {
             super(parsedInStrictMode); 
 
@@ -670,30 +672,45 @@ module TypeScript {
     }
 
     public childCount(): number {
-        return 3;
+        return 5;
     }
 
     public childAt(slot: number): ISyntaxElement {
         switch (slot) {
             case 0: return this.roleKeyword;
             case 1: return this.identifier;
-            case 2: return this.body;
+            case 2: return this.openBraceToken;
+            case 3: return this.roleElements;
+            case 4: return this.closeBraceToken;
             default: throw Errors.invalidOperation();
         }
     }
 
+    public isModuleElement(): boolean {
+        return true;
+    }
+
     public update(roleKeyword: ISyntaxToken,
                   identifier: ISyntaxToken,
-                  body: ObjectTypeSyntax): RoleDeclarationSyntax {
-        if (this.roleKeyword === roleKeyword && this.identifier === identifier && this.body === body) {
+                  openBraceToken: ISyntaxToken,
+                  roleElements: ISyntaxList,
+                  closeBraceToken: ISyntaxToken): RoleDeclarationSyntax {
+        if (this.roleKeyword === roleKeyword && this.identifier === identifier && this.openBraceToken === openBraceToken && this.roleElements === roleElements && this.closeBraceToken === closeBraceToken) {
             return this;
         }
 
-        return new RoleDeclarationSyntax(roleKeyword, identifier, body, /*parsedInStrictMode:*/ this.parsedInStrictMode());
+        return new RoleDeclarationSyntax(roleKeyword, identifier, openBraceToken, roleElements, closeBraceToken, /*parsedInStrictMode:*/ this.parsedInStrictMode());
+    }
+
+    public static create(roleKeyword: ISyntaxToken,
+                         identifier: ISyntaxToken,
+                         openBraceToken: ISyntaxToken,
+                         closeBraceToken: ISyntaxToken): RoleDeclarationSyntax {
+        return new RoleDeclarationSyntax(roleKeyword, identifier, openBraceToken, Syntax.emptyList, closeBraceToken, /*parsedInStrictMode:*/ false);
     }
 
     public static create1(identifier: ISyntaxToken): RoleDeclarationSyntax {
-        return new RoleDeclarationSyntax(Syntax.token(SyntaxKind.RoleKeyword), identifier, ObjectTypeSyntax.create1(), /*parsedInStrictMode:*/ false);
+        return new RoleDeclarationSyntax(Syntax.token(SyntaxKind.RoleKeyword), identifier, Syntax.token(SyntaxKind.OpenBraceToken), Syntax.emptyList, Syntax.token(SyntaxKind.CloseBraceToken), /*parsedInStrictMode:*/ false);
     }
 
     public withLeadingTrivia(trivia: ISyntaxTriviaList): RoleDeclarationSyntax {
@@ -705,15 +722,27 @@ module TypeScript {
     }
 
     public withRoleKeyword(roleKeyword: ISyntaxToken): RoleDeclarationSyntax {
-        return this.update(roleKeyword, this.identifier, this.body);
+        return this.update(roleKeyword, this.identifier, this.openBraceToken, this.roleElements, this.closeBraceToken);
     }
 
     public withIdentifier(identifier: ISyntaxToken): RoleDeclarationSyntax {
-        return this.update(this.roleKeyword, identifier, this.body);
+        return this.update(this.roleKeyword, identifier, this.openBraceToken, this.roleElements, this.closeBraceToken);
     }
 
-    public withBody(body: ObjectTypeSyntax): RoleDeclarationSyntax {
-        return this.update(this.roleKeyword, this.identifier, body);
+    public withOpenBraceToken(openBraceToken: ISyntaxToken): RoleDeclarationSyntax {
+        return this.update(this.roleKeyword, this.identifier, openBraceToken, this.roleElements, this.closeBraceToken);
+    }
+
+    public withRoleElements(roleElements: ISyntaxList): RoleDeclarationSyntax {
+        return this.update(this.roleKeyword, this.identifier, this.openBraceToken, roleElements, this.closeBraceToken);
+    }
+
+    public withRoleElement(roleElement: IRoleElementSyntax): RoleDeclarationSyntax {
+        return this.withRoleElements(Syntax.list([roleElement]));
+    }
+
+    public withCloseBraceToken(closeBraceToken: ISyntaxToken): RoleDeclarationSyntax {
+        return this.update(this.roleKeyword, this.identifier, this.openBraceToken, this.roleElements, closeBraceToken);
     }
 
     public isTypeScriptSpecific(): boolean {

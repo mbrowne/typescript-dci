@@ -1125,7 +1125,7 @@ module TypeScript {
 
         constructor(public name: Identifier,
 					public members: ASTList,
-                    public isObjectTypeLiteral: boolean ) {
+                    public endingToken: ASTSpan) {
 			super();
 		}
 
@@ -1156,7 +1156,11 @@ module TypeScript {
         public shouldEmit(): boolean {
             return false;
         }
-    }
+		
+        public emit(emitter: Emitter): void {
+            emitter.emitRole(this);
+        }
+    }	
 
     export class ThrowStatement extends AST {
         constructor(public expression: AST) {

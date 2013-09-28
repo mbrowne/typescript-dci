@@ -482,12 +482,16 @@ module TypeScript {
             var name = this.identifierFromToken(node.identifier, /*isOptional:*/ false);
             this.movePast(node.identifier);
 
-            this.movePast(node.body.openBraceToken);
-            var members = this.visitSeparatedSyntaxList(node.body.typeMembers);
+            //var typeParameters = node.typeParameterList === null ? null : node.typeParameterList.accept(this);
 
-            this.movePast(node.body.closeBraceToken);
+            this.movePast(node.openBraceToken);
+            var members = this.visitSyntaxList(node.roleElements);
+            var closeBracePosition = this.position;
+            this.movePast(node.closeBraceToken);
+            var closeBraceSpan = new ASTSpan();
+            this.setSpan(closeBraceSpan, closeBracePosition, node.closeBraceToken);
 
-            var result = new RoleDeclaration(name, members, /*isObjectTypeLiteral:*/ false);
+            var result = new RoleDeclaration(name, members, closeBraceSpan);
             this.setCommentsAndSpan(result, start, node);
 
             return result;

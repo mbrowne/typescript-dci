@@ -25,6 +25,7 @@ module TypeScript {
         Function,
         Args,
         Interface,
+		Role //DCI
     }
 
     export class EmitState {
@@ -146,6 +147,7 @@ module TypeScript {
         public globalThisCapturePrologueEmitted = false;
         public extendsPrologueEmitted = false;
         public thisClassNode: ClassDeclaration = null;
+		public thisRoleNode: RoleDeclaration = null; //DCI
         public thisFunctionDeclaration: FunctionDeclaration = null;
         public moduleName = "";
         public emitState = new EmitState();
@@ -1936,6 +1938,77 @@ module TypeScript {
             this.emitComments(classDecl, false);
             this.setContainer(temp);
             this.thisClassNode = svClassNode;
+
+            this.popDecl(pullDecl);
+        }
+		
+		//DCI
+        public emitRole(roleDecl: RoleDeclaration) {
+            var pullDecl = this.semanticInfoChain.getDeclForAST(roleDecl, this.document.fileName);
+            this.pushDecl(pullDecl);
+
+            var svRoleNode = this.thisRoleNode;
+            this.thisRoleNode = roleDecl;
+            var roleName = roleDecl.name.actualText;
+            this.emitComments(roleDecl, true);
+            var temp = this.setContainer(EmitContainer.Role);
+
+            this.recordSourceMappingStart(roleDecl);
+            this.writeToOutput("var " + roleName);
+
+//            var hasBaseClass = classDecl.extendsList && classDecl.extendsList.members.length;
+//            var baseNameDecl: AST = null;
+//            var baseName: AST = null;
+//            var varDecl: VariableDeclarator = null;
+
+            this.writeLineToOutput(" = (function () {");
+
+            this.recordSourceMappingNameStart(roleName);
+            this.indenter.increaseIndent();
+
+            this.emitIndent();
+
+			this.recordSourceMappingStart(roleDecl);
+			// default constructor
+			this.indenter.increaseIndent();
+			this.writeLineToOutput("function " + roleDecl.name.actualText + "() {");
+			this.recordSourceMappingNameStart("constructor");
+
+			if (this.shouldCaptureThis(roleDecl)) {
+				this.writeCaptureThisStatement(roleDecl);
+			}
+
+			this.emitParameterPropertyAndMemberVariableAssignments();
+
+			this.indenter.decreaseIndent();
+			this.emitIndent();
+			this.writeLineToOutput("}");
+
+			this.recordSourceMappingNameEnd();
+			this.recordSourceMappingEnd(roleDecl);
+
+			//DCI TODO
+            //this.emitRoleMembers(roleDecl);
+
+            this.emitIndent();
+            this.recordSourceMappingStart(roleDecl.endingToken);
+            this.writeLineToOutput("return " + roleName + ";");
+            this.recordSourceMappingEnd(roleDecl.endingToken);
+            this.indenter.decreaseIndent();
+            this.emitIndent();
+            this.recordSourceMappingStart(roleDecl.endingToken);
+            this.writeToOutput("}");
+            this.recordSourceMappingNameEnd();
+            this.recordSourceMappingEnd(roleDecl.endingToken);
+            this.recordSourceMappingStart(roleDecl);
+            this.writeToOutput(")(");
+            this.writeToOutput(");");
+            this.recordSourceMappingEnd(roleDecl);
+
+            this.recordSourceMappingEnd(roleDecl);
+            this.emitComments(roleDecl, false);
+            this.setContainer(temp);
+            this.thisRoleNode = svRoleNode;
 
             this.popDecl(pullDecl);
         }

@@ -134,10 +134,13 @@ var definitions:ITypeDefinition[] = [
     <any>{
         name: 'RoleDeclarationSyntax',
         baseType: 'SyntaxNode',
+		interfaces: ['IModuleElementSyntax'],
         children: [
             <any>{ name: 'roleKeyword', isToken: true },
             <any>{ name: 'identifier', isToken: true, tokenKinds: ['IdentifierName'] },
-            <any>{ name: 'body', type: 'ObjectTypeSyntax' }
+            <any>{ name: 'openBraceToken', isToken: true },
+            <any>{ name: 'roleElements', isList: true, elementType: 'IRoleElementSyntax' },
+            <any>{ name: 'closeBraceToken', isToken: true }
         ],
         isTypeScriptSpecific: true
     },

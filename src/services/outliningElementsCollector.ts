@@ -39,7 +39,7 @@ module Services {
 		
 		//DCI
         public visitRoleDeclaration(node: TypeScript.RoleDeclarationSyntax): void {
-            this.addOutlineRange(node, node.body, node.body);
+			this.addOutlineRange(node, node.openBraceToken, node.closeBraceToken);
             super.visitRoleDeclaration(node);
         }
 
