@@ -274,6 +274,10 @@ module Services {
 
         // interface Y {}
         static interfaceElement = "interface";
+		
+		//DCI
+		// role R {}
+		static roleElement = "role";
 
         // enum E
         static enumElement = "enum";

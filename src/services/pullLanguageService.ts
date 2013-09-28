@@ -276,6 +276,10 @@ module Services {
 
                     case TypeScript.NodeType.InterfaceDeclaration:
                         return (<TypeScript.InterfaceDeclaration>parent).name === current;
+					
+					//DCI
+                    case TypeScript.NodeType.RoleDeclaration:
+                        return (<TypeScript.RoleDeclaration>parent).name === current;
 
                     case TypeScript.NodeType.ModuleDeclaration:
                         return (<TypeScript.ModuleDeclaration>parent).name === current;

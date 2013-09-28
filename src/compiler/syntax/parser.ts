@@ -1631,6 +1631,7 @@ module TypeScript.Parser {
                    this.isModuleDeclaration() ||
                    this.isInterfaceDeclaration() ||
                    this.isClassDeclaration() ||
+				   this.isRoleDeclaration() || //DCI
                    this.isEnumDeclaration() ||
                    this.isStatement(inErrorRecovery);
         }
@@ -1654,6 +1655,10 @@ module TypeScript.Parser {
             }
             else if (this.isClassDeclaration()) {
                 return this.parseClassDeclaration();
+            }
+			//DCI
+            else if (this.isRoleDeclaration()) {
+                return this.parseRoleDeclaration();
             }
             else if (this.isEnumDeclaration()) {
                 return this.parseEnumDeclaration();
@@ -2446,7 +2451,7 @@ module TypeScript.Parser {
                 this.peekToken(index).tokenKind === SyntaxKind.InterfaceKeyword) {
                     return true;
             }
-
+		   
             // 'interface' is not a javascript keyword.  So we need to use a bit of lookahead here to ensure
             // that we're actually looking at a interface construct and not some javascript expression.
             return this.currentToken().tokenKind === SyntaxKind.InterfaceKeyword &&
@@ -2456,14 +2461,21 @@ module TypeScript.Parser {
 		//DCI
         private isRoleDeclaration(): boolean {
             var index = this.modifierCount();
-
-            // If we have at least one modifier, and we see 'role', then consider this an interface
+			
+			//Note: The below comment is copied from isInterfaceDeclaration() above, subsituting the word 'role' for 'interface'...
+			//checking for index > 0 apparently does NOT mean that we require a 'public' or 'private' keyword,
+			//which is good since all roles should be private to the context
+			//
+            // If we have at least one modifier, and we see 'role', then consider this a role
             // declaration.
             if (index > 0 &&
                 this.peekToken(index).tokenKind === SyntaxKind.RoleKeyword) {
-                    return true;
+                return true;
             }
-
+			
+			var isRole = this.currentToken().tokenKind === SyntaxKind.RoleKeyword &&
+                   this.isIdentifier(this.peekToken(1));
+			
             // 'role' is not a javascript keyword.  So we need to use a bit of lookahead here to ensure
             // that we're actually looking at a role construct and not some javascript expression.
             return this.currentToken().tokenKind === SyntaxKind.RoleKeyword &&

@@ -91,6 +91,7 @@ module Services {
         private static isInContainerNode(parent: TypeScript.ISyntaxElement, element: TypeScript.ISyntaxElement): boolean {
             switch (parent.kind()) {
                 case TypeScript.SyntaxKind.ClassDeclaration:
+				case TypeScript.SyntaxKind.RoleDeclaration: //DCI
                 case TypeScript.SyntaxKind.ModuleDeclaration:
                 case TypeScript.SyntaxKind.EnumDeclaration:
                 case TypeScript.SyntaxKind.ImportDeclaration:

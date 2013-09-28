@@ -36,6 +36,12 @@ module Services {
             this.addOutlineRange(node, node.body, node.body);
             super.visitInterfaceDeclaration(node);
         }
+		
+		//DCI
+        public visitRoleDeclaration(node: TypeScript.RoleDeclarationSyntax): void {
+            this.addOutlineRange(node, node.body, node.body);
+            super.visitRoleDeclaration(node);
+        }
 
         public visitModuleDeclaration(node: TypeScript.ModuleDeclarationSyntax): void {
             this.addOutlineRange(node, node.openBraceToken, node.closeBraceToken);

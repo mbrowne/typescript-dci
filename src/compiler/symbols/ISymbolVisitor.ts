@@ -14,6 +14,8 @@ interface ISymbolVisitor {
     // Object types
     visitClassType(symbol: IClassTypeSymbol): any;
     visitInterfaceType(symbol: IInterfaceTypeSymbol): any;
+	//DCI
+	visitRoleType(symbol: IRoleTypeSymbol): any;
     visitAnonymousType(symbol: IAnonymousTypeSymbol): any;
     // visitEnumType(symbol: IEnumTypeSymbol): any;
     // visitFunctionType(symbol: IFunctionTypeSymbol): any;

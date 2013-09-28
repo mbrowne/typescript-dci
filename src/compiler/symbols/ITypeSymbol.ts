@@ -17,6 +17,9 @@ interface ITypeSymbol extends IModuleOrTypeSymbol {
      * interfaces that are base interfaces of directly implemented interfaces.
      */
     interfaces(): IInterfaceTypeSymbol[];
+	
+	//DCI TODO?
+	//roles()
 
     /**
      * The list of all interfaces of which this type is a declared subtype, excluding this type
@@ -88,6 +91,19 @@ interface IClassTypeSymbol extends IMemberSymbol, IObjectTypeSymbol, IGenericSym
 }
 
 interface IInterfaceTypeSymbol extends IMemberSymbol, IObjectTypeSymbol, IGenericSymbol {
+    signatureCount(): number;
+    signatureAt(index: number): ISignatureSymbol;
+
+    /**
+     * Get the original definition of this type symbol. If this symbol is derived from another
+     * symbol by (say) type substitution, this gets the original symbol, as it was defined in
+     * source.
+     */
+    originalDefinition(): IInterfaceTypeSymbol;
+}
+
+//DCI
+interface IRoleTypeSymbol extends IMemberSymbol, IObjectTypeSymbol, IGenericSymbol {
     signatureCount(): number;
     signatureAt(index: number): ISignatureSymbol;
 

@@ -137,6 +137,21 @@ module Services {
             this.nameStack.pop();
             this.kindStack.pop();
         }
+		
+		//DCI
+        public visitRoleDeclaration(node: TypeScript.RoleDeclarationSyntax): void {
+			//access modifiers don't apply to roles - they're always private to the context - so pass an empty list
+			var modifiers = TypeScript.Syntax.emptyList;
+            var item = this.createItem(node, modifiers, ScriptElementKind.roleElement, node.identifier.text());
+
+            this.nameStack.push(item.name);
+            this.kindStack.push(item.kind);
+
+            super.visitRoleDeclaration(node);
+
+            this.nameStack.pop();
+            this.kindStack.pop();
+        }
 
         public visitObjectType(node: TypeScript.ObjectTypeSyntax): void {
             // Ignore an object type if we aren't inside an interface declaration.  We don't want

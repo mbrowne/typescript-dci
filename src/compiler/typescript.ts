@@ -1445,9 +1445,16 @@ module TypeScript {
 
                         break;
 					
-					//TODO Do we need this?
 					//DCI
-                    //case NodeType.RoleDeclaration:
+                    case NodeType.RoleDeclaration:
+						var roleDeclaration = <RoleDeclaration>current;
+                        if (path.asts[i + 1]) {
+                            if (path.asts[i + 1] === roleDeclaration.name) {
+                                resolutionContext.resolvingTypeReference = true;
+                            }
+                        }
+
+                        break;
                 }
 
                 // Record enclosing Decl

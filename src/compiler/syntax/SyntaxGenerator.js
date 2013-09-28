@@ -3497,7 +3497,8 @@ var TypeScript;
         SyntaxKind[SyntaxKind["LastFutureReservedStrictKeyword"] = SyntaxKind.YieldKeyword] = "LastFutureReservedStrictKeyword";
 
         SyntaxKind[SyntaxKind["FirstTypeScriptKeyword"] = SyntaxKind.AnyKeyword] = "FirstTypeScriptKeyword";
-        SyntaxKind[SyntaxKind["LastTypeScriptKeyword"] = SyntaxKind.StringKeyword] = "LastTypeScriptKeyword";
+
+        SyntaxKind[SyntaxKind["LastTypeScriptKeyword"] = SyntaxKind.RoleKeyword] = "LastTypeScriptKeyword";
 
         SyntaxKind[SyntaxKind["FirstKeyword"] = SyntaxKind.FirstStandardKeyword] = "FirstKeyword";
         SyntaxKind[SyntaxKind["LastKeyword"] = SyntaxKind.LastTypeScriptKeyword] = "LastKeyword";
@@ -3657,7 +3658,7 @@ var TypeScript;
         SyntaxFacts.isTokenKind = isTokenKind;
 
         function isAnyKeyword(kind) {
-            return kind >= 15 /* FirstKeyword */ && kind <= 70 /* LastKeyword */;
+            return kind >= 15 /* FirstKeyword */ && kind <= 71 /* LastKeyword */;
         }
         SyntaxFacts.isAnyKeyword = isAnyKeyword;
 
@@ -6384,7 +6385,7 @@ function generateScannerUtilities() {
     var i;
     var keywords = [];
 
-    for (i = 15 /* FirstKeyword */; i <= 70 /* LastKeyword */; i++) {
+    for (i = 15 /* FirstKeyword */; i <= 71 /* LastKeyword */; i++) {
         keywords.push({ kind: i, text: TypeScript.SyntaxFacts.getText(i) });
     }
 

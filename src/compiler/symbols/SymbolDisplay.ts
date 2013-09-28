@@ -259,6 +259,9 @@ module SymbolDisplay {
                     return SyntaxKind.EnumKeyword;
                 case TypeKind.Interface:
                     return SyntaxKind.InterfaceKeyword;
+				//DCI
+                case TypeKind.Role:
+                    return SyntaxKind.RoleKeyword;				
                 default:
                     return SyntaxKind.None;
             }

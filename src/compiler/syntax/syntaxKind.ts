@@ -313,7 +313,10 @@ module TypeScript {
         LastFutureReservedStrictKeyword = YieldKeyword,
 
         FirstTypeScriptKeyword = AnyKeyword,
-        LastTypeScriptKeyword = StringKeyword,
+		
+		//DCI
+		LastTypeScriptKeyword = RoleKeyword,
+        //LastTypeScriptKeyword = StringKeyword,
 
         FirstKeyword = FirstStandardKeyword,
         LastKeyword = LastTypeScriptKeyword,
