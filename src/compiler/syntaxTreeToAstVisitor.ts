@@ -495,7 +495,7 @@ module TypeScript {
             this.setCommentsAndSpan(result, start, node);
 
             return result;
-        }
+        }			
 
         public visitHeritageClause(node: HeritageClauseSyntax): ASTList {
             var start = this.position;

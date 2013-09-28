@@ -1978,8 +1978,6 @@ module TypeScript {
 				this.writeCaptureThisStatement(roleDecl);
 			}
 
-			this.emitParameterPropertyAndMemberVariableAssignments();
-
 			this.indenter.decreaseIndent();
 			this.emitIndent();
 			this.writeLineToOutput("}");
@@ -1987,8 +1985,7 @@ module TypeScript {
 			this.recordSourceMappingNameEnd();
 			this.recordSourceMappingEnd(roleDecl);
 
-			//DCI TODO
-            //this.emitRoleMembers(roleDecl);
+            this.emitRoleMembers(roleDecl);
 
             this.emitIndent();
             this.recordSourceMappingStart(roleDecl.endingToken);
@@ -2060,6 +2057,60 @@ module TypeScript {
                         this.emitIndent();
                         this.recordSourceMappingStart(varDecl);
                         this.writeToOutput(classDecl.name.actualText + "." + varDecl.id.actualText + " = ");
+                        varDecl.init.emit(this);
+
+                        this.writeLineToOutput(";");
+                        this.recordSourceMappingEnd(varDecl);
+
+                        lastEmittedMember = varDecl;
+                    }
+                }
+            }
+        }
+		
+		//DCI
+        private emitRoleMembers(roleDecl: RoleDeclaration): void {
+            // First, emit all the functions.
+            var lastEmittedMember: AST = null;
+
+            for (var i = 0, n = roleDecl.members.members.length; i < n; i++) {
+                var memberDecl = roleDecl.members.members[i];
+
+                if (memberDecl.nodeType() === NodeType.FunctionDeclaration) {
+                    var fn = <FunctionDeclaration>memberDecl;
+
+                    if (hasFlag(fn.getFunctionFlags(), FunctionFlags.Method) && !fn.isSignature()) {
+                        this.emitSpaceBetweenConstructs(lastEmittedMember, fn);
+
+						if (fn.isAccessor()) {
+							this.emitPropertyAccessor(fn, this.thisRoleNode.name.actualText, false);
+						}
+						else {
+							this.emitIndent();
+							this.recordSourceMappingStart(fn);
+							this.writeToOutput(roleDecl.name.actualText + "." + fn.name.actualText + " = ");
+							this.emitInnerFunction(fn, /*printName:*/ false);
+							this.writeLineToOutput(";");
+						}
+
+                        lastEmittedMember = fn;
+                    }
+                }
+            }
+
+            // Now emit all the statics.
+            for (var i = 0, n = roleDecl.members.members.length; i < n; i++) {
+                var memberDecl = roleDecl.members.members[i];
+
+                if (memberDecl.nodeType() === NodeType.VariableDeclarator) {
+                    var varDecl = <VariableDeclarator>memberDecl;
+
+                    if (hasFlag(varDecl.getVarFlags(), VariableFlags.Static) && varDecl.init) {
+                        this.emitSpaceBetweenConstructs(lastEmittedMember, varDecl);
+
+                        this.emitIndent();
+                        this.recordSourceMappingStart(varDecl);
+                        this.writeToOutput(roleDecl.name.actualText + "." + varDecl.id.actualText + " = ");
                         varDecl.init.emit(this);
 
                         this.writeLineToOutput(";");

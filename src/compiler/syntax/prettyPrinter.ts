@@ -258,8 +258,26 @@ module TypeScript.PrettyPrinter {
             this.appendToken(node.roleKeyword);
             this.ensureSpace();
             this.appendToken(node.identifier);
-            this.ensureSpace();
-            this.appendObjectType(node.body, /*appendNewLines:*/ true);
+            this.appendToken(node.openBraceToken);
+            this.ensureNewLine();
+
+            this.indentation++;
+            
+            var lastRoleElement: IRoleElementSyntax = null;
+            for (var i = 0, n = node.roleElements.childCount(); i < n; i++) {
+                var roleElement = <IRoleElementSyntax>node.roleElements.childAt(i);
+                var newLineCount = this.newLineCountBetweenRoleElements(lastRoleElement, roleElement);
+
+                this.appendNewLines(newLineCount);
+                roleElement.accept(this);
+
+                lastRoleElement = roleElement;
+            }
+
+            this.indentation--;
+
+            this.ensureNewLine();
+            this.appendToken(node.closeBraceToken);
         }
 
         private appendObjectType(node: ObjectTypeSyntax, appendNewLines: boolean): void {

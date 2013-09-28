@@ -800,7 +800,7 @@ module TypeScript {
                 var roleName = roleDecl.name.actualText;
                 this.emitDeclarationComments(roleDecl);
                 var rolePullDecl = this.compiler.semanticInfoChain.getDeclForAST(roleDecl, this.document.fileName);
-                this.emitDeclFlags(ToDeclFlags(roleDecl.getVarFlags()), rolePullDecl, "class");
+                this.emitDeclFlags(ToDeclFlags(roleDecl.getVarFlags()), rolePullDecl, "role");
                 this.declFile.Write(roleName);
                 this.pushDeclarationContainer(roleDecl);
                 this.declFile.WriteLine(" {");

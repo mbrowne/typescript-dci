@@ -726,6 +726,58 @@ module TypeScript.Emitter1 {
                     .withBlock(block.withStatements(
                         Syntax.list(blockStatements))))).withTrailingTrivia(blockTrailingTrivia);
         }
+		
+		//DCI
+        private convertRoleMethodDeclaration(roleDeclaration: RoleDeclarationSyntax,
+                                                 functionDeclaration: MemberFunctionDeclarationSyntax): ExpressionStatementSyntax {
+            var _this = this;
+            if (functionDeclaration.block === null) {
+                return null;
+            }
+
+            var roleIdentifier = this.withNoTrivia(roleDeclaration.identifier);
+            var functionIdentifier = this.withNoTrivia(functionDeclaration.propertyName);
+
+            var receiver: IExpressionSyntax = roleIdentifier.withLeadingTrivia(functionDeclaration.leadingTrivia());
+
+            receiver = this.containsToken(functionDeclaration.modifiers, SyntaxKind.StaticKeyword)
+                ? receiver
+                : MemberAccessExpressionSyntax.create1(receiver, Syntax.identifierName("prototype"));
+
+            receiver = MemberAccessExpressionSyntax.create1(
+                receiver, functionIdentifier.withTrailingTrivia(Syntax.spaceTriviaList));
+
+            var block: BlockSyntax = functionDeclaration.block.accept(this);
+            var blockTrailingTrivia = block.trailingTrivia();
+
+            block = block.withTrailingTrivia(Syntax.emptyTriviaList);
+
+            var defaultValueAssignments = <IStatementSyntax[]>ArrayUtilities.select(
+                EmitterImpl.callSignatureDefaultParameters(functionDeclaration.callSignature),
+                p => _this.generateDefaultValueAssignmentStatement(p));
+
+            var functionColumn = this.columnForStartOfToken(functionDeclaration.firstToken());
+
+            var blockStatements = block.statements.toArray();
+            for (var i = defaultValueAssignments.length - 1; i >= 0; i--) {
+                blockStatements.unshift(this.changeIndentation(
+                    defaultValueAssignments[i], /*changeFirstToken:*/ true, functionColumn + this.options.indentSpaces));
+            }
+
+            var callSignatureParameterList = <ParameterListSyntax>functionDeclaration.callSignature.parameterList.accept(this);
+            if (!callSignatureParameterList.hasTrailingTrivia()) {
+                callSignatureParameterList = <ParameterListSyntax>callSignatureParameterList.withTrailingTrivia(Syntax.spaceTriviaList);
+            }
+
+            // C.prototype.f = function (p1, p2) { ...  };
+            return ExpressionStatementSyntax.create1(Syntax.assignmentExpression(
+                receiver,
+                Syntax.token(SyntaxKind.EqualsToken).withTrailingTrivia(this.space),
+                FunctionExpressionSyntax.create1()
+                    .withCallSignature(CallSignatureSyntax.create(callSignatureParameterList))
+                    .withBlock(block.withStatements(
+                        Syntax.list(blockStatements))))).withTrailingTrivia(blockTrailingTrivia);
+        }
 
         private convertMemberAccessor(memberAccessor: MemberAccessorDeclarationSyntax): PropertyAssignmentSyntax {
             var propertyName = memberAccessor.kind() === SyntaxKind.GetMemberAccessorDeclaration
@@ -813,6 +865,75 @@ module TypeScript.Emitter1 {
                     ArgumentListSyntax.create1().withArguments(Syntax.separatedList(arguments))))
                 .withLeadingTrivia(memberAccessor.leadingTrivia()).withTrailingTrivia(this.newLine);
         }
+		
+		//DCI
+        private convertRoleMethodAccessorDeclaration(roleDeclaration: RoleDeclarationSyntax,
+                                                 memberAccessor: MemberAccessorDeclarationSyntax,
+                                                 roleElements: IRoleElementSyntax[]): IStatementSyntax {
+            var name = <string>memberAccessor.propertyName.value();
+            var i: number;
+
+            // Find all the accessors with that name.
+            var accessors: MemberAccessorDeclarationSyntax[] = [memberAccessor];
+
+            for (i = roleElements.length - 1; i >= 0; i--) {
+                var element = roleElements[i];
+                if (element.kind() === SyntaxKind.GetMemberAccessorDeclaration ||
+                    element.kind() === SyntaxKind.SetMemberAccessorDeclaration) {
+
+                    var otherAccessor = <MemberAccessorDeclarationSyntax>element;
+                    if (otherAccessor.propertyName.value() === name &&
+                        otherAccessor.block !== null) {
+                        accessors.push(otherAccessor);
+                        roleElements.splice(i, 1);
+                    }
+                }
+            }
+
+            var arguments = [
+                <any>MemberAccessExpressionSyntax.create1(
+                    this.withNoTrivia(roleDeclaration.identifier), Syntax.identifierName("prototype")),
+                Syntax.token(SyntaxKind.CommaToken).withTrailingTrivia(this.space),
+                Syntax.stringLiteralExpression('"' + memberAccessor.propertyName.text() + '"'),
+                Syntax.token(SyntaxKind.CommaToken).withTrailingTrivia(this.space)
+            ];
+
+            var propertyAssignments: ISyntaxNodeOrToken[] = [];
+            for (i = 0; i < accessors.length; i++) {
+                var converted = this.convertMemberAccessor(accessors[i]);
+                converted = <PropertyAssignmentSyntax>this.changeIndentation(
+                    converted, /*changeFirstToken:*/ true, this.options.indentSpaces);
+                propertyAssignments.push(converted);
+                propertyAssignments.push(
+                    Syntax.token(SyntaxKind.CommaToken).withTrailingTrivia(this.newLine));
+            }
+
+            var accessorColumn = this.columnForStartOfToken(memberAccessor.firstToken());
+            var accessorTrivia = this.indentationTrivia(accessorColumn);
+            var propertyTrivia = this.indentationTrivia(accessorColumn + this.options.indentSpaces);
+
+            propertyAssignments.push(this.factory.simplePropertyAssignment(
+                Syntax.identifier("enumerable"),
+                Syntax.token(SyntaxKind.ColonToken).withTrailingTrivia(this.space),
+                Syntax.trueExpression()).withLeadingTrivia(propertyTrivia));
+            propertyAssignments.push(Syntax.token(SyntaxKind.CommaToken).withTrailingTrivia(this.newLine));
+
+            propertyAssignments.push(this.factory.simplePropertyAssignment(
+                Syntax.identifier("configurable"),
+                Syntax.token(SyntaxKind.ColonToken).withTrailingTrivia(this.space),
+                Syntax.trueExpression()).withLeadingTrivia(propertyTrivia).withTrailingTrivia(this.newLine));
+
+            arguments.push(this.factory.objectLiteralExpression(
+                Syntax.token(SyntaxKind.OpenBraceToken).withTrailingTrivia(this.newLine),
+                Syntax.separatedList(propertyAssignments),
+                Syntax.token(SyntaxKind.CloseBraceToken).withLeadingTrivia(accessorTrivia)));
+
+            return ExpressionStatementSyntax.create1(
+                this.factory.invocationExpression(
+                    MemberAccessExpressionSyntax.create1(Syntax.identifierName("Object"), Syntax.identifierName("defineProperty")),
+                    ArgumentListSyntax.create1().withArguments(Syntax.separatedList(arguments))))
+                .withLeadingTrivia(memberAccessor.leadingTrivia()).withTrailingTrivia(this.newLine);
+        }
 
         private convertClassElements(classDeclaration: ClassDeclarationSyntax): IStatementSyntax[] {
             var result: IStatementSyntax[] = [];
@@ -831,6 +952,33 @@ module TypeScript.Emitter1 {
                 else if (classElement.kind() === SyntaxKind.GetMemberAccessorDeclaration ||
                          classElement.kind() === SyntaxKind.SetMemberAccessorDeclaration) {
                     converted = this.convertMemberAccessorDeclaration(classDeclaration, <MemberAccessorDeclarationSyntax>classElement, classElements);
+                }
+
+                if (converted !== null) {
+                    result.push(converted);
+                }
+            }
+
+            return result;
+        }
+		
+        private convertRoleElements(roleDeclaration: RoleDeclarationSyntax): IStatementSyntax[] {
+            var result: IStatementSyntax[] = [];
+
+            var roleElements = <IRoleElementSyntax[]>roleDeclaration.roleElements.toArray();
+            while (roleElements.length > 0) {
+                var roleElement = roleElements.shift();
+
+                var converted: IStatementSyntax = null;
+                if (roleElement.kind() === SyntaxKind.MemberFunctionDeclaration) {
+                    converted = this.convertRoleMethodDeclaration(roleDeclaration, <MemberFunctionDeclarationSyntax>roleElement);
+                }
+                else if (roleElement.kind() === SyntaxKind.MemberVariableDeclaration) {
+                    converted = this.generatePropertyAssignment(roleDeclaration, /*static:*/ true, <MemberVariableDeclarationSyntax>roleElement);
+                }
+                else if (roleElement.kind() === SyntaxKind.GetMemberAccessorDeclaration ||
+                         roleElement.kind() === SyntaxKind.SetMemberAccessorDeclaration) {
+                    converted = this.convertRoleMethodAccessorDeclaration(roleDeclaration, <MemberAccessorDeclarationSyntax>roleElement, roleElements);
                 }
 
                 if (converted !== null) {
@@ -925,11 +1073,39 @@ module TypeScript.Emitter1 {
         }
 		
 		//DCI
-		public visitRoleDeclaration(node: ClassDeclarationSyntax): VariableStatementSyntax {
-			//TODO
-			return VariableStatementSyntax.create1(this.factory.variableDeclaration(
-                Syntax.token(SyntaxKind.VarKeyword).withTrailingTrivia(this.space))
-					.text('DCI TODO');
+		public visitRoleDeclaration(node: RoleDeclarationSyntax): VariableStatementSyntax {
+            var identifier = this.withNoTrivia(node.identifier);
+
+            var statements: IStatementSyntax[] = [];
+            var statementIndentation = this.indentationTrivia( this.options.indentSpaces + this.columnForStartOfToken(node.firstToken()));
+
+            statements.push.apply(statements, this.convertRoleElements(node));
+
+            // return C;
+            statements.push(this.factory.returnStatement(
+                Syntax.token(SyntaxKind.ReturnKeyword).withTrailingTrivia(this.space),
+                identifier,
+                Syntax.token(SyntaxKind.SemicolonToken))
+                    .withLeadingTrivia(statementIndentation).withTrailingTrivia(this.newLine));
+
+            var block = this.factory.block(
+                Syntax.token(SyntaxKind.OpenBraceToken).withTrailingTrivia(this.newLine),
+                Syntax.list(statements),
+                Syntax.token(SyntaxKind.CloseBraceToken).withLeadingTrivia(this.indentationTriviaForStartOfNode(node)));
+
+            var callParameters: ParameterSyntax[] = [];
+
+            var callSignature = CallSignatureSyntax.create(
+                ParameterListSyntax.create1().withParameters(
+                    Syntax.separatedList(callParameters))).withTrailingTrivia(this.space);
+
+            var invocationParameters: ISyntaxNodeOrToken[] = [];
+
+            // var R = (function() { ... });
+            return VariableStatementSyntax.create1(this.factory.variableDeclaration(
+                Syntax.token(SyntaxKind.VarKeyword).withTrailingTrivia(this.space),
+                Syntax.separatedList([variableDeclarator])))
+                    .withLeadingTrivia(node.leadingTrivia()).withTrailingTrivia(this.newLine);
 		}
 
         public visitVariableDeclarator(node: VariableDeclaratorSyntax): VariableDeclaratorSyntax {

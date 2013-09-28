@@ -1154,7 +1154,7 @@ module TypeScript {
         }
 
         public shouldEmit(): boolean {
-            return false;
+            return true;
         }
 		
         public emit(emitter: Emitter): void {

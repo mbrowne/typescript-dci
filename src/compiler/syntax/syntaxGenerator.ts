@@ -2968,9 +2968,6 @@ var scannerUtilities = generateScannerUtilities();
 var visitor = generateVisitor();
 var factory = generateFactory();
 
-//DCI TEMP
-//Note: When making changes to this file, you may need to delete SyntaxGenerator.js (in the same directory as this file)
-//to make sure this file gets re-compiled.
 //
 //TODO
 console.log('Note from Matt Browne: Paths should be separated by forward slashes on *nix and backslashes on Windows');
