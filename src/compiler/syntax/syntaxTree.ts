@@ -704,6 +704,16 @@ module TypeScript {
 
             super.visitInterfaceDeclaration(node);
         }
+		
+		//DCI
+        public visitRoleDeclaration(node: RoleDeclarationSyntax): void {
+            if (this.checkForReservedName(node, node.identifier, DiagnosticCode.Role_name_cannot_be_0)) {
+                this.skip(node);
+                return;
+            }
+
+            super.visitRoleDeclaration(node);
+        }
 
         private checkClassElementModifiers(list: ISyntaxList): boolean {
             var modifierFullStart = this.position();

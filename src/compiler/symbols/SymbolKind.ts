@@ -12,6 +12,7 @@ enum SymbolKind {
     UndefinedType,
     ClassType,
     InterfaceType,
+	RoleType, //DCI
     // ArrayType,
     AnonymousType,
     EnumType,

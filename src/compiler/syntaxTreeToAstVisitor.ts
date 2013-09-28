@@ -473,6 +473,25 @@ module TypeScript {
                 result.setVarFlags(result.getVarFlags() | VariableFlags.Exported);
             }
         }
+		
+		//DCI
+        public visitRoleDeclaration(node: RoleDeclarationSyntax): RoleDeclaration {
+            var start = this.position;
+
+            this.moveTo(node, node.identifier);
+            var name = this.identifierFromToken(node.identifier, /*isOptional:*/ false);
+            this.movePast(node.identifier);
+
+            this.movePast(node.body.openBraceToken);
+            var members = this.visitSeparatedSyntaxList(node.body.typeMembers);
+
+            this.movePast(node.body.closeBraceToken);
+
+            var result = new RoleDeclaration(name, members, /*isObjectTypeLiteral:*/ false);
+            this.setCommentsAndSpan(result, start, node);
+
+            return result;
+        }
 
         public visitHeritageClause(node: HeritageClauseSyntax): ASTList {
             var start = this.position;
@@ -2371,6 +2390,17 @@ module TypeScript {
             }
             else {
                 result = super.visitInterfaceDeclaration(node);
+                this.setAST(node, result);
+            }
+
+            return result;
+        }
+		
+		//DCI
+        public visitRoleDeclaration(node: RoleDeclarationSyntax): RoleDeclaration {
+            var result: RoleDeclaration = this.getAndMovePastAST(node);
+            if (!result) {
+                result = super.visitRoleDeclaration(node);
                 this.setAST(node, result);
             }
 

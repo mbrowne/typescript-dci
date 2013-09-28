@@ -192,6 +192,26 @@ module TypeScript {
 
         return true;
     }
+	
+	//DCI
+    function preCollectRoleDecls(roleDecl: RoleDeclaration, parentAST: AST, context: DeclCollectionContext) {
+        var declFlags = PullElementFlags.None;
+
+        var span = TextSpan.fromBounds(roleDecl.minChar, roleDecl.limChar);
+
+        var decl = new PullDecl(roleDecl.name.text(), roleDecl.name.actualText, PullElementKind.Role, declFlags, span, context.scriptName);
+
+        var parent = context.getParent();
+        parent.addChildDecl(decl);
+        decl.setParentDecl(parent);
+
+        context.pushParent(decl);
+
+        context.semanticInfo.setDeclForAST(roleDecl, decl);
+        context.semanticInfo.setASTForDecl(decl, roleDecl);
+
+        return true;
+    }
 
     function preCollectParameterDecl(argDecl: Parameter, parentAST: AST, context: DeclCollectionContext) {
         var declFlags = PullElementFlags.None;
@@ -1033,6 +1053,10 @@ module TypeScript {
         else if (ast.nodeType() === NodeType.InterfaceDeclaration) {
             go = preCollectInterfaceDecls(<InterfaceDeclaration>ast, parentAST, context);
         }
+		//DCI
+        else if (ast.nodeType() === NodeType.RoleDeclaration) {
+            go = preCollectRoleDecls(<RoleDeclaration>ast, parentAST, context);
+        }
         else if (ast.nodeType() === NodeType.Parameter) {
             go = preCollectParameterDecl(<Parameter>ast, parentAST, context);
         }
@@ -1183,6 +1207,10 @@ module TypeScript {
             }
         }
         else if (ast.nodeType() === NodeType.InterfaceDeclaration) {
+            context.popParent();
+        }
+		//DCI
+        else if (ast.nodeType() === NodeType.RoleDeclaration) {
             context.popParent();
         }
         else if (ast.nodeType() === NodeType.FunctionDeclaration) {

@@ -923,6 +923,14 @@ module TypeScript.Emitter1 {
                 Syntax.separatedList([variableDeclarator])))
                     .withLeadingTrivia(node.leadingTrivia()).withTrailingTrivia(this.newLine);
         }
+		
+		//DCI
+		public visitRoleDeclaration(node: ClassDeclarationSyntax): VariableStatementSyntax {
+			//TODO
+			return VariableStatementSyntax.create1(this.factory.variableDeclaration(
+                Syntax.token(SyntaxKind.VarKeyword).withTrailingTrivia(this.space))
+					.text('DCI TODO');
+		}
 
         public visitVariableDeclarator(node: VariableDeclaratorSyntax): VariableDeclaratorSyntax {
             var result: VariableDeclaratorSyntax = super.visitVariableDeclarator(node);

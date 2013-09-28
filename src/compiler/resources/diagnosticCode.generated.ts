@@ -61,6 +61,8 @@ module TypeScript {
         Accessors_are_only_available_when_targeting_ECMAScript_5_and_higher: "Accessors are only available when targeting ECMAScript 5 and higher.",
         Class_name_cannot_be_0: "Class name cannot be '{0}'.",
         Interface_name_cannot_be_0: "Interface name cannot be '{0}'.",
+		//DCI
+		Role_name_cannot_be_0: "Role name cannot be '{0}'.",
         Enum_name_cannot_be_0: "Enum name cannot be '{0}'.",
         Module_name_cannot_be_0: "Module name cannot be '{0}'.",
         Enum_member_must_have_initializer: "Enum member must have initializer.",

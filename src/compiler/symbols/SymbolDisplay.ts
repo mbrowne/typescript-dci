@@ -9,6 +9,7 @@ module SymbolDisplay {
         ErrorTypeName,
         FieldName,
         InterfaceName,
+		RoleName, //DCI
         Keyword,
         LineBreak,
         NumericLiteral,
@@ -321,6 +322,9 @@ module SymbolDisplay {
                     return PartKind.EnumName;
                 case SymbolKind.InterfaceType:
                     return PartKind.InterfaceName;
+				//DCI
+                case SymbolKind.RoleType:
+                    return PartKind.RoleName;
                 default:
                     throw Errors.invalidOperation();
             }

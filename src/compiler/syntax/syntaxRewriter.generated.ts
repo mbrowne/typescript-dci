@@ -119,6 +119,13 @@ module TypeScript {
                 <ObjectTypeSyntax>this.visitNode(node.body));
         }
 
+        public visitRoleDeclaration(node: RoleDeclarationSyntax): any {
+            return node.update(
+                this.visitToken(node.roleKeyword),
+                this.visitToken(node.identifier),
+                <ObjectTypeSyntax>this.visitNode(node.body));
+        }
+
         public visitHeritageClause(node: HeritageClauseSyntax): any {
             return node.update(
                 this.visitToken(node.extendsOrImplementsKeyword),

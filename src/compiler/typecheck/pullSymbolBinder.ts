@@ -664,6 +664,104 @@ module TypeScript {
                 }
             }
         }
+		
+		//DCI
+        public bindRoleDeclarationToPullSymbol(roleDecl: PullDecl) {
+            // 1. Test for existing decl - if it exists, use its symbol
+            // 2. If no other decl exists, create a new symbol and use that one
+            var roleName = roleDecl.name;
+            var roleSymbol: PullTypeSymbol = null;
+
+            var roleAST = <TypeDeclaration>this.semanticInfo.getASTForDecl(roleDecl);
+            var createdNewSymbol = false;
+            var parent = this.getParent(roleDecl);
+			
+			//TODO - should role be an acceptableSharedKind?
+            var acceptableSharedKind = PullElementKind.Role;
+
+            if (parent) {
+                roleSymbol = parent.findNestedType(roleName, PullElementKind.SomeType);
+            }
+            else if (!(roleDecl.flags & PullElementFlags.Exported)) {
+                roleSymbol = <PullTypeSymbol>this.semanticInfoChain.findTopLevelSymbol(roleName, PullElementKind.Role, this.semanticInfo.getPath());
+            }
+
+            if (roleSymbol && !(roleSymbol.kind & acceptableSharedKind)) {
+                roleDecl.addDiagnostic(
+                    new Diagnostic(this.semanticInfo.getPath(), roleAST.minChar, roleAST.getLength(), DiagnosticCode.Duplicate_identifier_0, [roleDecl.getDisplayName()]));
+                roleSymbol = null;
+            }
+
+            if (!roleSymbol) {
+                roleSymbol = new PullTypeSymbol(roleName, PullElementKind.Role);
+                createdNewSymbol = true;
+
+                if (!parent) {
+                    this.semanticInfoChain.cacheGlobalSymbol(roleSymbol, acceptableSharedKind);
+                }
+            }
+
+            roleSymbol.addDeclaration(roleDecl);
+            roleDecl.setSymbol(roleSymbol);
+
+            if (createdNewSymbol) {
+
+                if (parent) {
+                    if (roleDecl.flags & PullElementFlags.Exported) {
+                        parent.addEnclosedMemberType(roleSymbol);
+                    }
+                    else {
+                        parent.addEnclosedNonMemberType(roleSymbol);
+                    }
+                }
+            }
+
+//            this.resetTypeParameterCache();
+//
+//            var typeParameters = roleDecl.getTypeParameters();
+//            var typeParameter: PullTypeParameterSymbol;
+//            var typeParameterDecls: PullDecl[] = null;
+//
+//            // PULLREVIEW: Now that we clean type parameters, searching is redundant
+//            for (var i = 0; i < typeParameters.length; i++) {
+//
+//                typeParameter = interfaceSymbol.findTypeParameter(typeParameters[i].name);
+//
+//                if (!typeParameter) {
+//                    typeParameter = new PullTypeParameterSymbol(typeParameters[i].name, false);
+//
+//                    interfaceSymbol.addTypeParameter(typeParameter);
+//                }
+//                else {
+//                    typeParameterDecls = typeParameter.getDeclarations();
+//
+//                    // Because interface declarations can be "split", it's safe to re-use type parameters
+//                    // of the same name across interface declarations in the same binding phase
+//                    for (var j = 0; j < typeParameterDecls.length; j++) {
+//                        var typeParameterDeclParent = typeParameterDecls[j].getParentDecl();
+//
+//                        if (typeParameterDeclParent && typeParameterDeclParent === interfaceDecl) {
+//                            var typeParameterAST = this.semanticInfoChain.getASTForDecl(typeParameterDecls[0]);
+//                            interfaceDecl.addDiagnostic(
+//                                new Diagnostic(this.semanticInfo.getPath(), typeParameterAST.minChar, typeParameterAST.getLength(), DiagnosticCode.Duplicate_identifier_0, [typeParameter.getName()]));
+//
+//                            break;
+//                        }
+//                    }
+//                }
+//
+//                typeParameter.addDeclaration(typeParameters[i]);
+//                typeParameters[i].setSymbol(typeParameter);
+//            }
+
+            var otherDecls = this.findDeclsInContext(roleDecl, roleDecl.kind, true);
+
+            if (otherDecls && otherDecls.length) {
+                for (var i = 0; i < otherDecls.length; i++) {
+                    otherDecls[i].ensureSymbolIsBound();
+                }
+            }
+		}
 
         public bindObjectTypeDeclarationToPullSymbol(objectDecl: PullDecl) {
             var objectSymbolAST: AST = this.semanticInfo.getASTForDecl(objectDecl);
@@ -2022,6 +2120,11 @@ module TypeScript {
 
                 case PullElementKind.Class:
                     this.bindClassDeclarationToPullSymbol(decl);
+                    break;
+					
+				//DCI
+				case PullElementKind.Role:
+					this.bindRoleDeclarationToPullSymbol(decl);
                     break;
 
                 case PullElementKind.Function:

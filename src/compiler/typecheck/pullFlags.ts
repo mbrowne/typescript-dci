@@ -54,6 +54,10 @@ module TypeScript {
         Container = 1 << 2,
         Class = 1 << 3,
         Interface = 1 << 4,
+		
+		//DCI
+		Role = 1 << 100,
+				
         DynamicModule = 1 << 5,
         Enum = 1 << 6,
         Array = 1 << 7,

@@ -2452,6 +2452,23 @@ module TypeScript.Parser {
             return this.currentToken().tokenKind === SyntaxKind.InterfaceKeyword &&
                    this.isIdentifier(this.peekToken(1));
         }
+		
+		//DCI
+        private isRoleDeclaration(): boolean {
+            var index = this.modifierCount();
+
+            // If we have at least one modifier, and we see 'role', then consider this an interface
+            // declaration.
+            if (index > 0 &&
+                this.peekToken(index).tokenKind === SyntaxKind.RoleKeyword) {
+                    return true;
+            }
+
+            // 'role' is not a javascript keyword.  So we need to use a bit of lookahead here to ensure
+            // that we're actually looking at a role construct and not some javascript expression.
+            return this.currentToken().tokenKind === SyntaxKind.RoleKeyword &&
+                   this.isIdentifier(this.peekToken(1));
+        }
 
         private parseInterfaceDeclaration(): InterfaceDeclarationSyntax {
             // Debug.assert(this.isInterfaceDeclaration());
@@ -2465,6 +2482,18 @@ module TypeScript.Parser {
             var objectType = this.parseObjectType();
             return this.factory.interfaceDeclaration(
                 modifiers, interfaceKeyword, identifier, typeParameterList, heritageClauses, objectType);
+        }
+		
+		//DCI
+        private parseRoleDeclaration(): RoleDeclarationSyntax {
+            // Debug.assert(this.isRoleDeclaration());
+
+            var roleKeyword = this.eatKeyword(SyntaxKind.RoleKeyword);
+            var identifier = this.eatIdentifierToken();
+            var objectType = this.parseObjectType();
+			
+            return this.factory.roleDeclaration(
+                roleKeyword, identifier, objectType);
         }
 
         private parseObjectType(): ObjectTypeSyntax {

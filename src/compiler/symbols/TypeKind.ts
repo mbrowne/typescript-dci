@@ -11,6 +11,7 @@ enum TypeKind {
     Undefined,
     Class,
     Interface,
+	Role, //DCI
     // Array,
     Anonymous,
     Enum,

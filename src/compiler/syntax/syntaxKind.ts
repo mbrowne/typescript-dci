@@ -93,6 +93,7 @@ module TypeScript {
         NumberKeyword,
         SetKeyword,
         StringKeyword,
+		RoleKeyword, //DCI
 
         // Punctuators
         OpenBraceToken,
@@ -165,6 +166,7 @@ module TypeScript {
         FunctionDeclaration,
         ModuleDeclaration,
         ClassDeclaration,
+		RoleDeclaration, //DCI
         EnumDeclaration,
         ImportDeclaration,
         ExportAssignment,

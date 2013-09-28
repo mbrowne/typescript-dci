@@ -112,6 +112,16 @@ module TypeScript {
                 (this.parent().nodeType() === TypeScript.NodeType.InterfaceDeclaration) &&
                 ((<TypeScript.InterfaceDeclaration>this.parent()).name === this.ast());
         }
+		
+		//DCI
+        public isNameOfRole(): boolean {
+            if (this.ast() === null || this.parent() === null)
+                return false;
+			
+            return (this.ast().nodeType() === TypeScript.NodeType.Name) &&
+                (this.parent().nodeType() === TypeScript.NodeType.RoleDeclaration) &&
+                ((<TypeScript.RoleDeclaration>this.parent()).name === this.ast());
+        }
 
         public isNameOfArgument(): boolean {
             if (this.ast() === null || this.parent() === null)
@@ -239,6 +249,7 @@ module TypeScript {
                 switch (this.ast().nodeType()) {
                     case TypeScript.NodeType.ClassDeclaration:
                     case TypeScript.NodeType.InterfaceDeclaration:
+					case TypeScript.NodeType.RoleDeclaration:  //DCI
                     case TypeScript.NodeType.ModuleDeclaration:
                     case TypeScript.NodeType.FunctionDeclaration:
                     case TypeScript.NodeType.VariableDeclarator:

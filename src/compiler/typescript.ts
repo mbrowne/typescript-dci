@@ -992,6 +992,12 @@ module TypeScript {
                                 foundAST = previousAST;
                             }
                             break;
+						//DCI
+                        case NodeType.RoleDeclaration:
+                            if (foundAST === (<RoleDeclaration>previousAST).name) {
+                                foundAST = previousAST;
+                            }
+                            break;
                         case NodeType.ModuleDeclaration:
                             if (foundAST === (<ModuleDeclaration>previousAST).name) {
                                 foundAST = previousAST;
@@ -1438,6 +1444,10 @@ module TypeScript {
                         }
 
                         break;
+					
+					//TODO Do we need this?
+					//DCI
+                    //case NodeType.RoleDeclaration:
                 }
 
                 // Record enclosing Decl
@@ -1496,7 +1506,9 @@ module TypeScript {
 
             var ast = path.ast();
 
-            if (ast.nodeType() !== NodeType.ClassDeclaration && ast.nodeType() !== NodeType.InterfaceDeclaration && ast.nodeType() !== NodeType.ModuleDeclaration && ast.nodeType() !== NodeType.FunctionDeclaration && ast.nodeType() !== NodeType.VariableDeclarator) {
+            if (ast.nodeType() !== NodeType.ClassDeclaration && ast.nodeType() !== NodeType.InterfaceDeclaration && ast.nodeType() !== NodeType.ModuleDeclaration && ast.nodeType() !== NodeType.FunctionDeclaration && ast.nodeType() !== NodeType.VariableDeclarator
+					//DCI
+					&& ast.nodeType() !== NodeType.RoleDeclaration) {
                 return null;
             }
 

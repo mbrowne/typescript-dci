@@ -4,6 +4,11 @@ class Greeter {
         return "<h1>" + this.greeting + "</h1>";
     }
 };
+
+role test {
+
+}
+
 var greeter = new Greeter("Hello, world!");
 var str = greeter.greet();
 document.body.innerHTML = str;

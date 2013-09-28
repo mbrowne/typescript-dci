@@ -91,6 +91,9 @@ module TypeScript {
                         return this.classDeclarationCallback(pre, <ClassDeclaration>ast);
                     case NodeType.InterfaceDeclaration:
                         return this.interfaceDeclarationCallback(pre, <InterfaceDeclaration>ast);
+					//DCI
+					case NodeType.RoleDeclaration:
+						return this.roleDeclarationCallback(pre, <RoleDeclaration>ast);
                     case NodeType.ImportDeclaration:
                         return this.importDeclarationCallback(pre, <ImportDeclaration>ast);
                     case NodeType.ModuleDeclaration:
@@ -786,6 +789,38 @@ module TypeScript {
 
             return true;
         }
+		
+		//DCI
+		private roleDeclarationCallback(pre: boolean, roleDecl: RoleDeclaration): boolean {
+            if (!this.canEmitPrePostAstSignature(ToDeclFlags(roleDecl.getVarFlags()), roleDecl, pre)) {
+                return false;
+            }
+
+            if (roleDecl.isObjectTypeLiteral) {
+                return false;
+            }
+
+            if (pre) {
+                var roleName = roleDecl.name.actualText;
+                this.emitDeclarationComments(roleDecl);
+                var rolePullDecl = this.compiler.semanticInfoChain.getDeclForAST(roleDecl, this.document.fileName);
+                this.emitDeclFlags(ToDeclFlags(roleDecl.getVarFlags()), rolePullDecl, "role");
+                this.declFile.Write(roleName);
+                this.pushDeclarationContainer(roleDecl);
+                this.declFile.WriteLine(" {");
+
+                this.indenter.increaseIndent();
+            }
+            else {
+                this.indenter.decreaseIndent();
+                this.popDeclarationContainer(roleDecl);
+
+                this.emitIndent();
+                this.declFile.WriteLine("}");
+            }
+
+            return true;
+		}
 
         private importDeclarationCallback(pre: boolean, importDeclAST: ImportDeclaration): boolean {
             if (pre) {

@@ -130,6 +130,17 @@ var definitions:ITypeDefinition[] = [
         ],
         isTypeScriptSpecific: true
     },
+	//DCI
+    <any>{
+        name: 'RoleDeclarationSyntax',
+        baseType: 'SyntaxNode',
+        children: [
+            <any>{ name: 'roleKeyword', isToken: true },
+            <any>{ name: 'identifier', isToken: true, tokenKinds: ['IdentifierName'] },
+            <any>{ name: 'body', type: 'ObjectTypeSyntax' }
+        ],
+        isTypeScriptSpecific: true
+    },
     <any> {
         name: 'HeritageClauseSyntax',
         baseType: 'SyntaxNode',
@@ -2954,10 +2965,25 @@ var scannerUtilities = generateScannerUtilities();
 var visitor = generateVisitor();
 var factory = generateFactory();
 
-Environment.writeFile(Environment.currentDirectory() + "\\src\\compiler\\syntax\\syntaxNodes.generated.ts", syntaxNodes, false);
-Environment.writeFile(Environment.currentDirectory() + "\\src\\compiler\\syntax\\syntaxRewriter.generated.ts", rewriter, false);
-Environment.writeFile(Environment.currentDirectory() + "\\src\\compiler\\syntax\\syntaxToken.generated.ts", tokens, false);
-Environment.writeFile(Environment.currentDirectory() + "\\src\\compiler\\syntax\\syntaxWalker.generated.ts", walker, false);
-Environment.writeFile(Environment.currentDirectory() + "\\src\\compiler\\syntax\\scannerUtilities.generated.ts", scannerUtilities, false);
-Environment.writeFile(Environment.currentDirectory() + "\\src\\compiler\\syntax\\syntaxVisitor.generated.ts", visitor, false);
-Environment.writeFile(Environment.currentDirectory() + "\\src\\compiler\\syntax\\syntaxFactory.generated.ts", factory, false);
+//DCI TEMP
+//Note: When making changes to this file, you may need to delete SyntaxGenerator.js (in the same directory as this file)
+//to make sure this file gets re-compiled.
+//
+//TODO
+console.log('Note from Matt Browne: Paths should be separated by forward slashes on *nix and backslashes on Windows');
+
+Environment.writeFile(Environment.currentDirectory() + "/src/compiler/syntax/syntaxNodes.generated.ts", syntaxNodes, false);
+Environment.writeFile(Environment.currentDirectory() + "/src/compiler/syntax/syntaxRewriter.generated.ts", rewriter, false);
+Environment.writeFile(Environment.currentDirectory() + "/src/compiler/syntax/syntaxToken.generated.ts", tokens, false);
+Environment.writeFile(Environment.currentDirectory() + "/src/compiler/syntax/syntaxWalker.generated.ts", walker, false);
+Environment.writeFile(Environment.currentDirectory() + "/src/compiler/syntax/scannerUtilities.generated.ts", scannerUtilities, false);
+Environment.writeFile(Environment.currentDirectory() + "/src/compiler/syntax/syntaxVisitor.generated.ts", visitor, false);
+Environment.writeFile(Environment.currentDirectory() + "/src/compiler/syntax/syntaxFactory.generated.ts", factory, false);
+
+//Environment.writeFile(Environment.currentDirectory() + "\\src\\compiler\\syntax\\syntaxNodes.generated.ts", syntaxNodes, false);
+//Environment.writeFile(Environment.currentDirectory() + "\\src\\compiler\\syntax\\syntaxRewriter.generated.ts", rewriter, false);
+//Environment.writeFile(Environment.currentDirectory() + "\\src\\compiler\\syntax\\syntaxToken.generated.ts", tokens, false);
+//Environment.writeFile(Environment.currentDirectory() + "\\src\\compiler\\syntax\\syntaxWalker.generated.ts", walker, false);
+//Environment.writeFile(Environment.currentDirectory() + "\\src\\compiler\\syntax\\scannerUtilities.generated.ts", scannerUtilities, false);
+//Environment.writeFile(Environment.currentDirectory() + "\\src\\compiler\\syntax\\syntaxVisitor.generated.ts", visitor, false);
+//Environment.writeFile(Environment.currentDirectory() + "\\src\\compiler\\syntax\\syntaxFactory.generated.ts", factory, false);

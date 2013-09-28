@@ -45,6 +45,8 @@ module TypeScript {
         VariableDeclarator,
         VariableDeclaration,
         Parameter,
+		//DCI
+		RoleDeclaration,
 
         // Expressions
         Name,

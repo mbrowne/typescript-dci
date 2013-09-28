@@ -107,6 +107,12 @@ module TypeScript {
             this.visitNode(node.body);
         }
 
+        public visitRoleDeclaration(node: RoleDeclarationSyntax): void {
+            this.visitToken(node.roleKeyword);
+            this.visitToken(node.identifier);
+            this.visitNode(node.body);
+        }
+
         public visitHeritageClause(node: HeritageClauseSyntax): void {
             this.visitToken(node.extendsOrImplementsKeyword);
             this.visitSeparatedList(node.typeNames);

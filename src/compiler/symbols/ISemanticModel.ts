@@ -68,6 +68,18 @@ interface ISemanticModel {
      * @param cancellationToken The cancellation token.
      */
     getDeclaredSymbol(declaration: InterfaceDeclarationSyntax, cancellationToken: ICancellationToken): IObjectTypeSymbol;
+	
+	//DCI
+    /**
+     * Gets the symbol associated with a declaration syntax node. Returns the symbol declared by the node or null if the node is not a declaration.
+     * @param declaration A syntax node that is a declaration. This can be any type
+     * derived from MemberDeclarationSyntax, TypeDeclarationSyntax, EnumDeclarationSyntax,
+     * NamespaceDeclarationSyntax, ParameterSyntax, TypeParameterSyntax, or the alias part of a
+     * UsingDirectiveSyntax
+     * @param cancellationToken The cancellation token.
+     */
+    getDeclaredSymbol(declaration: RoleDeclarationSyntax, cancellationToken: ICancellationToken): IObjectTypeSymbol;
+	
     /**
      * Gets the symbol associated with a declaration syntax node. Returns the symbol declared by the node or null if the node is not a declaration.
      * @param declaration A syntax node that is a declaration. This can be any type

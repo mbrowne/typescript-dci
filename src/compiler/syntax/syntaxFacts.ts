@@ -32,6 +32,7 @@ module TypeScript.SyntaxFacts {
         "in": SyntaxKind.InKeyword,
         "instanceof": SyntaxKind.InstanceOfKeyword,
         "interface": SyntaxKind.InterfaceKeyword,
+		"role": SyntaxKind.RoleKeyword, //DCI
         "let": SyntaxKind.LetKeyword,
         "module": SyntaxKind.ModuleKeyword,
         "new": SyntaxKind.NewKeyword,

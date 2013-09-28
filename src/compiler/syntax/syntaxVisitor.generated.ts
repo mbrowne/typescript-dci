@@ -10,6 +10,7 @@ module TypeScript {
         visitExportAssignment(node: ExportAssignmentSyntax): any;
         visitClassDeclaration(node: ClassDeclarationSyntax): any;
         visitInterfaceDeclaration(node: InterfaceDeclarationSyntax): any;
+        visitRoleDeclaration(node: RoleDeclarationSyntax): any;
         visitHeritageClause(node: HeritageClauseSyntax): any;
         visitModuleDeclaration(node: ModuleDeclarationSyntax): any;
         visitFunctionDeclaration(node: FunctionDeclarationSyntax): any;
@@ -125,6 +126,10 @@ module TypeScript {
         }
 
         public visitInterfaceDeclaration(node: InterfaceDeclarationSyntax): any {
+            return this.defaultVisit(node);
+        }
+
+        public visitRoleDeclaration(node: RoleDeclarationSyntax): any {
             return this.defaultVisit(node);
         }
 

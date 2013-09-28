@@ -1407,6 +1407,23 @@ module TypeScript {
 
             return interfaceDeclSymbol;
         }
+		
+		//DCI
+		private resolveRoleDeclaration(roleDeclAST: RoleDeclaration, context: PullTypeResolutionContext): PullTypeSymbol {
+            var roleDecl: PullDecl = this.getDeclForAST(roleDeclAST);
+            var roleDeclSymbol = <PullTypeSymbol>roleDecl.getSymbol();
+			
+			//TODO
+//            this.resolveReferenceTypeDeclaration(roleDeclAST, context);
+//			
+//            if (context.typeCheck()) {
+//                if (!roleDeclSymbol.hasBaseTypeConflict()) {
+//                    this.typeCheckMembersAgainstIndexer(interfaceDeclSymbol, interfaceDecl, context);
+//                }
+//            }
+
+            return roleDeclSymbol;
+		}
 
         private filterSymbol(symbol: PullSymbol, kind: PullElementKind) {
             if (symbol) {
@@ -3985,6 +4002,10 @@ module TypeScript {
 
                 case NodeType.ClassDeclaration:
                     return this.resolveClassDeclaration(<ClassDeclaration>ast, context);
+					
+				//DCI
+                case NodeType.RoleDeclaration:
+                    return this.resolveRoleDeclaration(<RoleDeclaration>ast, context);
 
                 case NodeType.VariableDeclaration:
                     return this.resolveVariableDeclarationList(ast, enclosingDecl, context);
@@ -6850,6 +6871,11 @@ module TypeScript {
                 case PullElementKind.Class:
                     var classDecl = <ClassDeclaration>this.semanticInfoChain.getASTForDecl(decl);
                     this.resolveClassDeclaration(classDecl, context);
+                    break;
+				//DCI
+                case PullElementKind.Role:
+                    var roleDecl = <RoleDeclaration>this.semanticInfoChain.getASTForDecl(decl);
+                    this.resolveRoleDeclaration(roleDecl, context);
                     break;
                 case PullElementKind.Method:
                 case PullElementKind.Function:

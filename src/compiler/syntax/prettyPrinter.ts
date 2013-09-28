@@ -252,6 +252,15 @@ module TypeScript.PrettyPrinter {
             this.ensureSpace();
             this.appendObjectType(node.body, /*appendNewLines:*/ true);
         }
+		
+		//DCI
+        public visitRoleDeclaration(node: RoleDeclarationSyntax): void {
+            this.appendToken(node.roleKeyword);
+            this.ensureSpace();
+            this.appendToken(node.identifier);
+            this.ensureSpace();
+            this.appendObjectType(node.body, /*appendNewLines:*/ true);
+        }
 
         private appendObjectType(node: ObjectTypeSyntax, appendNewLines: boolean): void {
             this.appendToken(node.openBraceToken);

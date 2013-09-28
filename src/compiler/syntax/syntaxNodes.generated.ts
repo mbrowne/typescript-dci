@@ -651,6 +651,76 @@ module TypeScript {
     }
     }
 
+    export class RoleDeclarationSyntax extends SyntaxNode {
+
+        constructor(public roleKeyword: ISyntaxToken,
+                    public identifier: ISyntaxToken,
+                    public body: ObjectTypeSyntax,
+                    parsedInStrictMode: boolean) {
+            super(parsedInStrictMode); 
+
+        }
+
+    public accept(visitor: ISyntaxVisitor): any {
+        return visitor.visitRoleDeclaration(this);
+    }
+
+    public kind(): SyntaxKind {
+        return SyntaxKind.RoleDeclaration;
+    }
+
+    public childCount(): number {
+        return 3;
+    }
+
+    public childAt(slot: number): ISyntaxElement {
+        switch (slot) {
+            case 0: return this.roleKeyword;
+            case 1: return this.identifier;
+            case 2: return this.body;
+            default: throw Errors.invalidOperation();
+        }
+    }
+
+    public update(roleKeyword: ISyntaxToken,
+                  identifier: ISyntaxToken,
+                  body: ObjectTypeSyntax): RoleDeclarationSyntax {
+        if (this.roleKeyword === roleKeyword && this.identifier === identifier && this.body === body) {
+            return this;
+        }
+
+        return new RoleDeclarationSyntax(roleKeyword, identifier, body, /*parsedInStrictMode:*/ this.parsedInStrictMode());
+    }
+
+    public static create1(identifier: ISyntaxToken): RoleDeclarationSyntax {
+        return new RoleDeclarationSyntax(Syntax.token(SyntaxKind.RoleKeyword), identifier, ObjectTypeSyntax.create1(), /*parsedInStrictMode:*/ false);
+    }
+
+    public withLeadingTrivia(trivia: ISyntaxTriviaList): RoleDeclarationSyntax {
+        return <RoleDeclarationSyntax>super.withLeadingTrivia(trivia);
+    }
+
+    public withTrailingTrivia(trivia: ISyntaxTriviaList): RoleDeclarationSyntax {
+        return <RoleDeclarationSyntax>super.withTrailingTrivia(trivia);
+    }
+
+    public withRoleKeyword(roleKeyword: ISyntaxToken): RoleDeclarationSyntax {
+        return this.update(roleKeyword, this.identifier, this.body);
+    }
+
+    public withIdentifier(identifier: ISyntaxToken): RoleDeclarationSyntax {
+        return this.update(this.roleKeyword, identifier, this.body);
+    }
+
+    public withBody(body: ObjectTypeSyntax): RoleDeclarationSyntax {
+        return this.update(this.roleKeyword, this.identifier, body);
+    }
+
+    public isTypeScriptSpecific(): boolean {
+        return true;
+    }
+    }
+
     export class HeritageClauseSyntax extends SyntaxNode {
 
         constructor(public extendsOrImplementsKeyword: ISyntaxToken,

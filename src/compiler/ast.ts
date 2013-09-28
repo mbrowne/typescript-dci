@@ -16,6 +16,7 @@
 ///<reference path='typescript.ts' />
 
 module TypeScript {
+	
     export interface IASTSpan {
         minChar: number;
         limChar: number;
@@ -1111,6 +1112,45 @@ module TypeScript {
 
         public nodeType(): NodeType {
             return NodeType.InterfaceDeclaration;
+        }
+
+        public shouldEmit(): boolean {
+            return false;
+        }
+    }
+	
+	//DCI
+    export class RoleDeclaration extends AST {
+       private _varFlags = VariableFlags.None;
+
+        constructor(public name: Identifier,
+					public members: ASTList,
+                    public isObjectTypeLiteral: boolean ) {
+			super();
+		}
+
+        public isDeclaration() {
+            return true;
+        }
+
+        public getVarFlags(): VariableFlags {
+            return this._varFlags;
+        }
+
+        // Must only be called from SyntaxTreeVisitor
+        public setVarFlags(flags: VariableFlags): void {
+            this._varFlags = flags;
+        }
+
+        public structuralEquals(ast: RoleDeclaration, includingPosition: boolean): boolean {
+            return super.structuralEquals(ast, includingPosition) &&
+                   this._varFlags === ast._varFlags &&
+                   structuralEquals(this.name, ast.name, includingPosition) &&
+                   structuralEquals(this.members, ast.members, includingPosition);
+        }
+
+        public nodeType(): NodeType {
+            return NodeType.RoleDeclaration;
         }
 
         public shouldEmit(): boolean {

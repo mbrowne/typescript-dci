@@ -239,6 +239,10 @@
         "category": "Error",
         "code": 1058
     },
+    "Role name cannot be '{0}'.": {
+        "category": "Error",
+        "code": 10000
+    },
     "Enum name cannot be '{0}'.": {
         "category": "Error",
         "code": 1059

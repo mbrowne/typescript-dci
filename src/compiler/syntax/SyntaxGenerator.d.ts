@@ -60,6 +60,7 @@ declare module TypeScript {
         Accessors_are_only_available_when_targeting_ECMAScript_5_and_higher: string;
         Class_name_cannot_be_0: string;
         Interface_name_cannot_be_0: string;
+        Role_name_cannot_be_0: string;
         Enum_name_cannot_be_0: string;
         Module_name_cannot_be_0: string;
         Enum_member_must_have_initializer: string;
@@ -82,6 +83,8 @@ declare module TypeScript {
         declare_modifier_not_allowed_on_import_declaration: string;
         Function_overload_must_be_static: string;
         Function_overload_must_not_be_static: string;
+        Parameter_property_declarations_cannot_be_used_in_an_ambient_context: string;
+        Parameter_property_declarations_cannot_be_used_in_a_constructor_overload: string;
         Duplicate_identifier_0: string;
         The_name_0_does_not_exist_in_the_current_scope: string;
         The_name_0_does_not_refer_to_a_value: string;
@@ -257,6 +260,13 @@ declare module TypeScript {
         Could_not_find_symbol_0_in_module_1: string;
         Unable_to_resolve_module_reference_0: string;
         Could_not_find_module_0_in_module_1: string;
+        Exported_import_declaration_0_is_assigned_value_with_type_that_has_or_is_using_private_type_1: string;
+        Exported_import_declaration_0_is_assigned_value_with_type_that_is_using_inaccessible_module_1: string;
+        Exported_import_declaration_0_is_assigned_type_that_has_or_is_using_private_type_1: string;
+        Exported_import_declaration_0_is_assigned_type_that_is_using_inaccessible_module_1: string;
+        Exported_import_declaration_0_is_assigned_container_that_is_or_is_using_inaccessible_module_1: string;
+        Type_reference_0_in_extends_clause_doesn_t_reference_constructor_function_for_1: string;
+        Internal_module_reference_0_in_import_declaration_doesn_t_reference_module_instance_for_1: string;
         Type_0_is_missing_property_1_from_type_2: string;
         Types_of_property_0_of_types_1_and_2_are_incompatible: string;
         Types_of_property_0_of_types_1_and_2_are_incompatible_NL_3: string;
@@ -290,7 +300,6 @@ declare module TypeScript {
         A_file_cannot_have_a_reference_to_itself: string;
         Cannot_resolve_referenced_file_0: string;
         Cannot_find_the_common_subdirectory_path_for_the_input_files: string;
-        Cannot_compile_external_modules_when_emitting_into_single_file: string;
         Emit_Error_0: string;
         Cannot_read_file_0_1: string;
         Unsupported_file_encoding: string;
@@ -317,12 +326,18 @@ declare module TypeScript {
         Could_not_delete_file_0: string;
         Could_not_create_directory_0: string;
         Error_while_executing_file_0: string;
-        Use_of_an_external_module_requires_the_module_flag_to_be_supplied_to_the_compiler: string;
-        Concatenate_and_emit_output_to_single_file_Redirect_output_structure_to_the_directory: string;
+        Cannot_compile_external_modules_unless_the_module_flag_is_provided: string;
+        Option_mapRoot_cannot_be_specified_without_specifying_sourcemap_option: string;
+        Option_sourceRoot_cannot_be_specified_without_specifying_sourcemap_option: string;
+        Options_mapRoot_and_sourceRoot_cannot_be_specified_without_specifying_sourcemap_option: string;
+        Option_0_specified_without_1: string;
+        codepage_option_not_supported_on_current_platform: string;
+        Concatenate_and_emit_output_to_single_file: string;
         Generates_corresponding_0_file: string;
         Specifies_the_location_where_debugger_should_locate_map_files_instead_of_generated_locations: string;
         Specifies_the_location_where_debugger_should_locate_TypeScript_files_instead_of_source_locations: string;
         Watch_input_files: string;
+        Redirect_output_structure_to_the_directory: string;
         Do_not_emit_comments_to_output: string;
         Skip_resolution_and_preprocessing: string;
         Specify_ECMAScript_target_version_0_default_or_1: string;
@@ -333,7 +348,7 @@ declare module TypeScript {
         Specify_locale_for_errors_and_messages_For_example_0_or_1: string;
         Syntax_0: string;
         options: string;
-        file: string;
+        file1: string;
         Examples: string;
         Options: string;
         Insert_command_line_options_and_files_from_a_file: string;
@@ -342,9 +357,12 @@ declare module TypeScript {
         NL_Recompiling_0: string;
         STRING: string;
         KIND: string;
-        FILE_DIRECTORY: string;
+        file2: string;
         VERSION: string;
         LOCATION: string;
+        DIRECTORY: string;
+        NUMBER: string;
+        Specify_the_codepage_to_use_when_opening_source_files: string;
         This_version_of_the_Javascript_runtime_does_not_support_the_0_function: string;
         Looking_up_path_for_identifier_token_did_not_result_in_an_identifer: string;
         Unknown_rule: string;
@@ -361,6 +379,10 @@ declare module TypeScript {
         Constructor_signature_which_lacks_return_type_annotation_implicitly_has_an_any_return_type: string;
         Lambda_Function_which_lacks_return_type_annotation_implicitly_has_an_any_return_type: string;
         Array_Literal_implicitly_has_an_any_type_from_widening: string;
+        Use_of_deprecated_type_bool_Use_boolean_instead: string;
+        module_is_deprecated_Use_require_instead: string;
+        Allow_bool_as_a_synonym_for_boolean: string;
+        Allow_module_as_a_synonym_for_require: string;
     };
 }
 declare module TypeScript {
@@ -698,6 +720,14 @@ declare module TypeScript {
             "category": DiagnosticCategory;
         };
         "Function overload must not be static": {
+            "code": number;
+            "category": DiagnosticCategory;
+        };
+        "Parameter property declarations cannot be used in an ambient context.": {
+            "code": number;
+            "category": DiagnosticCategory;
+        };
+        "Parameter property declarations cannot be used in a constructor overload.": {
             "code": number;
             "category": DiagnosticCategory;
         };
@@ -1401,6 +1431,34 @@ declare module TypeScript {
             "code": number;
             "category": DiagnosticCategory;
         };
+        "Exported import declaration '{0}' is assigned value with type that has or is using private type '{1}'.": {
+            "code": number;
+            "category": DiagnosticCategory;
+        };
+        "Exported import declaration '{0}' is assigned value with type that is using inaccessible module '{1}'.": {
+            "code": number;
+            "category": DiagnosticCategory;
+        };
+        "Exported import declaration '{0}' is assigned type that has or is using private type '{1}'.": {
+            "code": number;
+            "category": DiagnosticCategory;
+        };
+        "Exported import declaration '{0}' is assigned type that is using inaccessible module '{1}'.": {
+            "code": number;
+            "category": DiagnosticCategory;
+        };
+        "Exported import declaration '{0}' is assigned container that is or is using inaccessible module '{1}'.": {
+            "code": number;
+            "category": DiagnosticCategory;
+        };
+        "Type reference '{0}' in extends clause doesn't reference constructor function for '{1}'.": {
+            "code": number;
+            "category": DiagnosticCategory;
+        };
+        "Internal module reference '{0}' in import declaration doesn't reference module instance for '{1}'.": {
+            "code": number;
+            "category": DiagnosticCategory;
+        };
         "Type '{0}' is missing property '{1}' from type '{2}'.": {
             "code": number;
             "category": DiagnosticCategory;
@@ -1533,10 +1591,6 @@ declare module TypeScript {
             "code": number;
             "category": DiagnosticCategory;
         };
-        "Cannot compile external modules when emitting into single file.": {
-            "code": number;
-            "category": DiagnosticCategory;
-        };
         "Emit Error: {0}.": {
             "code": number;
             "category": DiagnosticCategory;
@@ -1641,11 +1695,31 @@ declare module TypeScript {
             "code": number;
             "category": DiagnosticCategory;
         };
-        "Use of an external module requires the '--module' flag to be supplied to the compiler.": {
+        "Cannot compile external modules unless the '--module' flag is provided.": {
             "code": number;
             "category": DiagnosticCategory;
         };
-        "Concatenate and emit output to single file | Redirect output structure to the directory": {
+        "Option mapRoot cannot be specified without specifying sourcemap option.": {
+            "code": number;
+            "category": DiagnosticCategory;
+        };
+        "Option sourceRoot cannot be specified without specifying sourcemap option.": {
+            "code": number;
+            "category": DiagnosticCategory;
+        };
+        "Options mapRoot and sourceRoot cannot be specified without specifying sourcemap option.": {
+            "code": number;
+            "category": DiagnosticCategory;
+        };
+        "Option '{0}' specified without '{1}'": {
+            "code": number;
+            "category": DiagnosticCategory;
+        };
+        "'codepage' option not supported on current platform.": {
+            "code": number;
+            "category": DiagnosticCategory;
+        };
+        "Concatenate and emit output to single file.": {
             "code": number;
             "category": DiagnosticCategory;
         };
@@ -1662,6 +1736,10 @@ declare module TypeScript {
             "category": DiagnosticCategory;
         };
         "Watch input files": {
+            "code": number;
+            "category": DiagnosticCategory;
+        };
+        "Redirect output structure to the directory": {
             "code": number;
             "category": DiagnosticCategory;
         };
@@ -1705,7 +1783,7 @@ declare module TypeScript {
             "code": number;
             "category": DiagnosticCategory;
         };
-        "file": {
+        "file1": {
             "code": number;
             "category": DiagnosticCategory;
         };
@@ -1741,7 +1819,7 @@ declare module TypeScript {
             "code": number;
             "category": DiagnosticCategory;
         };
-        "FILE|DIRECTORY": {
+        "file2": {
             "code": number;
             "category": DiagnosticCategory;
         };
@@ -1750,6 +1828,18 @@ declare module TypeScript {
             "category": DiagnosticCategory;
         };
         "LOCATION": {
+            "code": number;
+            "category": DiagnosticCategory;
+        };
+        "DIRECTORY": {
+            "code": number;
+            "category": DiagnosticCategory;
+        };
+        "NUMBER": {
+            "code": number;
+            "category": DiagnosticCategory;
+        };
+        "Specify the codepage to use when opening source files.": {
             "code": number;
             "category": DiagnosticCategory;
         };
@@ -1814,6 +1904,22 @@ declare module TypeScript {
             "category": DiagnosticCategory;
         };
         "Array Literal implicitly has an 'any' type from widening.": {
+            "code": number;
+            "category": DiagnosticCategory;
+        };
+        "Use of deprecated type 'bool'. Use 'boolean' instead.": {
+            "code": number;
+            "category": DiagnosticCategory;
+        };
+        "'module(...)' is deprecated. Use 'require(...)' instead.": {
+            "code": number;
+            "category": DiagnosticCategory;
+        };
+        "Allow 'bool' as a synonym for 'boolean'.": {
+            "code": number;
+            "category": DiagnosticCategory;
+        };
+        "Allow 'module(...)' as a synonym for 'require(...)'.": {
             "code": number;
             "category": DiagnosticCategory;
         };
@@ -1919,19 +2025,8 @@ declare module TypeScript {
         public length(): number;
         public diagnosticKey(): string;
         public arguments(): any[];
-        /**
-        * Get the text of the message in the given language.
-        */
         public text(): string;
-        /**
-        * Get the text of the message including the error code in the given language.
-        */
         public message(): string;
-        /**
-        * If a derived class has additional information about other referenced symbols, it can
-        * expose the locations of those symbols in a general way, so they can be reported along
-        * with the error.
-        */
         public additionalLocations(): Location[];
         static equals(diagnostic1: Diagnostic, diagnostic2: Diagnostic): boolean;
     }
@@ -1979,7 +2074,8 @@ declare class FileInformation {
     constructor(contents: string, byteOrderMark: ByteOrderMark);
 }
 interface IEnvironment {
-    readFile(path: string): FileInformation;
+    supportsCodePage(): boolean;
+    readFile(path: string, codepage: number): FileInformation;
     writeFile(path: string, contents: string, writeByteOrderMark: boolean): void;
     deleteFile(path: string): void;
     fileExists(path: string): boolean;
@@ -2104,6 +2200,7 @@ declare module TypeScript {
         YieldKeyword,
         AnyKeyword,
         BooleanKeyword,
+        BoolKeyword,
         ConstructorKeyword,
         DeclareKeyword,
         GetKeyword,
@@ -2112,6 +2209,7 @@ declare module TypeScript {
         NumberKeyword,
         SetKeyword,
         StringKeyword,
+        RoleKeyword,
         OpenBraceToken,
         CloseBraceToken,
         OpenParenToken,
@@ -2174,6 +2272,7 @@ declare module TypeScript {
         FunctionDeclaration,
         ModuleDeclaration,
         ClassDeclaration,
+        RoleDeclaration,
         EnumDeclaration,
         ImportDeclaration,
         ExportAssignment,
