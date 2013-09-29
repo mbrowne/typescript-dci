@@ -2449,6 +2449,7 @@ interface IMemberDefinition {
 }
 declare var interfaces: {
     IMemberDeclarationSyntax: string;
+    IStatementOrRoleSyntax: string;
     IStatementSyntax: string;
     INameSyntax: string;
     ITypeSyntax: string;

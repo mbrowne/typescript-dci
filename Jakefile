@@ -411,7 +411,12 @@ task("baseline-accept", function() {
 // Syntax Generator
 var syntaxGeneratorOutFile = compilerDirectory + "syntax/SyntaxGenerator.js";
 var syntaxGeneratorInFile = compilerDirectory + "syntax/SyntaxGenerator.ts";
-compileFile(syntaxGeneratorOutFile, [syntaxGeneratorInFile], [tscFile], [], true);
+
+// Note from Matt Browne: set this to false if the run-syntax-generator task fails;
+// also see documentation in dci-docs folder for more details
+var useBuiltCompiler = false;
+
+compileFile(syntaxGeneratorOutFile, [syntaxGeneratorInFile], [tscFile], [], useBuiltCompiler);
 
 desc("Builds and runs the syntax generator");
 task("run-syntax-generator", [syntaxGeneratorOutFile], function() {

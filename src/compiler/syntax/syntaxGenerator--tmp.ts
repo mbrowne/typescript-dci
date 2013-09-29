@@ -34,8 +34,11 @@ var interfaces = {
     IMemberDeclarationSyntax: 'IClassElementSyntax',
     
 	//DCI
-	IStatementOrRoleSyntax: 'IModuleElementSyntax',
-			
+//	IStatementOrRoleSyntax: 'IModuleElementSyntax',
+//	IStatementSyntax: 'IStatementOrRoleSyntax',
+//	IRoleSyntax: 'IStatementOrRoleSyntax',
+	
+	//commented for DCI		
 	IStatementSyntax: 'IModuleElementSyntax',	
 	
     INameSyntax: 'ITypeSyntax',
@@ -389,14 +392,14 @@ var definitions:ITypeDefinition[] = [
     <any>{
         name: 'BlockSyntax',
         baseType: 'SyntaxNode',
-		interfaces: ['IStatementOrRoleSyntax'],
+		//interfaces: ['IStatementOrRoleSyntax'],
 		//commented for DCI
-		//interfaces: ['IStatementSyntax'],
+		interfaces: ['IStatementSyntax'],
         children: [
             <any>{ name: 'openBraceToken', isToken: true },
 			//DCI
-			<any>{ name: 'statements', isList: true, elementType: 'IStatementOrRoleSyntax' },
-            //<any>{ name: 'statements', isList: true, elementType: 'IStatementSyntax' },
+			//<any>{ name: 'statements', isList: true, elementType: 'IStatementOrRoleSyntax' },
+            <any>{ name: 'statements', isList: true, elementType: 'IStatementSyntax' },
             <any>{ name: 'closeBraceToken', isToken: true }
         ]
     },

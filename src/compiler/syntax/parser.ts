@@ -2397,6 +2397,10 @@ module TypeScript.Parser {
             return callSignature;
         }
 
+		//TODO DCI - delete this comment later
+		//So far the only partial success has been to add
+		//|| this.peekToken(index).tokenKind === SyntaxKind.RoleKeyword
+		//to the return statement
         private isFunctionDeclaration(): boolean {
             var index = this.modifierCount();
             return this.peekToken(index).tokenKind === SyntaxKind.FunctionKeyword;
@@ -2513,8 +2517,8 @@ module TypeScript.Parser {
                 return true;
             }
 			
-			var isRole = this.currentToken().tokenKind === SyntaxKind.RoleKeyword &&
-                   this.isIdentifier(this.peekToken(1));
+//			var isRole = this.currentToken().tokenKind === SyntaxKind.RoleKeyword &&
+//                   this.isIdentifier(this.peekToken(1));
 			
             // 'role' is not a javascript keyword.  So we need to use a bit of lookahead here to ensure
             // that we're actually looking at a role construct and not some javascript expression.
@@ -2803,6 +2807,10 @@ module TypeScript.Parser {
             }
             else if (this.isFunctionDeclaration()) {
                 return this.parseFunctionDeclaration();
+            }
+			//DCI
+            else if (this.isRoleDeclaration()) {
+                return this.parseRoleDeclaration();
             }
             else if (this.isIfStatement()) {
                 return this.parseIfStatement();
