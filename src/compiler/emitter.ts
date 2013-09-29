@@ -561,6 +561,9 @@ module TypeScript {
 
         public emitCall(callNode: InvocationExpression, target: AST, args: ASTList) {
             if (!this.emitSuperCall(callNode)) {
+				var binaryExpressionTarget: BinaryExpression;
+				var isCallToSelf = false; //DCI
+				
                 if (target.nodeType() === NodeType.FunctionDeclaration) {
                     this.writeToOutput("(");
                 }
@@ -568,22 +571,54 @@ module TypeScript {
                     this.writeToOutput("_super.call");
                 }
                 else {
-                    this.emitJavascript(target, false);
+                	//DCI
+                	if (this.thisFunctionDeclaration.isDCIContext) {
+                        if (target instanceof TypeScript.BinaryExpression) {
+                            binaryExpressionTarget = <BinaryExpression> target;
+							//console.log(bTarget);
+                            if (binaryExpressionTarget.operand1 instanceof ThisExpression) {
+                            	isCallToSelf = true;
+                                this.writeToOutput("DCI.callRolePlayerMethod");
+                            }
+							//TODO we should only do this if it's actually a role
+                            else this.writeToOutput("this.__$ROLE.");
+                        }
+                	}
+                    else this.emitJavascript(target, false);
                 }
                 if (target.nodeType() === NodeType.FunctionDeclaration) {
                     this.writeToOutput(")");
                 }
                 this.recordSourceMappingStart(args);
-                this.writeToOutput("(");
-                if (callNode.target.nodeType() === NodeType.SuperExpression && this.emitState.container === EmitContainer.Constructor) {
-                    this.writeToOutput("this");
-                    if (args && args.members.length) {
-                        this.writeToOutput(", ");
-                    }
-                }
-                this.emitCommaSeparatedList(args);
-                this.recordSourceMappingStart(callNode.closeParenSpan);
-                this.writeToOutput(")");
+				
+                //DCI
+                if (binaryExpressionTarget) {
+                	if (isCallToSelf) {
+ 	                   this.writeToOutput("(__context, this, '");
+						binaryExpressionTarget.operand2.emit(this);
+						this.writeToOutput("')");
+ 	                }
+ 	                else {
+ 	                	binaryExpressionTarget.operand2.emit(this);
+ 	                	this.writeToOutput(".call(");
+ 	                	binaryExpressionTarget.operand1.emit(this);
+ 	                	if (args.members.length > 0) this.writeToOutput(", ");
+ 	                	this.emitCommaSeparatedList(args);
+ 	                	this.writeToOutput(")");
+ 	                }
+				}
+                else {           
+					this.writeToOutput("(");
+					if (callNode.target.nodeType() === 32 /* SuperExpression */ && this.emitState.container === 4 /* Constructor */) {
+						this.writeToOutput("this");
+						if (args && args.members.length) {
+							this.writeToOutput(", ");
+						}
+					}
+					this.emitCommaSeparatedList(args);
+					this.recordSourceMappingStart(callNode.closeParenSpan);
+					this.writeToOutput(")");
+				}
                 this.recordSourceMappingEnd(callNode.closeParenSpan);
                 this.recordSourceMappingEnd(args);
             }
@@ -668,6 +703,22 @@ module TypeScript {
             }
             this.writeLineToOutput(") {");
 
+			//DCI
+			var members = funcDecl.block.statements.members;
+			var member: AST;
+			for (var i=0; i < members.length; i++) {
+				member = members[i];
+				if (member instanceof RoleDeclaration) {
+					funcDecl.isDCIContext = true;
+					break;
+				}
+			}
+			
+			if (funcDecl.isDCIContext) {
+				this.writeLineToOutput("var __context = this;");
+			}
+			
+
             if (funcDecl.isConstructor) {
                 this.recordSourceMappingNameStart("constructor");
             } else if (funcDecl.isGetAccessor()) {
@@ -691,7 +742,7 @@ module TypeScript {
             }
             else {
                 this.emitModuleElements(funcDecl.block.statements);
-            }
+            }			
 
             this.emitCommentsArray(funcDecl.block.closeBraceLeadingComments);
 
@@ -1590,7 +1641,7 @@ module TypeScript {
 
                 if (node.shouldEmit()) {
                     this.emitSpaceBetweenConstructs(lastEmittedNode, node);
-
+					
                     this.emitJavascript(node, true);
                     this.writeLineToOutput("");
 
@@ -1946,6 +1997,8 @@ module TypeScript {
         public emitRole(roleDecl: RoleDeclaration) {
             var pullDecl = this.semanticInfoChain.getDeclForAST(roleDecl, this.document.fileName);
             this.pushDecl(pullDecl);
+			
+			//var dciContextName = roleDecl.decl.parentDecl.name;
 
             var svRoleNode = this.thisRoleNode;
             this.thisRoleNode = roleDecl;
@@ -1953,55 +2006,16 @@ module TypeScript {
             this.emitComments(roleDecl, true);
             var temp = this.setContainer(EmitContainer.Role);
 
+			this.writeToOutput("this.__$" + roleName + " = {");
+
             this.recordSourceMappingStart(roleDecl);
-            this.writeToOutput("var " + roleName);
-
-//            var hasBaseClass = classDecl.extendsList && classDecl.extendsList.members.length;
-//            var baseNameDecl: AST = null;
-//            var baseName: AST = null;
-//            var varDecl: VariableDeclarator = null;
-
-            this.writeLineToOutput(" = (function () {");
-
-            this.recordSourceMappingNameStart(roleName);
             this.indenter.increaseIndent();
 
-            this.emitIndent();
-
-			this.recordSourceMappingStart(roleDecl);
-			// default constructor
-			this.indenter.increaseIndent();
-			this.writeLineToOutput("function " + roleDecl.name.actualText + "() {");
-			this.recordSourceMappingNameStart("constructor");
-
-			if (this.shouldCaptureThis(roleDecl)) {
-				this.writeCaptureThisStatement(roleDecl);
-			}
-
-			this.indenter.decreaseIndent();
-			this.emitIndent();
-			this.writeLineToOutput("}");
-
-			this.recordSourceMappingNameEnd();
-			this.recordSourceMappingEnd(roleDecl);
-
             this.emitRoleMembers(roleDecl);
-
-            this.emitIndent();
-            this.recordSourceMappingStart(roleDecl.endingToken);
-            this.writeLineToOutput("return " + roleName + ";");
-            this.recordSourceMappingEnd(roleDecl.endingToken);
-            this.indenter.decreaseIndent();
-            this.emitIndent();
-            this.recordSourceMappingStart(roleDecl.endingToken);
-            this.writeToOutput("}");
-            this.recordSourceMappingNameEnd();
-            this.recordSourceMappingEnd(roleDecl.endingToken);
-            this.recordSourceMappingStart(roleDecl);
-            this.writeToOutput(")(");
-            this.writeToOutput(");");
-            this.recordSourceMappingEnd(roleDecl);
-
+            
+			this.indenter.decreaseIndent();
+			this.writeToOutput("}");
+			
             this.recordSourceMappingEnd(roleDecl);
             this.emitComments(roleDecl, false);
             this.setContainer(temp);
@@ -2070,9 +2084,10 @@ module TypeScript {
 		
 		//DCI
         private emitRoleMembers(roleDecl: RoleDeclaration): void {
-            // First, emit all the functions.
-            var lastEmittedMember: AST = null;
+            // Emit all the role methods
+			var lastEmittedMember: AST = null;
 
+			var delim = '';
             for (var i = 0, n = roleDecl.members.members.length; i < n; i++) {
                 var memberDecl = roleDecl.members.members[i];
 
@@ -2088,36 +2103,21 @@ module TypeScript {
 						else {
 							this.emitIndent();
 							this.recordSourceMappingStart(fn);
-							this.writeToOutput(roleDecl.name.actualText + "." + fn.name.actualText + " = ");
+							
+//							var name = '__' + roleDecl.name.actualText + "_" + fn.name.actualText;
+//							var id = new Identifier(name, name);
+//							fn.name = id;
+//							this.emitFunction(fn);
+							
+							this.writeToOutput(delim + fn.name.actualText + ": ");
 							this.emitInnerFunction(fn, /*printName:*/ false);
-							this.writeLineToOutput(";");
+							this.writeLineToOutput("");
+							delim = ",";
+							//this.writeLineToOutput(";");
 						}
-
-                        lastEmittedMember = fn;
                     }
-                }
-            }
-
-            // Now emit all the statics.
-            for (var i = 0, n = roleDecl.members.members.length; i < n; i++) {
-                var memberDecl = roleDecl.members.members[i];
-
-                if (memberDecl.nodeType() === NodeType.VariableDeclarator) {
-                    var varDecl = <VariableDeclarator>memberDecl;
-
-                    if (hasFlag(varDecl.getVarFlags(), VariableFlags.Static) && varDecl.init) {
-                        this.emitSpaceBetweenConstructs(lastEmittedMember, varDecl);
-
-                        this.emitIndent();
-                        this.recordSourceMappingStart(varDecl);
-                        this.writeToOutput(roleDecl.name.actualText + "." + varDecl.id.actualText + " = ");
-                        varDecl.init.emit(this);
-
-                        this.writeLineToOutput(";");
-                        this.recordSourceMappingEnd(varDecl);
-
-                        lastEmittedMember = varDecl;
-                    }
+					
+					lastEmittedMember = fn;
                 }
             }
         }

@@ -33,6 +33,7 @@ interface IMemberDefinition {
 var interfaces = {
     IMemberDeclarationSyntax: 'IClassElementSyntax',
     
+	//TODO DCI -- check if the IStatementOrRoleSyntax interface is actually necessary, now that parser.ts is fixed
 	//DCI
 	IStatementOrRoleSyntax: 'IModuleElementSyntax',
 			

@@ -866,6 +866,8 @@ module TypeScript {
         public hint: string = null;
         private _functionFlags = FunctionFlags.None;
         public classDecl: ClassDeclaration = null;
+		//DCI
+	    public isDCIContext = false;
 
         public returnStatementsWithExpressions: ReturnStatement[];
 
@@ -1122,7 +1124,7 @@ module TypeScript {
 	//DCI
     export class RoleDeclaration extends AST {
        private _varFlags = VariableFlags.None;
-
+	   
         constructor(public name: Identifier,
 					public members: ASTList,
                     public endingToken: ASTSpan) {
