@@ -868,6 +868,7 @@ module TypeScript {
         public classDecl: ClassDeclaration = null;
 		//DCI
 	    public isDCIContext = false;
+		public roleMap = {};
 
         public returnStatementsWithExpressions: ReturnStatement[];
 

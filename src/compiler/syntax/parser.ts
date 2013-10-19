@@ -2397,10 +2397,6 @@ module TypeScript.Parser {
             return callSignature;
         }
 
-		//TODO DCI - delete this comment later
-		//So far the only partial success has been to add
-		//|| this.peekToken(index).tokenKind === SyntaxKind.RoleKeyword
-		//to the return statement
         private isFunctionDeclaration(): boolean {
             var index = this.modifierCount();
             return this.peekToken(index).tokenKind === SyntaxKind.FunctionKeyword;

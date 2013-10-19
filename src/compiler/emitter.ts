@@ -580,8 +580,12 @@ module TypeScript {
                             	isCallToSelf = true;
                                 this.writeToOutput("DCI.callRolePlayerMethod");
                             }
-							//TODO we should only do this if it's actually a role
-                            else this.writeToOutput("this.__$ROLE.");
+							//DCI TODO we should only do this if it's actually a role
+                            else {
+								this.writeToOutput("__context.__$"); //ROLE.");
+								binaryExpressionTarget.operand1.emit(this); //role name
+								this.writeToOutput(".");
+							}
                         }
                 	}
                     else this.emitJavascript(target, false);
@@ -594,14 +598,19 @@ module TypeScript {
                 //DCI
                 if (binaryExpressionTarget) {
                 	if (isCallToSelf) {
- 	                   this.writeToOutput("(__context, this, '");
+						this.writeToOutput("(__context, this, TODO-playerName, '");
+						this.thisRoleNode.name.emit(this);
+						this.writeToOutput("', '");
 						binaryExpressionTarget.operand2.emit(this);
 						this.writeToOutput("')");
  	                }
  	                else {
  	                	binaryExpressionTarget.operand2.emit(this);
  	                	this.writeToOutput(".call(");
- 	                	binaryExpressionTarget.operand1.emit(this);
+ 	                	
+						//TODO
+						this.writeToOutput("rolePlayer");
+						
  	                	if (args.members.length > 0) this.writeToOutput(", ");
  	                	this.emitCommaSeparatedList(args);
  	                	this.writeToOutput(")");
@@ -715,9 +724,10 @@ module TypeScript {
 			}
 			
 			if (funcDecl.isDCIContext) {
+				this.indenter.increaseIndent();
 				this.writeLineToOutput("var __context = this;");
+				this.indenter.decreaseIndent();
 			}
-			
 
             if (funcDecl.isConstructor) {
                 this.recordSourceMappingNameStart("constructor");

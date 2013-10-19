@@ -32,13 +32,7 @@ interface IMemberDefinition {
 
 var interfaces = {
     IMemberDeclarationSyntax: 'IClassElementSyntax',
-    
-	//TODO DCI -- check if the IStatementOrRoleSyntax interface is actually necessary, now that parser.ts is fixed
-	//DCI
-	IStatementOrRoleSyntax: 'IModuleElementSyntax',
-			
-	IStatementSyntax: 'IModuleElementSyntax',	
-	
+    IStatementSyntax: 'IModuleElementSyntax',
     INameSyntax: 'ITypeSyntax',
     ITypeSyntax: 'IUnaryExpressionSyntax',
     IUnaryExpressionSyntax: 'IExpressionSyntax',
@@ -140,8 +134,7 @@ var definitions:ITypeDefinition[] = [
     <any>{
         name: 'RoleDeclarationSyntax',
         baseType: 'SyntaxNode',
-		interfaces: ['IStatementOrRoleSyntax'],
-		//interfaces: ['IModuleElementSyntax'],
+		interfaces: ['IModuleElementSyntax'],
         children: [
             <any>{ name: 'roleKeyword', isToken: true },
             <any>{ name: 'identifier', isToken: true, tokenKinds: ['IdentifierName'] },
@@ -390,14 +383,10 @@ var definitions:ITypeDefinition[] = [
     <any>{
         name: 'BlockSyntax',
         baseType: 'SyntaxNode',
-		interfaces: ['IStatementOrRoleSyntax'],
-		//commented for DCI
-		//interfaces: ['IStatementSyntax'],
+		interfaces: ['IStatementSyntax'],
         children: [
             <any>{ name: 'openBraceToken', isToken: true },
-			//DCI
-			<any>{ name: 'statements', isList: true, elementType: 'IStatementOrRoleSyntax' },
-            //<any>{ name: 'statements', isList: true, elementType: 'IStatementSyntax' },
+            <any>{ name: 'statements', isList: true, elementType: 'IStatementSyntax' },
             <any>{ name: 'closeBraceToken', isToken: true }
         ]
     },
@@ -2982,7 +2971,9 @@ var factory = generateFactory();
 
 //
 //TODO
-console.log('Note from Matt Browne: Paths should be separated by forward slashes on *nix and backslashes on Windows');
+console.log('Note from Matt Browne -- reminder to fix the bottom of syntaxGenerator.ts: Paths should be separated by forward slashes on *nix and backslashes on Windows');
+
+//For Mac:
 
 Environment.writeFile(Environment.currentDirectory() + "/src/compiler/syntax/syntaxNodes.generated.ts", syntaxNodes, false);
 Environment.writeFile(Environment.currentDirectory() + "/src/compiler/syntax/syntaxRewriter.generated.ts", rewriter, false);

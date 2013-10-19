@@ -651,7 +651,7 @@ module TypeScript {
     }
     }
 
-    export class RoleDeclarationSyntax extends SyntaxNode implements IStatementOrRoleSyntax {
+    export class RoleDeclarationSyntax extends SyntaxNode implements IModuleElementSyntax {
 
         constructor(public roleKeyword: ISyntaxToken,
                     public identifier: ISyntaxToken,
@@ -684,10 +684,6 @@ module TypeScript {
             case 4: return this.closeBraceToken;
             default: throw Errors.invalidOperation();
         }
-    }
-
-    public isStatementOrRole(): boolean {
-        return true;
     }
 
     public isModuleElement(): boolean {
@@ -2546,7 +2542,7 @@ module TypeScript {
     }
     }
 
-    export class BlockSyntax extends SyntaxNode implements IStatementOrRoleSyntax {
+    export class BlockSyntax extends SyntaxNode implements IStatementSyntax {
 
         constructor(public openBraceToken: ISyntaxToken,
                     public statements: ISyntaxList,
@@ -2577,7 +2573,7 @@ module TypeScript {
         }
     }
 
-    public isStatementOrRole(): boolean {
+    public isStatement(): boolean {
         return true;
     }
 
@@ -2620,7 +2616,7 @@ module TypeScript {
         return this.update(this.openBraceToken, statements, this.closeBraceToken);
     }
 
-    public withStatement(statement: IStatementOrRoleSyntax): BlockSyntax {
+    public withStatement(statement: IStatementSyntax): BlockSyntax {
         return this.withStatements(Syntax.list([statement]));
     }
 

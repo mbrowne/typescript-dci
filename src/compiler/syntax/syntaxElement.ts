@@ -71,14 +71,8 @@ module TypeScript {
     }
 	
 	//DCI
-    export interface IStatementOrRoleSyntax extends IModuleElementSyntax {
+    export interface IStatementSyntax extends IModuleElementSyntax {
     }
-	
-	//DCI
-	export interface IStatementSyntax extends IStatementOrRoleSyntax {
-    }
-//    export interface IStatementSyntax extends IModuleElementSyntax {
-//    }
 
     export interface ITypeMemberSyntax extends ISyntaxNode {
     }
