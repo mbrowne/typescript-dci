@@ -275,6 +275,11 @@ module TypeScript.Syntax {
     export function assignmentExpression(left: IExpressionSyntax, token: ISyntaxToken, right: IExpressionSyntax): BinaryExpressionSyntax {
         return Syntax.normalModeFactory.binaryExpression(SyntaxKind.AssignmentExpression, left, token, right);
     }
+	
+	//DCI
+    export function roleAssignmentExpression(left: IExpressionSyntax, token: ISyntaxToken, right: IExpressionSyntax): BinaryExpressionSyntax {
+        return Syntax.normalModeFactory.binaryExpression(SyntaxKind.AssignmentExpression, left, token, right);
+    }
 
     export function nodeHasSkippedOrMissingTokens(node: SyntaxNode): boolean {
         for (var i = 0; i < node.childCount(); i++) {

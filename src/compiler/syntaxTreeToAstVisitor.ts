@@ -1373,6 +1373,8 @@ module TypeScript {
             switch (node.kind()) {
                 case SyntaxKind.CommaExpression: return NodeType.CommaExpression;
                 case SyntaxKind.AssignmentExpression: return NodeType.AssignmentExpression;
+				//DCI
+				case SyntaxKind.RoleAssignmentExpression: return NodeType.RoleAssignmentExpression;
                 case SyntaxKind.AddAssignmentExpression: return NodeType.AddAssignmentExpression;
                 case SyntaxKind.SubtractAssignmentExpression: return NodeType.SubtractAssignmentExpression;
                 case SyntaxKind.MultiplyAssignmentExpression: return NodeType.MultiplyAssignmentExpression;

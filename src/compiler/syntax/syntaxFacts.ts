@@ -110,6 +110,9 @@ module TypeScript.SyntaxFacts {
         "^=": SyntaxKind.CaretEqualsToken,
         "/": SyntaxKind.SlashToken,
         "/=": SyntaxKind.SlashEqualsToken,
+		
+		//DCI
+		"<-": SyntaxKind.LeftArrowToken,
     };
 
     var kindToText = new Array<string>();
@@ -313,6 +316,10 @@ module TypeScript.SyntaxFacts {
 
             case SyntaxKind.EqualsToken:
                 return SyntaxKind.AssignmentExpression;
+				
+			//DCI
+			case SyntaxKind.LeftArrowToken:
+				return SyntaxKind.RoleAssignmentExpression;
 
             case SyntaxKind.CommaToken:
                 return SyntaxKind.CommaExpression;
@@ -360,6 +367,7 @@ module TypeScript.SyntaxFacts {
         switch (kind) {
             case SyntaxKind.CommaExpression:
             case SyntaxKind.AssignmentExpression:
+			case SyntaxKind.RoleAssignmentExpression: //DCI
             case SyntaxKind.AddAssignmentExpression:
             case SyntaxKind.SubtractAssignmentExpression:
             case SyntaxKind.MultiplyAssignmentExpression:

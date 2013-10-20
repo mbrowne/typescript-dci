@@ -146,6 +146,7 @@ module TypeScript {
         CaretEqualsToken,
         SlashToken,
         SlashEqualsToken,
+		LeftArrowToken, //DCI
 
         // SyntaxNodes
         SourceUnit,
@@ -217,6 +218,7 @@ module TypeScript {
         VoidExpression,
         CommaExpression,
         AssignmentExpression,
+		RoleAssignmentExpression, //DCI
         AddAssignmentExpression,
         SubtractAssignmentExpression,
         MultiplyAssignmentExpression,
@@ -325,7 +327,10 @@ module TypeScript {
         LastToken = SlashEqualsToken,
 
         FirstPunctuation = OpenBraceToken,
-        LastPunctuation = SlashEqualsToken,
+		
+		//DCI
+		LastPunctuation = LeftArrowToken,
+        //LastPunctuation = SlashEqualsToken,
 
         FirstFixedWidth = FirstKeyword,
         LastFixedWidth = LastPunctuation,

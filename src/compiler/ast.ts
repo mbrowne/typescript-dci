@@ -1205,6 +1205,16 @@ module TypeScript {
         }
 
         public emitWorker(emitter: Emitter) {
+			//DCI
+			if (this.expression.nodeType() == NodeType.RoleAssignmentExpression) {
+				//DCI TODO
+				//Is this the right place to add the role to the collection?
+				//Maybe do this in parser and simply do nothing here
+				var operand1 = (<BinaryExpression>this.expression).operand1;
+                console.log('adding role ' + (<Identifier>operand1).actualText);
+				return;
+			}
+			
             var isArrowExpression = this.expression.nodeType() === NodeType.FunctionDeclaration &&
                 hasFlag((<FunctionDeclaration>this.expression).getFunctionFlags(), FunctionFlags.IsFatArrowFunction);
 

@@ -4169,6 +4169,9 @@ module TypeScript {
                 // assignment
                 case NodeType.AssignmentExpression:
                     return this.resolveAssignmentStatement(<BinaryExpression>ast, inContextuallyTypedAssignment, enclosingDecl, context);
+					
+				//DCI TODO
+				//should NodeType.RoleAssignmentExpression be here?
 
                 // boolean operations
                 case NodeType.LogicalNotExpression:

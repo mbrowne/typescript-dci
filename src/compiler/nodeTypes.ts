@@ -68,6 +68,7 @@ module TypeScript {
         InvocationExpression,
         ObjectCreationExpression,
         AssignmentExpression,
+		RoleAssignmentExpression, //DCI
         AddAssignmentExpression,
         SubtractAssignmentExpression,
         DivideAssignmentExpression,

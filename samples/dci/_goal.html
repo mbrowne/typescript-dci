@@ -1,0 +1,68 @@
+<script>
+"use strict";
+
+var isNodeJs = (typeof window == 'undefined' && typeof global != 'undefined');
+if (!isNodeJs) var global = window;
+
+//Calls a method on a role player - could be either a role method or a method on the data object
+function callRolePlayerMethod(context, player, playerName, roleName, methodName, args) {
+	if (player != context.__rolePlayers[playerName]) {
+		//support constructor functions within role methods - make sure we don't wrongly
+		//assume `this` refers to the current role 
+		if (player != undefined && player != global) {
+			return player[methodName].apply(player, args);
+		}
+		//if we're here, then `this` probably *should* refer to the current role and the only
+		//reason it's undefined is most likely a nested function
+		//(e.g. a callback function passed to forEach() to loop over an array)
+		else {
+			player = context.__rolePlayers[playerName];
+		}
+	}
+
+	var roleMethod = context['__$'+roleName][methodName];
+	//if the method exists on the role, we always call it (role methods can override data object methods)
+	if (typeof roleMethod == 'function') {
+		return (args ? roleMethod.apply(player, args): roleMethod.call(player));
+	}
+	return player[methodName].apply(player, args);
+}
+
+function TransferMoney(sourceAcct) {
+	var __context = this;
+	
+	this.__rolePlayers = {
+		'SourceAccount': sourceAcct
+	};
+
+    this.__$SourceAccount = {
+    	greet: function () {
+            console.log("greetings!");
+            this.increaseBalance();
+        }
+
+      , foo: function () {
+            console.log('foo');
+            //this.greet();            
+            callRolePlayerMethod(__context, this, 'SourceAccount', 'SourceAccount', 'greet');
+            
+//             [1,2,3].forEach(function() {
+//             	callRolePlayerMethod(__context, this, 'SourceAccount', 'SourceAccount', 'greet');
+//             });
+        }
+	}
+	
+	this.execute = function() {
+		this.__$SourceAccount.foo.call(sourceAcct);
+	}
+}
+
+var sourceAcct = {
+	increaseBalance: function() {
+		console.log('increaseBalance');
+	}
+};
+var transferMoneyCtx = new TransferMoney(sourceAcct);
+transferMoneyCtx.execute();
+
+</script>

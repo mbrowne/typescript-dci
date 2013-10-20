@@ -705,6 +705,10 @@ module TypeScript {
                     return SyntaxKind.LessThanLessThanToken;
                 }
             }
+			//DCI
+			else if (this.currentCharCode() == CharacterCodes.minus) {
+				return SyntaxKind.LeftArrowToken;
+			}
             else {
                 return SyntaxKind.LessThanToken;
             }

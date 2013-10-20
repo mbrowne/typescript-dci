@@ -1454,6 +1454,10 @@ module TypeScript.Parser {
                 case SyntaxKind.InstanceOfExpression:
                 case SyntaxKind.InExpression:
                     return ExpressionPrecedence.RelationalExpressionPrecedence;
+					
+				//DCI
+				case SyntaxKind.RoleAssignmentExpression:
+					return ExpressionPrecedence.AssignmentExpressionPrecedence;
 
                 case SyntaxKind.LeftShiftExpression:
                 case SyntaxKind.SignedRightShiftExpression:
@@ -3794,6 +3798,8 @@ module TypeScript.Parser {
         private isRightAssociative(expressionKind: SyntaxKind): boolean {
             switch (expressionKind) {
                 case SyntaxKind.AssignmentExpression:
+				//DCI TODO
+				//Should SyntaxKind.RoleAssignmentExpression be here?
                 case SyntaxKind.AddAssignmentExpression:
                 case SyntaxKind.SubtractAssignmentExpression:
                 case SyntaxKind.MultiplyAssignmentExpression:

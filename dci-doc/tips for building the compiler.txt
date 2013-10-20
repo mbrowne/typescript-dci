@@ -1,0 +1,37 @@
+When testing, remember to run the version you just built, don't just run `tsc somefile.ts` (which will run whatever version of `tsc` is currently configured in your shell)!
+
+e.g. run:
+
+  node built/local/tsc.js /path/to/your/file.ts
+
+====
+
+The .generated.ts files are not regenerated just by running `jake local`; it's necessary to run `jake run-syntax-generator`.
+
+The run-syntax-generator task is a bit tricky because it relies on a working compiler in the built/local directory in order to do its job. This can result in a catch-22 where you've made a change to src/compiler/syntax/syntaxGenerator.ts that would resolve an error you're currently getting for a change you recently made to any of the other .ts files, but it's still trying to use the files you generated previously BEFORE it can run the run-syntax-generator task.
+
+So when making changes to syntaxGenerator.ts or SyntaxGenerator.d.ts, always make those changes without changing any of the other .ts files, and run `jake run-syntax-generator` BEFORE making your other modifications and running `jake local`.
+
+Solution
+========
+
+Copy syntaxGenerator.ts, syntaxGenerator.d.ts, and syntaxElement.ts *to* the official distro and then, *from the official distro*, run:
+jake run-syntax-generator
+
+Make sure to copy all 3 files; the official distro's version of syntaxGenerator.ts doesn't support Mac properly (see comments at bottom of syntaxGenerator.ts for details).
+
+Then copy the .generated files back to typescript-dci.
+
+Note that this will only work once unless you restore all the .generated files back to their original versions in the official distro, or just re-download the official distro, before doing this procedure again.
+
+
+OR
+In some cases, just copying all the .generated files in src/compiler/syntax *from* from the official distro may be sufficient, then (from the DCI version) run:
+jake run-syntax-generator
+
+Also maybe helpful:
+In Jakefile, set useBuiltCompiler to false
+---
+
+NOTE:
+Sometimes syntax-generator appears to work the first time, then doesn't work when you run it again immediately afterward, apparently because the first time it might use the already-generated files, but not the second time.
