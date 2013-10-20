@@ -500,13 +500,18 @@ module TypeScript {
 
                     if (declSearchKind & PullElementKind.SomeValue) {
                         childDecls = decl.searchChildDecls(symbolName, PullElementKind.TypeAlias);
-
                         if (childDecls.length) {
                             var sym = childDecls[0].getSymbol();
 
                             if (sym.isAlias()) {
                                 return sym;
                             }
+                        }
+						
+						//DCI
+						childDecls = decl.searchChildDecls(symbolName, PullElementKind.Role);
+                        if (childDecls.length) {
+                            return childDecls[0].getSymbol();
                         }
                     }
                 }
@@ -10128,7 +10133,9 @@ module TypeScript {
                 this.isAnyOrEquivalent(expressionTypeSymbol)) {
                 return true;
             }
-            else if (!expressionSymbol.isType() || expressionTypeSymbol.isArray()) {
+			//DCI
+            else if (expressionSymbol.kind==TypeScript.PullElementKind.Role || !expressionSymbol.isType() || expressionTypeSymbol.isArray()) {
+			//else if (!expressionSymbol.isType() || expressionTypeSymbol.isArray()) {
                 return ((expressionSymbol.kind & PullElementKind.SomeLHS) != 0) && !expressionSymbol.hasFlag(TypeScript.PullElementFlags.Enum);
             }
 

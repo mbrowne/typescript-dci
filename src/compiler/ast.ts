@@ -589,6 +589,7 @@ module TypeScript {
                     {
                         this.operand1.emit(emitter);
                         var binOp = BinaryExpression.getTextForBinaryToken(this.nodeType());
+						
                         if (binOp === "instanceof") {
                             emitter.writeToOutput(" instanceof ");
                         }

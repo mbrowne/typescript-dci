@@ -54,9 +54,6 @@ module TypeScript {
         Container = 1 << 2,
         Class = 1 << 3,
         Interface = 1 << 4,
-		
-		//DCI
-		Role = 1 << 100,
 				
         DynamicModule = 1 << 5,
         Enum = 1 << 6,
@@ -92,6 +89,10 @@ module TypeScript {
 
         WithBlock = 1 << 29,
         CatchBlock = 1 << 30,
+		
+		//DCI
+		//Note on the calculation: we do it this way because 1 << 31 would give a negative number, unlike 30 or less
+		Role = (1 << 30) * 2,
 
         // WARNING: To prevent JS VMs from wrapping these values as floats, we don't want to utilize more than the 31 bits above.  (Doing so would
         // seriously slow down bitwise operations
@@ -99,7 +100,9 @@ module TypeScript {
         All = Script | Global | Primitive | Container | Class | Interface | DynamicModule | Enum | Array | TypeAlias |
             ObjectLiteral | Variable | Parameter | Property | TypeParameter | Function | ConstructorMethod | Method |
             FunctionExpression | GetAccessor | SetAccessor | CallSignature | ConstructSignature | IndexSignature | ObjectType |
-            FunctionType | ConstructorType | EnumMember | ErrorType | Expression | WithBlock | CatchBlock,
+            FunctionType | ConstructorType | EnumMember | ErrorType | Expression | WithBlock | CatchBlock
+			//DCI
+			| Role,
 
         SomeFunction = Function | ConstructorMethod | Method | FunctionExpression | GetAccessor | SetAccessor | CallSignature | ConstructSignature | IndexSignature,
 
@@ -107,9 +110,12 @@ module TypeScript {
         SomeValue = Variable | Parameter | Property | EnumMember | SomeFunction,
 
         SomeType = Script | Global | Primitive | Class | Interface |
-                    Enum | Array | ObjectType | FunctionType | ConstructorType | TypeParameter | ErrorType,
+				   //DCI
+				   Role |
+                   Enum | Array | ObjectType | FunctionType | ConstructorType | TypeParameter | ErrorType,
 
-        AcceptableAlias = Variable | SomeFunction | Class | Interface | Enum | Container | ObjectType | FunctionType | ConstructorType,
+        AcceptableAlias = Variable | SomeFunction | Class | Interface | Enum | Container | ObjectType | FunctionType | ConstructorType
+				| Role, //DCI
 
         SomeContainer = Container | DynamicModule | TypeAlias,
 
@@ -120,8 +126,10 @@ module TypeScript {
         SomeAccessor = GetAccessor | SetAccessor,
 
         SomeTypeReference = Interface | ObjectType | FunctionType | ConstructorType,
-
-        SomeLHS = Variable | Property | Parameter | SetAccessor | Method,
+		
+		//Left-hand-side of assignment statement
+        SomeLHS = Variable | Property | Parameter | SetAccessor | Method
+			| Role, //DCI
 
         InterfaceTypeExtension = Interface | Class | Enum,
         ClassTypeExtension = Interface | Class,
