@@ -565,7 +565,8 @@ module TypeScript {
 				var binaryExpressionTarget: BinaryExpression,
 					isCallToSelf = false,
 					operand1: Identifier,
-					operand2: Identifier;
+					operand2: Identifier,
+					roleName: string;
 				
                 if (target.nodeType() === NodeType.FunctionDeclaration) {
                     this.writeToOutput("(");
@@ -585,20 +586,30 @@ module TypeScript {
 							if (this.thisRoleNode) {
 								if (this.thisRoleNode && binaryExpressionTarget.operand1 instanceof ThisExpression) {
 									isCallToSelf = true;
-									this.writeToOutput("DCI.callRolePlayerMethod");
+									this.writeToOutput("DCI.callMethodOnCurrentRolePlayer");
 								}
-								//DCI TODO we should only do this if it's actually a role
 								else {
-									this.writeToOutput("__context.__$");
-									this.writeToOutput(operand1.actualText);
-									//binaryExpressionTarget.operand1.emit(this); //role name
-									this.writeToOutput(".");
+									roleName = operand1.actualText;
+									if (roleName in this.thisFunctionDeclaration.roleDeclarations) {
+										this.writeToOutput("__context.__$");
+										this.writeToOutput(roleName);
+										//binaryExpressionTarget.operand1.emit(this); //role name
+										this.writeToOutput(".");	
+									}
+									else {
+										this.emitJavascript(target, false);
+									}
 								}
 							}
 							else {
-								//DCI TODO determine if operand1 is the name of a role
-								if (false) {
-								
+								roleName = operand1.actualText;
+								if (roleName in this.thisFunctionDeclaration.roleDeclarations) {
+									
+									
+									//DCI TODO
+									
+									
+									
 								}
 								else {
 									this.emitJavascript(target, false);
@@ -606,14 +617,17 @@ module TypeScript {
 							}
                         }
                 	}
-                    else this.emitJavascript(target, false);
+                    else {
+						//DCI TODO - context methods
+						//Check parent function to see if it's a DCI context
+						
+						this.emitJavascript(target, false);
+					}
                 }
                 if (target.nodeType() === NodeType.FunctionDeclaration) {
                     this.writeToOutput(")");
                 }
                 this.recordSourceMappingStart(args);
-				
-				//DCI TODO - context methods, check if role exists
 				
 				//DCI
 				//if currently inside a role
@@ -626,15 +640,34 @@ module TypeScript {
                         //binaryExpressionTarget.operand2.emit(this);
                         this.writeToOutput("')");
                     } else {
-						this.writeToOutput(operand2.actualText + ".call(__context." + operand1.actualText);
-                        //binaryExpressionTarget.operand2.emit(this);
-                        //this.writeToOutput(".call(");
-                        //binaryExpressionTarget.operand1.emit(this);
+						if (roleName in this.thisFunctionDeclaration.roleDeclarations) {
+							this.writeToOutput(operand2.actualText + ".call(__context." + operand1.actualText);
+							//binaryExpressionTarget.operand2.emit(this);
+							//this.writeToOutput(".call(");
+							//binaryExpressionTarget.operand1.emit(this);
 
-                        if (args.members.length > 0)
-                            this.writeToOutput(", ");
-                        this.emitCommaSeparatedList(args);
-                        this.writeToOutput(")");
+							if (args.members.length > 0)
+								this.writeToOutput(", ");
+							this.emitCommaSeparatedList(args);
+							this.writeToOutput(")");
+						}
+						else {
+							
+							
+							//TEMP - copied from below
+							
+							
+							this.writeToOutput("(");
+							if (callNode.target.nodeType() === 32 /* SuperExpression */ && this.emitState.container === 4 /* Constructor */) {
+								this.writeToOutput("this");
+								if (args && args.members.length) {
+									this.writeToOutput(", ");
+								}
+							}
+							this.emitCommaSeparatedList(args);
+							this.recordSourceMappingStart(callNode.closeParenSpan);
+							this.writeToOutput(")");
+						}
                     }
 				}
                 else {           

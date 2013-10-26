@@ -2,7 +2,7 @@
 "use strict";
 
 var isNodeJs = (typeof window == 'undefined' && typeof global != 'undefined');
-if (!isNodeJs) var global = window;
+var globalNamespace = isNodeJs ? global: window;
 
 //This function is for handling calls beginning with `this`; it calls a method on the current role player,
 //which could be either a role method or a method on the data object.
@@ -14,7 +14,7 @@ function callMethodOnCurrentRolePlayer(context, player, roleName, methodName, ar
 	if (player != context[roleName]) {
 		//support functions within role methods for which `this` is unbound - but make sure we
 		//don't wrongly assume `this` refers to the current role 
-		if (player != undefined && player != global) {
+		if (player != undefined && player != globalNamespace) {
 			//not a role method; call normally
 			return player[methodName].apply(player, args);
 		}

@@ -250,9 +250,7 @@ module TypeScript {
         public emit(emitter: Emitter) {
 			//DCI
         	if (emitter.thisFunctionDeclaration && emitter.thisFunctionDeclaration.isDCIContext) {
-        		//DCI TODO
-        		//if (emitter.thisFunctionDeclaration.roleDeclarations[this.actualText]) {
-        		if (true) {
+        		if (this.actualText in emitter.thisFunctionDeclaration.roleDeclarations) {
         			emitter.writeToOutput("__context.");
         		}
         	}
@@ -885,7 +883,8 @@ module TypeScript {
         public classDecl: ClassDeclaration = null;
 		//DCI
 	    public isDCIContext = false;
-		public roleDeclarations = {};
+		//DCI TODO would MapStringTo<RoleDeclaration> = {} be better here?
+		public roleDeclarations: { [roleName: string]: RoleDeclaration} = {};
 
         public returnStatementsWithExpressions: ReturnStatement[];
 
@@ -1223,16 +1222,17 @@ module TypeScript {
         public emitWorker(emitter: Emitter) {
 			//DCI
 			if (this.expression.nodeType() == NodeType.RoleAssignmentExpression) {
-				//DCI TODO
-				//Is this the right place to add the role to the collection?
-				//Maybe do this in parser and simply do nothing here
 				var operand1 = (<BinaryExpression>this.expression).operand1;
 				var operand2 = (<BinaryExpression>this.expression).operand2;
-				var roleName = (<Identifier>operand1).actualText;
-				var rolePlayerName = (<Identifier>operand2).actualText;
-                console.log('adding role ' + roleName);
 				
-				emitter.writeToOutput("__context."+roleName+" = " + rolePlayerName + ";");
+                emitter.writeToOutput("__context.");
+                operand1.emit(emitter);
+				emitter.writeToOutput(" = ");
+				
+				//DCI TODO figure out why operand2 is being parsed as a UnaryExpression;
+				//ideally we'd just do operand2.emit(emitter);
+				(<UnaryExpression>operand2).operand.emit(emitter);
+				emitter.writeToOutput(";");
 				
 				return;
 			}

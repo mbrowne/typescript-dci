@@ -16,8 +16,8 @@ var DCI = {
 var TransferMoney = DCI.Context(function () {
 var __context = this;
     this.bindRoles = function (sourceAcct, destinationAcct) {
-        __context.SourceAccount = undefined;
-        __context.DestinationAccount = undefined;
+        __context.SourceAccount = sourceAcct;
+        __context.DestinationAccount = destinationAcct;
     };
     this.execute = function () {
         SourceAccount.transferOut();
@@ -25,14 +25,14 @@ var __context = this;
     this.__$SourceAccount = {        transferOut: function () {
             //TODO test calling role methods this way:
             //this['withdraw']();
-            DCI.callRolePlayerMethod(__context, this, 'SourceAccount', 'withdraw');
+            DCI.callMethodOnCurrentRolePlayer(__context, this, 'SourceAccount', 'withdraw');
             __context.__$DestinationAccount.deposit.call(__context.DestinationAccount);
         }
         ,withdraw: function () {
         }
 }
     this.__$DestinationAccount = {        deposit: function () {
-            __context.__$console.log.call(__context.console, 'deposit');
+            console.log('deposit');
         }
 }
 });

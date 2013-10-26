@@ -611,8 +611,6 @@ module TypeScript {
             return false;
         }
 
-		//DCI TODO this should probably have the same code as visitFunctionExpression()
-		//
         public visitFunctionDeclaration(node: FunctionDeclarationSyntax): FunctionDeclaration {
             var start = this.position;
 
@@ -634,6 +632,18 @@ module TypeScript {
 
             var result = new FunctionDeclaration(name, block, false, typeParameters, parameters, returnType, this.hasDotDotDotParameter(node.callSignature.parameterList.parameters));
             this.setCommentsAndSpan(result, start, node);
+
+			//DCI
+			//Add RoleDeclarations to FunctionDeclaration object
+            if (block) {
+                var members = block.statements.members;
+                for (var i = 0; i < members.length; i++) {
+                    if (members[i] instanceof RoleDeclaration) {
+                    	var roleDecl = members[i];
+                        result.roleDeclarations[roleDecl.name.actualText] = roleDecl;
+                    }
+                }
+            }
 
             if (node.semicolonToken) {
                 result.setFunctionFlags(result.getFunctionFlags() | FunctionFlags.Signature);
@@ -2125,7 +2135,7 @@ module TypeScript {
             if (block) {
                 var members = block.statements.members;
                 for (var i = 0; i < members.length; i++) {
-                    if (members[i] instanceof TypeScript.RoleDeclaration) {
+                    if (members[i] instanceof RoleDeclaration) {
                     	var roleDecl = members[i];
                         result.roleDeclarations[roleDecl.name.actualText] = roleDecl;
                     }
