@@ -248,6 +248,14 @@ module TypeScript {
         public isMissing() { return false; }
 
         public emit(emitter: Emitter) {
+			//DCI
+        	if (emitter.thisFunctionDeclaration && emitter.thisFunctionDeclaration.isDCIContext) {
+        		//DCI TODO
+        		//if (emitter.thisFunctionDeclaration.roleDeclarations[this.actualText]) {
+        		if (true) {
+        			emitter.writeToOutput("__context.");
+        		}
+        	}
             emitter.emitName(this, true);
         }
 
@@ -610,6 +618,14 @@ module TypeScript {
                    structuralEquals(this.operand2, ast.operand2, includingPosition);
         }
     }
+	
+	//DCI
+    export class RoleAssignmentExpression extends AST {
+        constructor(public roleName: AST,
+                    public rolePlayerName: AST) {
+            super();
+        }
+	}
 
     export class ConditionalExpression extends AST {
         constructor(public operand1: AST,
@@ -869,7 +885,7 @@ module TypeScript {
         public classDecl: ClassDeclaration = null;
 		//DCI
 	    public isDCIContext = false;
-		public roleMap = {};
+		public roleDeclarations = {};
 
         public returnStatementsWithExpressions: ReturnStatement[];
 
@@ -1211,7 +1227,13 @@ module TypeScript {
 				//Is this the right place to add the role to the collection?
 				//Maybe do this in parser and simply do nothing here
 				var operand1 = (<BinaryExpression>this.expression).operand1;
-                console.log('adding role ' + (<Identifier>operand1).actualText);
+				var operand2 = (<BinaryExpression>this.expression).operand2;
+				var roleName = (<Identifier>operand1).actualText;
+				var rolePlayerName = (<Identifier>operand2).actualText;
+                console.log('adding role ' + roleName);
+				
+				emitter.writeToOutput("__context."+roleName+" = " + rolePlayerName + ";");
+				
 				return;
 			}
 			

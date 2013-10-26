@@ -1,15 +1,98 @@
-function TransferMoney(sourceAcct2) {
+var DCI = {
+	Context: function Context(callback) {
+		return function(...args : any[]) {
+			var context = new callback();
+			context.bindRoles.apply(callback, arguments);
+			return context;
+		}
+	}
+};
+
+//TODO DCI.Context.extend()  -- DCI.Context should be a Typescript class
+var TransferMoney = DCI.Context(function() {
+
+	this.bindRoles = function(sourceAcct, destinationAcct) {
+		SourceAccount <- sourceAcct;
+		DestinationAccount <- destinationAcct;
+	}
 	
-	SourceAccount <- sourceAcct2;
-	var test = '123';
+    this.execute = function() {
+    	SourceAccount.transferOut();
+    }
 	
 	role SourceAccount {
-		test() {
+		transferOut() {
+			//TODO test calling role methods this way:
+			//this['withdraw']();
+		
+			this.withdraw();
 			DestinationAccount.deposit();
 		}
 		
-		foo() {
-			this.greet();
+		withdraw() {
+			
+		}
+	}
+	
+	role DestinationAccount {
+		deposit() {
+			console.log('deposit');
+		}
+	}
+});
+
+
+var ctx = TransferMoney({}, {});
+ctx.execute();
+
+/*
+function TransferMoney(sourceAcct, destinationAcct) {
+	
+	this.bindRoles = function(a1, a2) {
+		SourceAccount <- a1;
+		DestinationAccount <- a2;
+	}
+	this.bindRoles(sourceAcct, destinationAcct);
+	
+    this.execute = function() {
+    	SourceAccount.transferOut();
+    }
+	
+	role SourceAccount {
+		transferOut() {
+			this.withdraw();
+			DestinationAccount.deposit();
+		}
+		
+		withdraw() {
+			
+		}
+	}
+	
+	role DestinationAccount {
+		deposit() {
+			console.log('deposit');
 		}
 	}
 }
+
+var ctx = new TransferMoney({}, {});
+ctx.execute();
+*/
+
+/*
+
+var TransferMoney = DCI.Context(function() {
+	this.bindRoles = function(sourceAcct, destinationAcct) {
+		SourceAccount <- sourceAcct;
+		DestinationAccount <- destinationAcct;
+	}
+	
+	this.execute = function() {
+		console.log('executing');
+	}
+});
+
+var ctx = TransferMoney({}, {});
+ctx.execute();
+*/

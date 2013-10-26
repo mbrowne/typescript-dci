@@ -1355,6 +1355,26 @@ module TypeScript {
                         }
 
                         break;
+						
+					//DCI
+                    case NodeType.RoleAssignmentExpression:
+                        if (propagateContextualTypes) {
+                            var roleAssignmentExpression = <RoleAssignmentExpression>current;
+                            var contextualType: PullTypeSymbol = null;
+
+                            if (path.asts[i + 1] && path.asts[i + 1] === roleAssignmentExpression.rolePlayerName) {
+                                // propagate the left hand side type as a contextual type
+                                var leftType = this.resolver.resolveAST(assignmentExpression.operand1, inContextuallyTypedAssignment, enclosingDecl, resolutionContext).type;
+                                if (leftType) {
+                                    inContextuallyTypedAssignment = true;
+                                    contextualType = leftType;
+                                }
+                            }
+
+                            resolutionContext.pushContextualType(contextualType, false, null);
+                        }
+
+                        break;
 
                     case NodeType.CastExpression:
                         var castExpression = <UnaryExpression>current;

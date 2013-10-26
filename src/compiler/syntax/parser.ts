@@ -129,7 +129,6 @@ module TypeScript.Parser {
     enum ListParsingState {
         SourceUnit_ModuleElements = 1 << 0,
         ClassDeclaration_ClassElements = 1 << 1,
-		RoleDeclaration_RoleElements = 1 << 100, //DCI
         ModuleDeclaration_ModuleElements = 1 << 2,
         SwitchStatement_SwitchClauses = 1 << 3,
         SwitchClause_Statements = 1 << 4,
@@ -148,9 +147,13 @@ module TypeScript.Parser {
         ParameterList_Parameters = 1 << 17,
         TypeArgumentList_Types = 1 << 18,
         TypeParameterList_TypeParameters = 1 << 19,
+		//DCI
+		RoleDeclaration_RoleElements = 1 << 20,
 
         FirstListParsingState = SourceUnit_ModuleElements,
-        LastListParsingState = TypeArgumentList_Types,
+		//DCI
+		LastListParsingState = RoleDeclaration_RoleElements
+        //LastListParsingState = TypeArgumentList_Types,
     }
 
     // Allows one to easily move over a syntax tree.  Used during incremental parsing to move over
@@ -2506,6 +2509,10 @@ module TypeScript.Parser {
         private isRoleDeclaration(): boolean {
             var index = this.modifierCount();
 			
+			//DCI TODO
+			//I think this first paret could be left out and achieve the same goal as below;
+			//test it out
+			
 			//Note: The below comment is copied from isInterfaceDeclaration() above, subsituting the word 'role' for 'interface'...
 			//checking for index > 0 apparently does NOT mean that we require a 'public' or 'private' keyword,
 			//which is good since all roles should be private to the context
@@ -2524,6 +2531,22 @@ module TypeScript.Parser {
             // that we're actually looking at a role construct and not some javascript expression.
             return this.currentToken().tokenKind === SyntaxKind.RoleKeyword &&
                    this.isIdentifier(this.peekToken(1));
+        }
+		
+		//DCI
+		private isRoleAssignmentStatement(): boolean {
+			if (this.peekToken(1).tokenKind === SyntaxKind.LeftArrowToken) return true;
+		}
+		
+		//DCI
+        private parseRoleAssignmentStatement(): ExpressionStatementSyntax {
+			console.log('PARSING ROLE ASSIGNMENT');
+			
+            var expression = this.parseExpression(/*allowIn:*/ true);
+
+            var semicolon = this.eatExplicitOrAutomaticSemicolon(/*allowWithoutNewline:*/ false);
+
+            return this.factory.expressionStatement(expression, semicolon);
         }
 
         private parseInterfaceDeclaration(): InterfaceDeclarationSyntax {
@@ -2854,6 +2877,10 @@ module TypeScript.Parser {
             else if (this.isDebuggerStatement()) {
                 return this.parseDebuggerStatement();
             }
+			//DCI
+			else if (this.isRoleAssignmentStatement()) {
+				return this.parseRoleAssignmentStatement();
+			}
             else {
                 // Fall back to parsing this as expression statement.
                 return this.parseExpressionStatement();
@@ -5277,6 +5304,10 @@ module TypeScript.Parser {
 
                 case ListParsingState.ClassDeclaration_ClassElements:
                     return this.isExpectedClassDeclaration_ClassElementsTerminator();
+				
+				//DCI
+                case ListParsingState.RoleDeclaration_RoleElements:
+                    return this.isExpectedRoleDeclaration_RoleElementsTerminator();
 
                 case ListParsingState.ModuleDeclaration_ModuleElements:
                     return this.isExpectedModuleDeclaration_ModuleElementsTerminator();
@@ -5480,6 +5511,11 @@ module TypeScript.Parser {
         }
 
         private isExpectedClassDeclaration_ClassElementsTerminator(): boolean {
+            return this.currentToken().tokenKind === SyntaxKind.CloseBraceToken;
+        }
+		
+		//DCI
+        private isExpectedRoleDeclaration_RoleElementsTerminator(): boolean {
             return this.currentToken().tokenKind === SyntaxKind.CloseBraceToken;
         }
 

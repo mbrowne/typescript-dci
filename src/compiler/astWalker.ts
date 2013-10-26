@@ -126,7 +126,7 @@ module TypeScript {
             this.childrenWalkers[NodeType.ObjectCreationExpression] = ChildrenWalkers.walkObjectCreationExpressionChildren;
             this.childrenWalkers[NodeType.AssignmentExpression] = ChildrenWalkers.walkBinaryExpressionChildren;
 			//DCI
-			this.childrenWalkers[NodeType.RoleAssignmentExpression] = ChildrenWalkers.walkBinaryExpressionChildren;
+			this.childrenWalkers[NodeType.RoleAssignmentExpression] = ChildrenWalkers.walkRoleAssignmentExpressionChildren;
             this.childrenWalkers[NodeType.AddAssignmentExpression] = ChildrenWalkers.walkBinaryExpressionChildren;
             this.childrenWalkers[NodeType.SubtractAssignmentExpression] = ChildrenWalkers.walkBinaryExpressionChildren;
             this.childrenWalkers[NodeType.DivideAssignmentExpression] = ChildrenWalkers.walkBinaryExpressionChildren;
@@ -263,6 +263,19 @@ module TypeScript {
             }
             if (preAst.operand2) {
                 preAst.operand2 = walker.walk(preAst.operand2, preAst);
+            }
+        }
+		
+		//DCI
+        export function walkRoleAssignmentExpressionChildren(preAst: RoleAssignmentExpression, parent: AST, walker: IAstWalker): void {
+			//DCI TODO remove this
+			console.log('walkRoleAssignmentExpressionChildren');
+			
+            if (preAst.roleName) {
+                preAst.roleName = walker.walk(preAst.roleName, preAst);
+            }
+            if (preAst.rolePlayerName) {
+                preAst.rolePlayerName = walker.walk(preAst.rolePlayerName, preAst);
             }
         }
 

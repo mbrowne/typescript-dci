@@ -561,8 +561,11 @@ module TypeScript {
 
         public emitCall(callNode: InvocationExpression, target: AST, args: ASTList) {
             if (!this.emitSuperCall(callNode)) {
-				var binaryExpressionTarget: BinaryExpression;
-				var isCallToSelf = false; //DCI
+				//DCI
+				var binaryExpressionTarget: BinaryExpression,
+					isCallToSelf = false,
+					operand1: Identifier,
+					operand2: Identifier;
 				
                 if (target.nodeType() === NodeType.FunctionDeclaration) {
                     this.writeToOutput("(");
@@ -572,19 +575,34 @@ module TypeScript {
                 }
                 else {
                 	//DCI
-                	if (this.thisFunctionDeclaration.isDCIContext) {
-                        if (target instanceof TypeScript.BinaryExpression) {
-                            binaryExpressionTarget = <BinaryExpression> target;
-							//console.log(bTarget);
-                            if (binaryExpressionTarget.operand1 instanceof ThisExpression) {
-                            	isCallToSelf = true;
-                                this.writeToOutput("DCI.callRolePlayerMethod");
-                            }
-							//DCI TODO we should only do this if it's actually a role
-                            else {
-								this.writeToOutput("__context.__$"); //ROLE.");
-								binaryExpressionTarget.operand1.emit(this); //role name
-								this.writeToOutput(".");
+                	if (this.thisFunctionDeclaration && this.thisFunctionDeclaration.isDCIContext) {
+                        if (target instanceof BinaryExpression) {
+                            binaryExpressionTarget = <BinaryExpression>target;
+							operand1 = <Identifier>binaryExpressionTarget.operand1;
+							operand2 = <Identifier>binaryExpressionTarget.operand2;
+							
+							//if currently inside a role
+							if (this.thisRoleNode) {
+								if (this.thisRoleNode && binaryExpressionTarget.operand1 instanceof ThisExpression) {
+									isCallToSelf = true;
+									this.writeToOutput("DCI.callRolePlayerMethod");
+								}
+								//DCI TODO we should only do this if it's actually a role
+								else {
+									this.writeToOutput("__context.__$");
+									this.writeToOutput(operand1.actualText);
+									//binaryExpressionTarget.operand1.emit(this); //role name
+									this.writeToOutput(".");
+								}
+							}
+							else {
+								//DCI TODO determine if operand1 is the name of a role
+								if (false) {
+								
+								}
+								else {
+									this.emitJavascript(target, false);
+								}
 							}
                         }
                 	}
@@ -595,26 +613,29 @@ module TypeScript {
                 }
                 this.recordSourceMappingStart(args);
 				
-                //DCI
-                if (binaryExpressionTarget) {
-                	if (isCallToSelf) {
-						this.writeToOutput("(__context, this, TODO-playerName, '");
-						this.thisRoleNode.name.emit(this);
-						this.writeToOutput("', '");
-						binaryExpressionTarget.operand2.emit(this);
-						this.writeToOutput("')");
- 	                }
- 	                else {
- 	                	binaryExpressionTarget.operand2.emit(this);
- 	                	this.writeToOutput(".call(");
- 	                	
-						//TODO
-						this.writeToOutput("rolePlayer");
-						
- 	                	if (args.members.length > 0) this.writeToOutput(", ");
- 	                	this.emitCommaSeparatedList(args);
- 	                	this.writeToOutput(")");
- 	                }
+				//DCI TODO - context methods, check if role exists
+				
+				//DCI
+				//if currently inside a role
+                if (this.thisRoleNode) {
+                    if (isCallToSelf) {
+                        this.writeToOutput("(__context, this, '");
+						this.writeToOutput( (<Identifier>this.thisRoleNode.name).actualText );
+                        //this.thisRoleNode.name.emit(this);
+                        this.writeToOutput("', '" + operand2.actualText);
+                        //binaryExpressionTarget.operand2.emit(this);
+                        this.writeToOutput("')");
+                    } else {
+						this.writeToOutput(operand2.actualText + ".call(__context." + operand1.actualText);
+                        //binaryExpressionTarget.operand2.emit(this);
+                        //this.writeToOutput(".call(");
+                        //binaryExpressionTarget.operand1.emit(this);
+
+                        if (args.members.length > 0)
+                            this.writeToOutput(", ");
+                        this.emitCommaSeparatedList(args);
+                        this.writeToOutput(")");
+                    }
 				}
                 else {           
 					this.writeToOutput("(");
@@ -726,6 +747,7 @@ module TypeScript {
 			if (funcDecl.isDCIContext) {
 				this.indenter.increaseIndent();
 				this.writeLineToOutput("var __context = this;");
+				//this.writeLineToOutput("__context.__rolePlayers = {};");
 				this.indenter.decreaseIndent();
 			}
 

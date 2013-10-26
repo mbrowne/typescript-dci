@@ -4,30 +4,97 @@
 var isNodeJs = (typeof window == 'undefined' && typeof global != 'undefined');
 if (!isNodeJs) var global = window;
 
-//Calls a method on a role player - could be either a role method or a method on the data object
-function callRolePlayerMethod(context, player, playerName, roleName, methodName, args) {
-	if (player != context.__rolePlayers[playerName]) {
-		//support constructor functions within role methods - make sure we don't wrongly
-		//assume `this` refers to the current role 
+//This function is for handling calls beginning with `this`; it calls a method on the current role player,
+//which could be either a role method or a method on the data object.
+//
+// TODO test data object methods that aren't overridden by the role
+//
+function callMethodOnCurrentRolePlayer(context, player, roleName, methodName, args) {
+	//if `this` is not equal to the current role player
+	if (player != context[roleName]) {
+		//support functions within role methods for which `this` is unbound - but make sure we
+		//don't wrongly assume `this` refers to the current role 
 		if (player != undefined && player != global) {
+			//not a role method; call normally
 			return player[methodName].apply(player, args);
 		}
 		//if we're here, then `this` probably *should* refer to the current role and the only
 		//reason it's undefined is most likely a nested function
 		//(e.g. a callback function passed to forEach() to loop over an array)
 		else {
-			player = context.__rolePlayers[playerName];
+			player = context[roleName];
 		}
 	}
 
 	var roleMethod = context['__$'+roleName][methodName];
-	//if the method exists on the role, we always call it (role methods can override data object methods)
+	//if the method exists on the role, we always call it (role methods override data object methods)
 	if (typeof roleMethod == 'function') {
 		return (args ? roleMethod.apply(player, args): roleMethod.call(player));
 	}
+	//otherwise, call the data object method
+	//(if the method is not found on the data object, this will throw Javascript's usual
+	//'[function name] is not defined' error)
 	return player[methodName].apply(player, args);
 }
 
+
+//for class version
+
+function TransferMoney(sourceAcct, destinationAcct) {
+	var __context = this;
+	this.bindRoles(sourceAcct, destinationAcct);
+	
+	//roles need to be inside constructor so that __context variable can be accessed
+	this.__$SourceAccount = {
+		transferOut: function () {
+            //this.withdraw();
+            __context.__$DestinationAccount.deposit.call(__context.__rolePlayers['DestinationAccount']);
+        },
+        withdraw: function () {
+        }
+	}
+}
+
+TransferMoney.prototype.bindRoles = function(sourceAcct, destinationAcct) {
+	__context.SourceAccount = sourceAcct;
+	__context.DestinationAccount = destinationAcct;
+}
+
+TransferMoney.prototype.execute = function() {
+	var __context = this;
+	__context.__$SourceAccount.transferOut.call(__context.SourceAccount);
+};
+
+//for JS version
+
+function TransferMoney(sourceAcct, destinationAcct) {
+var __context = this;
+__context.__rolePlayers = {};
+    this.bindRoles = function () {
+        __context.__rolePlayers['SourceAccount'] = sourceAcct;
+        __context.__rolePlayers['DestinationAccount'] = destinationAcct;
+    };
+    this.bindRoles();
+    this.execute = function () {
+        __context.__$SourceAccount.transferOut.call(__context.__rolePlayers['SourceAccount']);
+    };
+    this.__$SourceAccount = {        transferOut: function () {
+            //this.withdraw();
+            __context.__$DestinationAccount.deposit.call(__context.__rolePlayers['DestinationAccount']);
+        }
+        ,withdraw: function () {
+        }
+}
+    this.__$DestinationAccount = {        deposit: function () {
+            console.log('deposit');
+        }
+}
+}
+var ctx = new TransferMoney({}, {});
+ctx.execute();
+
+
+/*
 function TransferMoney(sourceAcct) {
 	var __context = this;
 	
@@ -44,7 +111,7 @@ function TransferMoney(sourceAcct) {
       , foo: function () {
             console.log('foo');
             //this.greet();            
-            callRolePlayerMethod(__context, this, 'SourceAccount', 'SourceAccount', 'greet');
+            callRolePlayerMethod(__context, this, 'SourceAccount', 'greet');
             
 //             [1,2,3].forEach(function() {
 //             	callRolePlayerMethod(__context, this, 'SourceAccount', 'SourceAccount', 'greet');
@@ -64,5 +131,7 @@ var sourceAcct = {
 };
 var transferMoneyCtx = new TransferMoney(sourceAcct);
 transferMoneyCtx.execute();
+*/
+
 
 </script>
