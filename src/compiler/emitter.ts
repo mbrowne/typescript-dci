@@ -563,9 +563,10 @@ module TypeScript {
             if (!this.emitSuperCall(callNode)) {
 				//DCI
 				var binaryExpressionTarget: BinaryExpression,
-					isCallToSelf = false,
 					operand1: Identifier,
 					operand2: Identifier,
+					isRoleMethodCall = false,
+					isCallToSelf = false,
 					roleName: string;
 				
                 if (target.nodeType() === NodeType.FunctionDeclaration) {
@@ -585,16 +586,19 @@ module TypeScript {
 							//if currently inside a role
 							if (this.thisRoleNode) {
 								if (this.thisRoleNode && binaryExpressionTarget.operand1 instanceof ThisExpression) {
+									isRoleMethodCall = true;
 									isCallToSelf = true;
 									this.writeToOutput("DCI.callMethodOnCurrentRolePlayer");
 								}
 								else {
 									roleName = operand1.actualText;
 									if (roleName in this.thisFunctionDeclaration.roleDeclarations) {
+										isRoleMethodCall = true;
+										
 										this.writeToOutput("__context.__$");
 										this.writeToOutput(roleName);
 										//binaryExpressionTarget.operand1.emit(this); //role name
-										this.writeToOutput(".");	
+										this.writeToOutput(".");
 									}
 									else {
 										this.emitJavascript(target, false);
@@ -604,7 +608,7 @@ module TypeScript {
 							else {
 								roleName = operand1.actualText;
 								if (roleName in this.thisFunctionDeclaration.roleDeclarations) {
-									
+									isRoleMethodCall = true;
 									
 									//DCI TODO
 									
@@ -618,10 +622,39 @@ module TypeScript {
                         }
                 	}
                     else {
-						//DCI TODO - context methods
-						//Check parent function to see if it's a DCI context
+						//DCI
+						//Check to see if any of the parent functions to which this function belongs are a DCI context
+                    	var declStack = this.declStack;
+                    	var dciContext: FunctionDeclaration;
+                    	for (var i=0; i < declStack.length; i++) {
+                    		if (declStack[i] instanceof PullFunctionExpressionDecl) {
+								var funcDecl = <FunctionDeclaration>declStack[i].ast;
+								if (funcDecl.isDCIContext) {
+									dciContext = funcDecl;
+									break;
+								}
+                    		}
+                    	}
 						
-						this.emitJavascript(target, false);
+						//TEMP
+						
+                    	if (dciContext) {
+							binaryExpressionTarget = <BinaryExpression>target;
+							operand1 = <Identifier>binaryExpressionTarget.operand1;
+							operand2 = <Identifier>binaryExpressionTarget.operand2;
+							roleName = operand1.actualText;
+						}
+						
+						//TEMP
+						
+						if (dciContext && roleName in dciContext.roleDeclarations) {
+							isRoleMethodCall = true;
+							
+							this.writeToOutput("__context.__$");
+							this.writeToOutput(roleName);
+							this.writeToOutput(".");
+						}
+						else this.emitJavascript(target, false);
 					}
                 }
                 if (target.nodeType() === NodeType.FunctionDeclaration) {
@@ -630,8 +663,7 @@ module TypeScript {
                 this.recordSourceMappingStart(args);
 				
 				//DCI
-				//if currently inside a role
-                if (this.thisRoleNode) {
+                if (isRoleMethodCall) {
                     if (isCallToSelf) {
                         this.writeToOutput("(__context, this, '");
 						this.writeToOutput( (<Identifier>this.thisRoleNode.name).actualText );
@@ -640,34 +672,15 @@ module TypeScript {
                         //binaryExpressionTarget.operand2.emit(this);
                         this.writeToOutput("')");
                     } else {
-						if (roleName in this.thisFunctionDeclaration.roleDeclarations) {
-							this.writeToOutput(operand2.actualText + ".call(__context." + operand1.actualText);
-							//binaryExpressionTarget.operand2.emit(this);
-							//this.writeToOutput(".call(");
-							//binaryExpressionTarget.operand1.emit(this);
+						this.writeToOutput(operand2.actualText + ".call(__context." + operand1.actualText);
+						//binaryExpressionTarget.operand2.emit(this);
+						//this.writeToOutput(".call(");
+						//binaryExpressionTarget.operand1.emit(this);
 
-							if (args.members.length > 0)
-								this.writeToOutput(", ");
-							this.emitCommaSeparatedList(args);
-							this.writeToOutput(")");
-						}
-						else {
-							
-							
-							//TEMP - copied from below
-							
-							
-							this.writeToOutput("(");
-							if (callNode.target.nodeType() === 32 /* SuperExpression */ && this.emitState.container === 4 /* Constructor */) {
-								this.writeToOutput("this");
-								if (args && args.members.length) {
-									this.writeToOutput(", ");
-								}
-							}
-							this.emitCommaSeparatedList(args);
-							this.recordSourceMappingStart(callNode.closeParenSpan);
-							this.writeToOutput(")");
-						}
+						if (args.members.length > 0)
+							this.writeToOutput(", ");
+						this.emitCommaSeparatedList(args);
+						this.writeToOutput(")");
                     }
 				}
                 else {           

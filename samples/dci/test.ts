@@ -8,6 +8,38 @@ var DCI = {
 	}
 };
 
+function TransferMoney(sourceAcct, destinationAcct) {
+	//Role binding
+	SourceAccount <- sourceAcct;
+	DestinationAccount <- destinationAcct;
+	
+	//Execute the use case
+    SourceAccount.transferOut();
+	
+	role SourceAccount {
+		transferOut() {
+			//TODO test calling role methods this way:
+			//this['withdraw']();
+		
+			this.withdraw();
+			DestinationAccount.deposit();
+		}
+		
+		withdraw() {
+			console.log('withdraw');
+		}
+	}
+	
+	role DestinationAccount {
+		deposit() {
+			console.log('deposit');
+		}
+	}
+}
+
+var ctx = TransferMoney({}, {});
+
+/*
 //TODO DCI.Context.extend()  -- DCI.Context should be a Typescript class
 var TransferMoney = DCI.Context(function() {
 
@@ -30,7 +62,7 @@ var TransferMoney = DCI.Context(function() {
 		}
 		
 		withdraw() {
-			
+			console.log('withdraw');
 		}
 	}
 	
@@ -41,9 +73,9 @@ var TransferMoney = DCI.Context(function() {
 	}
 });
 
-
 var ctx = TransferMoney({}, {});
 ctx.execute();
+*/
 
 /*
 function TransferMoney(sourceAcct, destinationAcct) {

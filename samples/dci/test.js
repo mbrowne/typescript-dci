@@ -12,16 +12,14 @@ var DCI = {
     }
 };
 
-//TODO DCI.Context.extend()  -- DCI.Context should be a Typescript class
-var TransferMoney = DCI.Context(function () {
+function TransferMoney(sourceAcct, destinationAcct) {
 var __context = this;
-    this.bindRoles = function (sourceAcct, destinationAcct) {
-        __context.SourceAccount = sourceAcct;
-        __context.DestinationAccount = destinationAcct;
-    };
-    this.execute = function () {
-        SourceAccount.transferOut();
-    };
+    //Role binding
+    __context.__context.SourceAccount = sourceAcct;
+    __context.__context.DestinationAccount = destinationAcct;
+
+    //Execute the use case
+    transferOut.call(__context.SourceAccount);
     this.__$SourceAccount = {        transferOut: function () {
             //TODO test calling role methods this way:
             //this['withdraw']();
@@ -29,12 +27,12 @@ var __context = this;
             __context.__$DestinationAccount.deposit.call(__context.DestinationAccount);
         }
         ,withdraw: function () {
+            console.log('withdraw');
         }
 }
     this.__$DestinationAccount = {        deposit: function () {
             console.log('deposit');
         }
 }
-});
+}
 var ctx = TransferMoney({}, {});
-ctx.execute();

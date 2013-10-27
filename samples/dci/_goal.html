@@ -4,12 +4,14 @@
 var isNodeJs = (typeof window == 'undefined' && typeof global != 'undefined');
 var globalNamespace = isNodeJs ? global: window;
 
+var DCI = {};
+
 //This function is for handling calls beginning with `this`; it calls a method on the current role player,
 //which could be either a role method or a method on the data object.
 //
 // TODO test data object methods that aren't overridden by the role
 //
-function callMethodOnCurrentRolePlayer(context, player, roleName, methodName, args) {
+DCI.callMethodOnCurrentRolePlayer = function callMethodOnCurrentRolePlayer(context, player, roleName, methodName, args) {
 	//if `this` is not equal to the current role player
 	if (player != context[roleName]) {
 		//support functions within role methods for which `this` is unbound - but make sure we
@@ -36,6 +38,21 @@ function callMethodOnCurrentRolePlayer(context, player, roleName, methodName, ar
 	//'[function name] is not defined' error)
 	return player[methodName].apply(player, args);
 }
+
+globalNamespace.DCI = DCI;
+
+//Compiled by TS
+DCI.Context = function Context(callback) {
+	return function () {
+		var args = [];
+		for (var _i = 0; _i < (arguments.length - 0); _i++) {
+			args[_i] = arguments[_i + 0];
+		}
+		var context = new callback();
+		context.bindRoles.apply(callback, arguments);
+		return context;
+	};
+};
 
 
 //for class version
