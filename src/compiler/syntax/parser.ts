@@ -2510,7 +2510,7 @@ module TypeScript.Parser {
             var index = this.modifierCount();
 			
 			//DCI TODO
-			//I think this first paret could be left out and achieve the same goal as below;
+			//I think this first part could be left out and achieve the same goal as below;
 			//test it out
 			
 			//Note: The below comment is copied from isInterfaceDeclaration() above, subsituting the word 'role' for 'interface'...
@@ -2540,8 +2540,6 @@ module TypeScript.Parser {
 		
 		//DCI
         private parseRoleAssignmentStatement(): ExpressionStatementSyntax {
-			console.log('PARSING ROLE ASSIGNMENT');
-			
             var expression = this.parseExpression(/*allowIn:*/ true);
 
             var semicolon = this.eatExplicitOrAutomaticSemicolon(/*allowWithoutNewline:*/ false);

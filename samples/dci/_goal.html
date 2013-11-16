@@ -11,7 +11,7 @@ var DCI = {};
 //
 // TODO test data object methods that aren't overridden by the role
 //
-DCI.callMethodOnCurrentRolePlayer = function callMethodOnCurrentRolePlayer(context, player, roleName, methodName, args) {
+DCI.callMethodOnSelf = function callMethodOnSelf(context, player, roleName, methodName, args) {
 	//if `this` is not equal to the current role player
 	if (player != context[roleName]) {
 		//support functions within role methods for which `this` is unbound - but make sure we

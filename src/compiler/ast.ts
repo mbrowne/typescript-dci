@@ -249,8 +249,9 @@ module TypeScript {
 
         public emit(emitter: Emitter) {
 			//DCI
-        	if (emitter.thisFunctionDeclaration && emitter.thisFunctionDeclaration.isDCIContext) {
-        		if (this.actualText in emitter.thisFunctionDeclaration.roleDeclarations) {
+        	if (emitter.thisFunctionNode && emitter.thisFunctionNode.isDCIContext) {
+				//If we're in a role method
+        		if (this.actualText in emitter.thisFunctionNode.roleDeclarations) {
         			emitter.writeToOutput("__context.");
         		}
         	}
@@ -314,7 +315,7 @@ module TypeScript {
         }
 
         public emitWorker(emitter: Emitter) {
-            if (emitter.thisFunctionDeclaration && (hasFlag(emitter.thisFunctionDeclaration.getFunctionFlags(), FunctionFlags.IsFatArrowFunction))) {
+            if (emitter.thisFunctionNode && (hasFlag(emitter.thisFunctionNode.getFunctionFlags(), FunctionFlags.IsFatArrowFunction))) {
                 emitter.writeToOutput("_this");
             }
             else {
@@ -1225,7 +1226,11 @@ module TypeScript {
 				var operand1 = (<BinaryExpression>this.expression).operand1;
 				var operand2 = (<BinaryExpression>this.expression).operand2;
 				
-                emitter.writeToOutput("__context.");
+				if (!emitter.thisFunctionNode.isDCIContext) {
+					//For the case where role binding is done in a context method, not the context function itself
+					//Otherwise, we don't need to output "__context" because Identifier.emit() has already done so
+					emitter.writeToOutput("__context.");
+				}
                 operand1.emit(emitter);
 				emitter.writeToOutput(" = ");
 				

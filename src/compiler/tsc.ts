@@ -50,6 +50,12 @@ module TypeScript {
         private tcOnly = false;
 
         constructor(private ioHost: IIO) {
+			//DCI
+			var msg = 'typescript-dci warning: DCI node module not installed as a global module; ' +
+				'please ensure that is available locally to your project, or install it as a global module using `npm install -g typescript-dci`.';
+			//We have to use eval() here since we want the require() function to be run directly by node.js, not by TypeScript
+			eval('try { require("dci"); } catch(e) { console.error("' + msg + '"); }');
+			
             this.compilationSettings = new CompilationSettings();
         }
 

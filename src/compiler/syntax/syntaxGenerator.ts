@@ -2970,7 +2970,7 @@ var visitor = generateVisitor();
 var factory = generateFactory();
 
 //
-//TODO
+//DCI TODO
 console.log('Note from Matt Browne -- reminder to fix the bottom of syntaxGenerator.ts: Paths should be separated by forward slashes on *nix and backslashes on Windows');
 
 //For Mac:

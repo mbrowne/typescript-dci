@@ -148,7 +148,7 @@ module TypeScript {
         public extendsPrologueEmitted = false;
         public thisClassNode: ClassDeclaration = null;
 		public thisRoleNode: RoleDeclaration = null; //DCI
-        public thisFunctionDeclaration: FunctionDeclaration = null;
+        public thisFunctionNode: FunctionDeclaration = null;
         public moduleName = "";
         public emitState = new EmitState();
         public indenter = new Indenter();
@@ -560,144 +560,110 @@ module TypeScript {
         }
 
         public emitCall(callNode: InvocationExpression, target: AST, args: ASTList) {
-            if (!this.emitSuperCall(callNode)) {
-				//DCI
-				var binaryExpressionTarget: BinaryExpression,
-					operand1: Identifier,
-					operand2: Identifier,
-					isRoleMethodCall = false,
-					isCallToSelf = false,
-					roleName: string;
-				
-                if (target.nodeType() === NodeType.FunctionDeclaration) {
-                    this.writeToOutput("(");
-                }
-                if (callNode.target.nodeType() === NodeType.SuperExpression && this.emitState.container === EmitContainer.Constructor) {
-                    this.writeToOutput("_super.call");
-                }
-                else {
-                	//DCI
-                	if (this.thisFunctionDeclaration && this.thisFunctionDeclaration.isDCIContext) {
-                        if (target instanceof BinaryExpression) {
-                            binaryExpressionTarget = <BinaryExpression>target;
-							operand1 = <Identifier>binaryExpressionTarget.operand1;
-							operand2 = <Identifier>binaryExpressionTarget.operand2;
-							
-							//if currently inside a role
-							if (this.thisRoleNode) {
-								if (this.thisRoleNode && binaryExpressionTarget.operand1 instanceof ThisExpression) {
-									isRoleMethodCall = true;
-									isCallToSelf = true;
-									this.writeToOutput("DCI.callMethodOnCurrentRolePlayer");
-								}
-								else {
-									roleName = operand1.actualText;
-									if (roleName in this.thisFunctionDeclaration.roleDeclarations) {
-										isRoleMethodCall = true;
-										
-										this.writeToOutput("__context.__$");
-										this.writeToOutput(roleName);
-										//binaryExpressionTarget.operand1.emit(this); //role name
-										this.writeToOutput(".");
-									}
-									else {
-										this.emitJavascript(target, false);
-									}
-								}
-							}
-							else {
-								roleName = operand1.actualText;
-								if (roleName in this.thisFunctionDeclaration.roleDeclarations) {
-									isRoleMethodCall = true;
-									
-									//DCI TODO
-									
-									
-									
-								}
-								else {
-									this.emitJavascript(target, false);
-								}
-							}
-                        }
-                	}
-                    else {
-						//DCI
-						//Check to see if any of the parent functions to which this function belongs are a DCI context
-                    	var declStack = this.declStack;
-                    	var dciContext: FunctionDeclaration;
-                    	for (var i=0; i < declStack.length; i++) {
-                    		if (declStack[i] instanceof PullFunctionExpressionDecl) {
-								var funcDecl = <FunctionDeclaration>declStack[i].ast;
-								if (funcDecl.isDCIContext) {
-									dciContext = funcDecl;
-									break;
-								}
-                    		}
-                    	}
-						
-						//TEMP
-						
-                    	if (dciContext) {
-							binaryExpressionTarget = <BinaryExpression>target;
-							operand1 = <Identifier>binaryExpressionTarget.operand1;
-							operand2 = <Identifier>binaryExpressionTarget.operand2;
-							roleName = operand1.actualText;
-						}
-						
-						//TEMP
-						
-						if (dciContext && roleName in dciContext.roleDeclarations) {
-							isRoleMethodCall = true;
-							
-							this.writeToOutput("__context.__$");
-							this.writeToOutput(roleName);
-							this.writeToOutput(".");
-						}
-						else this.emitJavascript(target, false);
-					}
-                }
-                if (target.nodeType() === NodeType.FunctionDeclaration) {
-                    this.writeToOutput(")");
-                }
-                this.recordSourceMappingStart(args);
-				
-				//DCI
-                if (isRoleMethodCall) {
-                    if (isCallToSelf) {
-                        this.writeToOutput("(__context, this, '");
-						this.writeToOutput( (<Identifier>this.thisRoleNode.name).actualText );
-                        //this.thisRoleNode.name.emit(this);
-                        this.writeToOutput("', '" + operand2.actualText);
-                        //binaryExpressionTarget.operand2.emit(this);
-                        this.writeToOutput("')");
-                    } else {
-						this.writeToOutput(operand2.actualText + ".call(__context." + operand1.actualText);
-						//binaryExpressionTarget.operand2.emit(this);
-						//this.writeToOutput(".call(");
-						//binaryExpressionTarget.operand1.emit(this);
+            if (this.emitSuperCall(callNode)) return;
+			
+			//DCI
+			var binExpTarget: BinaryExpression,
+				operand1: Identifier,
+				operand2: Identifier,
+				dciContext: FunctionDeclaration,
+				isCallToRoleMethod = false,
+				isCallToSelf = false,
+				roleName: string;
 
-						if (args.members.length > 0)
-							this.writeToOutput(", ");
-						this.emitCommaSeparatedList(args);
-						this.writeToOutput(")");
-                    }
+			//DCI
+			//Determine whether it's a call to a role method
+			if (this.thisFunctionNode && target instanceof BinaryExpression) {
+				if (this.thisFunctionNode.isDCIContext) {
+					dciContext = this.thisFunctionNode;
 				}
-                else {           
-					this.writeToOutput("(");
-					if (callNode.target.nodeType() === 32 /* SuperExpression */ && this.emitState.container === 4 /* Constructor */) {
-						this.writeToOutput("this");
-						if (args && args.members.length) {
-							this.writeToOutput(", ");
+
+				//Check to see if any of the parent functions to which this function belongs are a DCI context
+				var declStack = this.declStack;
+				for (var i=0; i < declStack.length; i++) {
+					if (declStack[i] instanceof PullFunctionExpressionDecl) {
+						var funcDecl = <FunctionDeclaration>declStack[i].ast;
+						if (funcDecl.isDCIContext) {
+							dciContext = funcDecl;
+							break;
 						}
 					}
-					this.emitCommaSeparatedList(args);
-					this.recordSourceMappingStart(callNode.closeParenSpan);
+				}
+
+				if (dciContext) {
+					binExpTarget = <BinaryExpression>target;
+					operand1 = <Identifier>binExpTarget.operand1; //object
+					operand2 = <Identifier>binExpTarget.operand2; //method
+
+					//if currently inside a role
+					if (this.thisRoleNode) {
+						if (this.thisRoleNode && operand1 instanceof ThisExpression) {
+							roleName = this.thisRoleNode.name.actualText;
+							isCallToRoleMethod = true;
+							isCallToSelf = true;
+						}
+						else {
+							roleName = operand1.actualText;
+							if (roleName in this.thisFunctionNode.roleDeclarations) {
+								isCallToRoleMethod = true;
+							}
+						}
+					}
+					else {
+						roleName = operand1.actualText;
+						if (roleName in this.thisFunctionNode.roleDeclarations) {
+							isCallToRoleMethod = true;
+						}
+					}
+				}
+			}
+
+			//DCI
+			if (isCallToRoleMethod) {
+				//If the call is within a role and begins with `this.`
+				if (isCallToSelf) {
+					this.writeToOutput("DCI.callMethodOnSelf");
+					this.writeToOutput("(__context, this, '" + roleName + "'");
+					this.writeToOutput(", '" + operand2.actualText + "'");
+				}
+				else {
+					this.writeToOutput("__context.__$" + roleName + ".");
+					this.writeToOutput("call(__context." + roleName);
+				}
+				if (args && args.members.length) this.writeToOutput(", ");
+
+				this.recordSourceMappingStart(args);
+			}
+			else {
+				if (target.nodeType() === NodeType.FunctionDeclaration) {
+					this.writeToOutput("(");
+				}
+				if (callNode.target.nodeType() === NodeType.SuperExpression && this.emitState.container === EmitContainer.Constructor) {
+					this.writeToOutput("_super.call");
+				}
+				else {
+					this.emitJavascript(target, false);
+				}
+				if (target.nodeType() === NodeType.FunctionDeclaration) {
 					this.writeToOutput(")");
 				}
-                this.recordSourceMappingEnd(callNode.closeParenSpan);
-                this.recordSourceMappingEnd(args);
-            }
+				this.recordSourceMappingStart(args);
+				this.writeToOutput("(");
+
+				if (callNode.target.nodeType() === NodeType.SuperExpression && this.emitState.container === EmitContainer.Constructor) {
+					this.writeToOutput("this");
+					if (args && args.members.length) {
+						this.writeToOutput(", ");
+					}
+				}
+			}
+
+			//Emit arguments
+			this.emitCommaSeparatedList(args);
+			this.recordSourceMappingStart(callNode.closeParenSpan);
+			this.writeToOutput(")");
+			this.recordSourceMappingEnd(callNode.closeParenSpan);
+			this.recordSourceMappingEnd(args);
         }
 
         public emitInnerFunction(funcDecl: FunctionDeclaration, printName: boolean, includePreComments = true) {
@@ -1010,8 +976,28 @@ module TypeScript {
             var isWholeFile = hasFlag(moduleDecl.getModuleFlags(), ModuleFlags.IsWholeFile);
 
             // prologue
-            if (isDynamicMod) {
-
+            if (isDynamicMod) {				
+				//DCI
+				//Determine whether this module contains a DCI context
+				//
+				//DCI TODO Detect other types of context declarations; this only detects `var myContext = ...`
+				//Also, should this search recursively?
+				
+				var hasDCIContext = false;
+				
+				moduleDecl.members.members.forEach(function(member) {
+					if (member instanceof VariableStatement) {
+						(<VariableStatement>member).declaration.declarators.members.forEach(function(variableDeclarator) {
+							var initVal = (<VariableDeclarator>variableDeclarator).init;
+							if (initVal instanceof FunctionDeclaration) {
+								if (Object.keys((<FunctionDeclaration>initVal).roleDeclarations).length) {
+									hasDCIContext = true;
+								}
+							}
+						});
+					}
+				});
+				
                 // if the external module has an "export =" identifier, we'll
                 // set it in the ExportAssignment emit method
                 this.setExportAssignmentIdentifier(null);
@@ -1021,13 +1007,26 @@ module TypeScript {
                 if (this.emitOptions.compilationSettings.moduleGenTarget === ModuleGenTarget.Asynchronous) { // AMD
                     var dependencyList = "[\"require\", \"exports\"";
                     var importList = "require, exports";
+					//DCI
+					if (hasDCIContext) {
+						dependencyList += ", \"typescript-dci\"";
+						importList += ", typescriptDCI";
+					}
 
                     var importAndDependencyList = this.getModuleImportAndDependencyList(moduleDecl);
                     importList += importAndDependencyList.importList;
                     dependencyList += importAndDependencyList.dependencyList + "]";
 
                     this.writeLineToOutput("define(" + dependencyList + "," + " function(" + importList + ") {");
+					
+					//DCI
+					if (hasDCIContext) {
+						//DCI TODO indent
+						this.writeLineToOutput("var DCI = typescriptDCI.DCI;");
+					}
                 }
+				//DCI
+				else if (hasDCIContext) this.writeLineToOutput("var DCI = require('typescript-dci').DCI;");
             }
             else {
                 if (!isExported) {
@@ -1208,8 +1207,8 @@ module TypeScript {
                 return;
             }
             var temp: number;
-            var tempFnc = this.thisFunctionDeclaration;
-            this.thisFunctionDeclaration = funcDecl;
+            var tempFnc = this.thisFunctionNode;
+            this.thisFunctionNode = funcDecl;
 
             if (funcDecl.isConstructor) {
                 temp = this.setContainer(EmitContainer.Constructor);
@@ -1226,7 +1225,7 @@ module TypeScript {
                 this.emitInnerFunction(funcDecl, (funcDecl.name && !funcDecl.name.isMissing()));
             }
             this.setContainer(temp);
-            this.thisFunctionDeclaration = tempFnc;
+            this.thisFunctionNode = tempFnc;
 
             if (!hasFlag(funcDecl.getFunctionFlags(), FunctionFlags.Signature)) {
                 var pullFunctionDecl = this.semanticInfoChain.getDeclForAST(funcDecl, this.document.fileName);
@@ -2265,7 +2264,7 @@ module TypeScript {
         }
 
         public emitThis() {
-            if (this.thisFunctionDeclaration && !this.thisFunctionDeclaration.isMethod() && (!this.thisFunctionDeclaration.isConstructor)) {
+            if (this.thisFunctionNode && !this.thisFunctionNode.isMethod() && (!this.thisFunctionNode.isConstructor)) {
                 this.writeToOutput("_this");
             }
             else {

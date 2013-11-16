@@ -1,3 +1,7 @@
+//import dci = require('dci');
+//console.log(dci);
+
+/*
 var DCI = {
 	Context: function Context(callback) {
 		return function(...args : any[]) {
@@ -7,29 +11,30 @@ var DCI = {
 		}
 	}
 };
+*/
 
 function TransferMoney(sourceAcct, destinationAcct) {
 	//Role binding
 	SourceAccount <- sourceAcct;
 	DestinationAccount <- destinationAcct;
-	
+
 	//Execute the use case
-    SourceAccount.transferOut();
-	
+	SourceAccount.transferOut();
+
 	role SourceAccount {
 		transferOut() {
 			//TODO test calling role methods this way:
 			//this['withdraw']();
-		
+	
 			this.withdraw();
 			DestinationAccount.deposit();
 		}
-		
+	
 		withdraw() {
 			console.log('withdraw');
 		}
 	}
-	
+
 	role DestinationAccount {
 		deposit() {
 			console.log('deposit');
@@ -39,77 +44,77 @@ function TransferMoney(sourceAcct, destinationAcct) {
 
 var ctx = TransferMoney({}, {});
 
-/*
-//TODO DCI.Context.extend()  -- DCI.Context should be a Typescript class
-var TransferMoney = DCI.Context(function() {
+	/*
+	//TODO DCI.Context.extend()  -- DCI.Context should be a Typescript class
+	var TransferMoney = DCI.Context(function() {
 
-	this.bindRoles = function(sourceAcct, destinationAcct) {
-		SourceAccount <- sourceAcct;
-		DestinationAccount <- destinationAcct;
-	}
+		this.bindRoles = function(sourceAcct, destinationAcct) {
+			SourceAccount <- sourceAcct;
+			DestinationAccount <- destinationAcct;
+		}
 	
-    this.execute = function() {
-    	SourceAccount.transferOut();
-    }
+		this.execute = function() {
+			SourceAccount.transferOut();
+		}
 	
-	role SourceAccount {
-		transferOut() {
-			//TODO test calling role methods this way:
-			//this['withdraw']();
+		role SourceAccount {
+			transferOut() {
+				//TODO test calling role methods this way:
+				//this['withdraw']();
 		
-			this.withdraw();
-			DestinationAccount.deposit();
-		}
+				this.withdraw();
+				DestinationAccount.deposit();
+			}
 		
-		withdraw() {
-			console.log('withdraw');
+			withdraw() {
+				console.log('withdraw');
+			}
 		}
-	}
 	
-	role DestinationAccount {
-		deposit() {
-			console.log('deposit');
+		role DestinationAccount {
+			deposit() {
+				console.log('deposit');
+			}
 		}
-	}
-});
+	});
 
-var ctx = TransferMoney({}, {});
-ctx.execute();
-*/
+	var ctx = TransferMoney({}, {});
+	ctx.execute();
+	*/
 
-/*
-function TransferMoney(sourceAcct, destinationAcct) {
+	/*
+	function TransferMoney(sourceAcct, destinationAcct) {
 	
-	this.bindRoles = function(a1, a2) {
-		SourceAccount <- a1;
-		DestinationAccount <- a2;
-	}
-	this.bindRoles(sourceAcct, destinationAcct);
-	
-    this.execute = function() {
-    	SourceAccount.transferOut();
-    }
-	
-	role SourceAccount {
-		transferOut() {
-			this.withdraw();
-			DestinationAccount.deposit();
+		this.bindRoles = function(a1, a2) {
+			SourceAccount <- a1;
+			DestinationAccount <- a2;
 		}
+		this.bindRoles(sourceAcct, destinationAcct);
+	
+		this.execute = function() {
+			SourceAccount.transferOut();
+		}
+	
+		role SourceAccount {
+			transferOut() {
+				this.withdraw();
+				DestinationAccount.deposit();
+			}
 		
-		withdraw() {
+			withdraw() {
 			
+			}
 		}
-	}
 	
-	role DestinationAccount {
-		deposit() {
-			console.log('deposit');
+		role DestinationAccount {
+			deposit() {
+				console.log('deposit');
+			}
 		}
 	}
-}
 
-var ctx = new TransferMoney({}, {});
-ctx.execute();
+	var ctx = new TransferMoney({}, {});
+	ctx.execute();
 */
 
 /*

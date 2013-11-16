@@ -266,11 +266,7 @@ module TypeScript {
             }
         }
 		
-		//DCI
         export function walkRoleAssignmentExpressionChildren(preAst: RoleAssignmentExpression, parent: AST, walker: IAstWalker): void {
-			//DCI TODO remove this
-			console.log('walkRoleAssignmentExpressionChildren');
-			
             if (preAst.roleName) {
                 preAst.roleName = walker.walk(preAst.roleName, preAst);
             }
