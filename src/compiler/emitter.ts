@@ -770,6 +770,9 @@ module TypeScript {
 				//this.writeLineToOutput("__context.__rolePlayers = {};");
 				this.indenter.decreaseIndent();
 			}
+			
+			//DCI TODO
+			//Roles should be output here, at the top of the function, not wherever they happen to have been declared in the source
 
             if (funcDecl.isConstructor) {
                 this.recordSourceMappingNameStart("constructor");

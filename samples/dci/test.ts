@@ -1,17 +1,3 @@
-//import dci = require('dci');
-//console.log(dci);
-
-/*
-var DCI = {
-	Context: function Context(callback) {
-		return function(...args : any[]) {
-			var context = new callback();
-			context.bindRoles.apply(callback, arguments);
-			return context;
-		}
-	}
-};
-*/
 
 function TransferMoney(sourceAcct, destinationAcct) {
 	//Role binding

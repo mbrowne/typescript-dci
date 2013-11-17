@@ -1,3 +1,10 @@
+# typescript-dci
+
+Brings support for DCI programming to TypeScript. For more information on DCI, see http://fulloo.info.
+
+Documentation is forthcoming. In the meantime, check out the samples/dci folder.
+
+
 # TypeScript
 
 Scalable JavaScript development with types, classes and modules.
