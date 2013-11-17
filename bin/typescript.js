@@ -29213,8 +29213,8 @@ var TypeScript;
                     var importList = "require, exports";
 
                     if (hasDCIContext) {
-                        dependencyList += ", \"typescript-dci\"";
-                        importList += ", typescriptDCI";
+                        dependencyList += ", \"typescript-dci/dci\"";
+                        importList += ", __dci_internal__";
                     }
 
                     var importAndDependencyList = this.getModuleImportAndDependencyList(moduleDecl);
@@ -29222,12 +29222,8 @@ var TypeScript;
                     dependencyList += importAndDependencyList.dependencyList + "]";
 
                     this.writeLineToOutput("define(" + dependencyList + "," + " function(" + importList + ") {");
-
-                    if (hasDCIContext) {
-                        this.writeLineToOutput("var __dci_internal__ = typescriptDCI.DCI;");
-                    }
                 } else if (hasDCIContext)
-                    this.writeLineToOutput("var __dci_internal__ = require('typescript-dci').DCI;");
+                    this.writeLineToOutput("var __dci_internal__ = require('typescript-dci/dci');");
             } else {
                 if (!isExported) {
                     this.recordSourceMappingStart(moduleDecl);
@@ -51945,30 +51941,6 @@ var TypeScript;
         return SyntaxTreeToIncrementalAstVisitor;
     })(SyntaxTreeToAstVisitor);
 })(TypeScript || (TypeScript = {}));
-var DCI;
-(function (DCI) {
-    var isNodeJs = (typeof window == 'undefined' && typeof global != 'undefined');
-    var globalNamespace = isNodeJs ? global : window;
-
-    function callMethodOnSelf(context, player, roleName, methodName, args) {
-        if (player != context[roleName]) {
-            if (player != undefined && player != globalNamespace) {
-                return player[methodName].apply(player, args);
-            } else {
-                player = context[roleName];
-            }
-        }
-
-        var roleMethod = context['__$' + roleName][methodName];
-
-        if (typeof roleMethod == 'function') {
-            return (args ? roleMethod.apply(player, args) : roleMethod.call(player));
-        }
-
-        return player[methodName].apply(player, args);
-    }
-    DCI.callMethodOnSelf = callMethodOnSelf;
-})(DCI || (DCI = {}));
 var TypeScript;
 (function (TypeScript) {
     TypeScript.fileResolutionTime = 0;
@@ -55658,5 +55630,3 @@ var TypeScript;
     TypeScript.Comment = Comment;
 })(TypeScript || (TypeScript = {}));
 //# sourceMappingURL=file:////www/node_modules/typescript-dci/built/local/typescript.js.map
-
-module.exports = {DCI:DCI};

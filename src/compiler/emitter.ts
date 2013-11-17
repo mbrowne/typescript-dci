@@ -1026,8 +1026,8 @@ module TypeScript {
                     var importList = "require, exports";
 					//DCI
 					if (hasDCIContext) {
-						dependencyList += ", \"typescript-dci\"";
-						importList += ", typescriptDCI";
+						dependencyList += ", \"typescript-dci/dci\"";
+						importList += ", __dci_internal__";
 					}
 
                     var importAndDependencyList = this.getModuleImportAndDependencyList(moduleDecl);
@@ -1037,13 +1037,13 @@ module TypeScript {
                     this.writeLineToOutput("define(" + dependencyList + "," + " function(" + importList + ") {");
 					
 					//DCI
-					if (hasDCIContext) {
-						//DCI TODO indent
-						this.writeLineToOutput("var __dci_internal__ = typescriptDCI.DCI;");
-					}
+//					if (hasDCIContext) {
+//						//DCI TODO indent
+//						this.writeLineToOutput("var __dci_internal__ = typescriptDCI.DCI;");
+//					}
                 }
 				//DCI
-				else if (hasDCIContext) this.writeLineToOutput("var __dci_internal__ = require('typescript-dci').DCI;");
+				else if (hasDCIContext) this.writeLineToOutput("var __dci_internal__ = require('typescript-dci/dci');");
             }
             else {
                 if (!isExported) {
