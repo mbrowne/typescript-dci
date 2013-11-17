@@ -604,14 +604,14 @@ module TypeScript {
 						}
 						else {
 							roleName = operand1.actualText;
-							if (roleName in this.thisFunctionNode.roleDeclarations) {
+							if (roleName in dciContext.roleDeclarations) {
 								isCallToRoleMethod = true;
 							}
 						}
 					}
 					else {
 						roleName = operand1.actualText;
-						if (roleName in this.thisFunctionNode.roleDeclarations) {
+						if (roleName in dciContext.roleDeclarations) {
 							isCallToRoleMethod = true;
 						}
 					}
@@ -622,20 +622,24 @@ module TypeScript {
 			if (isCallToRoleMethod) {
 				//If the call is within a role and begins with `this.`
 				if (isCallToSelf) {
-					this.writeToOutput("DCI.callMethodOnSelf");
+					this.writeToOutput("__dci_internal__.callMethodOnSelf");
+					//this.writeToOutput("DCI.callMethodOnSelf");
 					this.writeToOutput("(__context, this, '" + roleName + "'");
 					this.writeToOutput(", '" + operand2.actualText + "'");
 				}
 				else {
-					this.writeToOutput("__context.__$" + roleName + ".");
+					this.writeToOutput("__context.__$" + roleName + "." + operand2.actualText + ".");
 					this.writeToOutput("call(__context." + roleName);
 				}
 				if (args && args.members.length) this.writeToOutput(", ");
 
 				this.recordSourceMappingStart(args);
-				if (isCallToSelf) this.writeToOutput("[");
-				this.emitCommaSeparatedList(args);
-				if (isCallToSelf) this.writeToOutput("]");
+				
+				if (args && args.members.length) {
+					if (isCallToSelf) this.writeToOutput("[");
+					this.emitCommaSeparatedList(args);
+					if (isCallToSelf) this.writeToOutput("]");
+				}
 			}
 			else {
 				if (target.nodeType() === NodeType.FunctionDeclaration) {
@@ -998,6 +1002,15 @@ module TypeScript {
 									hasDCIContext = true;
 								}
 							}
+							else if (initVal instanceof InvocationExpression) {
+                        		(<InvocationExpression>initVal).arguments.members.forEach(function(arg) {
+									if (arg instanceof FunctionDeclaration) {
+										if (Object.keys((<FunctionDeclaration>arg).roleDeclarations).length) {
+											hasDCIContext = true;
+										}
+									}
+                        		});
+                        	}
 						});
 					}
 				});
@@ -1026,11 +1039,11 @@ module TypeScript {
 					//DCI
 					if (hasDCIContext) {
 						//DCI TODO indent
-						this.writeLineToOutput("var DCI = typescriptDCI.DCI;");
+						this.writeLineToOutput("var __dci_internal__ = typescriptDCI.DCI;");
 					}
                 }
 				//DCI
-				else if (hasDCIContext) this.writeLineToOutput("var DCI = require('typescript-dci').DCI;");
+				else if (hasDCIContext) this.writeLineToOutput("var __dci_internal__ = require('typescript-dci').DCI;");
             }
             else {
                 if (!isExported) {

@@ -49,6 +49,9 @@
 ///<reference path='typecheck\pullHelpers.ts' />
 ///<reference path='syntaxTreeToAstVisitor.ts' />
 
+//DCI
+///<reference path='core\DCI.ts' />
+
 module TypeScript {
 
     declare var IO: any;
