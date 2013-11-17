@@ -633,6 +633,9 @@ module TypeScript {
 				if (args && args.members.length) this.writeToOutput(", ");
 
 				this.recordSourceMappingStart(args);
+				if (isCallToSelf) this.writeToOutput("[");
+				this.emitCommaSeparatedList(args);
+				if (isCallToSelf) this.writeToOutput("]");
 			}
 			else {
 				if (target.nodeType() === NodeType.FunctionDeclaration) {
@@ -656,10 +659,11 @@ module TypeScript {
 						this.writeToOutput(", ");
 					}
 				}
+				
+				//Emit arguments
+				this.emitCommaSeparatedList(args);
 			}
-
-			//Emit arguments
-			this.emitCommaSeparatedList(args);
+			
 			this.recordSourceMappingStart(callNode.closeParenSpan);
 			this.writeToOutput(")");
 			this.recordSourceMappingEnd(callNode.closeParenSpan);
