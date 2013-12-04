@@ -754,25 +754,38 @@ module TypeScript {
             this.writeLineToOutput(") {");
 
 			//DCI
-			var members = funcDecl.block.statements.members;
-			var member: AST;
-			for (var i=0; i < members.length; i++) {
-				member = members[i];
-				if (member instanceof RoleDeclaration) {
-					funcDecl.isDCIContext = true;
-					break;
-				}
-			}
-			
+			funcDecl.isDCIContext = (Object.keys(funcDecl.roleDeclarations).length > 0);
+
 			if (funcDecl.isDCIContext) {
 				this.indenter.increaseIndent();
 				this.writeLineToOutput("var __context = this;");
 				//this.writeLineToOutput("__context.__rolePlayers = {};");
 				this.indenter.decreaseIndent();
 			}
-			
-			//DCI TODO
-			//Roles should be output here, at the top of the function, not wherever they happen to have been declared in the source
+
+			//output the role methods
+			this.indenter.increaseIndent();
+			for (var roleName in funcDecl.roleDeclarations) {
+				funcDecl.roleDeclarations[roleName].emit(this);
+			}
+			this.indenter.decreaseIndent();
+
+			/*
+			var members = funcDecl.block.statements.members;
+			var member: AST;
+			this.indenter.increaseIndent();
+			for (var i=0; i < members.length; i++) {
+				member = members[i];
+				if (member instanceof RoleDeclaration) {
+					funcDecl.isDCIContext = true;
+
+					//output the role methods
+					this.emitIndent();
+					member.emit(this);
+				}
+			}
+			this.indenter.decreaseIndent();
+			*/
 
             if (funcDecl.isConstructor) {
                 this.recordSourceMappingNameStart("constructor");
@@ -991,7 +1004,7 @@ module TypeScript {
 				//DCI
 				//Determine whether this module contains a DCI context
 				//
-				//DCI TODO Detect other types of context declarations; this only detects `var myContext = ...`
+				//DCI TODO Detect other types of context declarations; this only detects `var myContext = ...` or `function myContext(...`
 				//Also, should this search recursively?
 				
 				var hasDCIContext = false;
@@ -1003,6 +1016,7 @@ module TypeScript {
 							if (initVal instanceof FunctionDeclaration) {
 								if (Object.keys((<FunctionDeclaration>initVal).roleDeclarations).length) {
 									hasDCIContext = true;
+									return false; //exit the loop
 								}
 							}
 							else if (initVal instanceof InvocationExpression) {
@@ -1010,12 +1024,19 @@ module TypeScript {
 									if (arg instanceof FunctionDeclaration) {
 										if (Object.keys((<FunctionDeclaration>arg).roleDeclarations).length) {
 											hasDCIContext = true;
+											return false; //exit the loop
 										}
 									}
                         		});
                         	}
 						});
 					}
+                    else if (member instanceof FunctionDeclaration) {
+                        if (Object.keys((<FunctionDeclaration>member).roleDeclarations).length) {
+                            hasDCIContext = true;
+                            return false; //exit the loop
+                        }
+                    }
 				});
 				
                 // if the external module has an "export =" identifier, we'll
@@ -1915,7 +1936,11 @@ module TypeScript {
 
         // tokenId is the id the preceding token
         public emitJavascript(ast: AST, startLine: boolean) {
-            if (ast === null) {
+            //DCI
+            //Roles should be output at the top of functions, or on the prototype,
+            //not just wherever they happen to have been declared, so we don't ouptut them here
+            if (ast === null || ast instanceof RoleDeclaration) {
+            //if (ast === null) {
                 return;
             }
 
@@ -2111,7 +2136,7 @@ module TypeScript {
             this.emitRoleMembers(roleDecl);
             
 			this.indenter.decreaseIndent();
-			this.writeToOutput("}");
+			this.writeLineToOutput("};");
 			
             this.recordSourceMappingEnd(roleDecl);
             this.emitComments(roleDecl, false);

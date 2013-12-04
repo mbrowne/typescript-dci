@@ -1,3 +1,4 @@
+export = TransferMoney;
 
 function TransferMoney(sourceAcct, destinationAcct) {
 	//Role binding
