@@ -6,7 +6,8 @@ var dst = new Account(10);
 
 var ctx = new TransferMoney(src, dst, 10);
 
-ctx.execute();
+//run the use case
+ctx.run();
 
 //ctx.bindRoles(dst, src, 50);
 //ctx.execute();

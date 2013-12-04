@@ -28956,15 +28956,7 @@ var TypeScript;
             }
             this.writeLineToOutput(") {");
 
-            var members = funcDecl.block.statements.members;
-            var member;
-            for (var i = 0; i < members.length; i++) {
-                member = members[i];
-                if (member instanceof TypeScript.RoleDeclaration) {
-                    funcDecl.isDCIContext = true;
-                    break;
-                }
-            }
+            funcDecl.isDCIContext = (Object.keys(funcDecl.roleDeclarations).length > 0);
 
             if (funcDecl.isDCIContext) {
                 this.indenter.increaseIndent();
@@ -28972,6 +28964,12 @@ var TypeScript;
 
                 this.indenter.decreaseIndent();
             }
+
+            this.indenter.increaseIndent();
+            for (var roleName in funcDecl.roleDeclarations) {
+                funcDecl.roleDeclarations[roleName].emit(this);
+            }
+            this.indenter.decreaseIndent();
 
             if (funcDecl.isConstructor) {
                 this.recordSourceMappingNameStart("constructor");
@@ -29190,17 +29188,24 @@ var TypeScript;
                             if (initVal instanceof TypeScript.FunctionDeclaration) {
                                 if (Object.keys((initVal).roleDeclarations).length) {
                                     hasDCIContext = true;
+                                    return false;
                                 }
                             } else if (initVal instanceof TypeScript.InvocationExpression) {
                                 (initVal).arguments.members.forEach(function (arg) {
                                     if (arg instanceof TypeScript.FunctionDeclaration) {
                                         if (Object.keys((arg).roleDeclarations).length) {
                                             hasDCIContext = true;
+                                            return false;
                                         }
                                     }
                                 });
                             }
                         });
+                    } else if (member instanceof TypeScript.FunctionDeclaration) {
+                        if (Object.keys((member).roleDeclarations).length) {
+                            hasDCIContext = true;
+                            return false;
+                        }
                     }
                 });
 
@@ -29992,7 +29997,7 @@ var TypeScript;
         };
 
         Emitter.prototype.emitJavascript = function (ast, startLine) {
-            if (ast === null) {
+            if (ast === null || ast instanceof TypeScript.RoleDeclaration) {
                 return;
             }
 
@@ -30179,7 +30184,7 @@ var TypeScript;
             this.emitRoleMembers(roleDecl);
 
             this.indenter.decreaseIndent();
-            this.writeToOutput("}");
+            this.writeLineToOutput("};");
 
             this.recordSourceMappingEnd(roleDecl);
             this.emitComments(roleDecl, false);

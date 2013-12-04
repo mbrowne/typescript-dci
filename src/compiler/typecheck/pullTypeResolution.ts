@@ -509,6 +509,7 @@ module TypeScript {
                         }
 						
 						//DCI
+						//DCI TODO - this may be where we need to modify the code to prevent parser errors when calling data methods on role players
 						childDecls = decl.searchChildDecls(symbolName, PullElementKind.Role);
                         if (childDecls.length) {
                             return childDecls[0].getSymbol();
@@ -4641,8 +4642,15 @@ module TypeScript {
                     nameSymbol = this.getMemberSymbol(rhsName, PullElementKind.SomeValue, this.cachedObjectInterfaceType());
                 }
 
-                if (!nameSymbol) {
-                    context.postError(this.unitPath, dottedNameAST.operand2.minChar, dottedNameAST.operand2.getLength(), DiagnosticCode.The_property_0_does_not_exist_on_value_of_type_1, [(<Identifier>dottedNameAST.operand2).actualText, lhsType.toString(enclosingDecl ? enclosingDecl.getSymbol() : null)], enclosingDecl)
+				if (!nameSymbol) {
+					//DCI TODO is it ok to be returning an ErrorTypeSymbol here?
+
+					//DCI
+					//Don't check whether or not the method exists, because it could be a data object method,
+					//and there's no way to check that at compile time without a role contract (data object interface), which we don't want to require
+                    if (lhs.kind != PullElementKind.Role) {
+                        context.postError(this.unitPath, dottedNameAST.operand2.minChar, dottedNameAST.operand2.getLength(), DiagnosticCode.The_property_0_does_not_exist_on_value_of_type_1, [(<Identifier>dottedNameAST.operand2).actualText, lhsType.toString(enclosingDecl ? enclosingDecl.getSymbol() : null)], enclosingDecl)
+                    }
                     return this.getNewErrorTypeSymbol(null, rhsName);
                 }
             }

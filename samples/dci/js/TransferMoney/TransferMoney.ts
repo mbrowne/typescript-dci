@@ -17,7 +17,7 @@ var TransferMoney = DCI.Context.extend(function() {
 		Amount <- amount;
 	}
 
-	this.execute = function() {
+	this.run = function() {
 		SourceAccount.transferOut();
 	}
 

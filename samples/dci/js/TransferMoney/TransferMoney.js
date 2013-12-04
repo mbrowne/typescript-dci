@@ -1,5 +1,5 @@
 var __dci_internal__ = require('typescript-dci/dci');
-var DCI = require('../../DCI');
+var DCI = '../../DCI';
 
 
 /**
@@ -31,7 +31,7 @@ this.__$Amount = {};
         __context.DestinationAccount = destinationAcct;
         __context.Amount = amount;
     };
-    this.execute = function () {
+    this.run = function () {
         __context.__$SourceAccount.transferOut.call(__context.SourceAccount);
     };
 

@@ -4,6 +4,8 @@ Brings support for DCI programming to TypeScript. For more information on DCI, s
 
 Documentation is forthcoming. In the meantime, check out the samples/dci folder.
 
+All modifications to the official TypeScript source code are commented with "DCI"
+
 
 # TypeScript
 
