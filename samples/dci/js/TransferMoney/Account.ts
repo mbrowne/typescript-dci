@@ -1,11 +1,8 @@
-///<reference path='../../DCI.d.ts'/>
-
-//import DCI = require('../../DCI');
-
+import DCI = require('../../DCI');
 
 export = Account;
 
-var Account = Context.extend(function() {
+var Account = DCI.Context.extend(function() {
 	
 	this.bindRoles = function(ledgers) {
 		if (!ledgers) ledgers = [];
@@ -24,6 +21,14 @@ var Account = Context.extend(function() {
 		return Ledgers.getBalance();
 	}
 	
+	//TypeScript doesn't support this syntax yet.
+	//If it did, in ES5 environments, a native-like getter could be created:
+	/*
+	get balance() {
+		return Ledgers.getBalance();
+	}
+	*/
+	
 	role Ledgers {
 		addEntry(message, amount) {
 			Ledgers.push(new LedgerEntry(message, amount));
@@ -37,13 +42,6 @@ var Account = Context.extend(function() {
 			return sum;
 		}
 	}
-	
-	//In ES5 environments, a native-like getter could be created:
-	//(TypeScript doesn't support this syntax yet)
-//	get balance() {
-//		return this._balance;
-//	}
-
 });
 
 function LedgerEntry(message, amount) {
@@ -53,10 +51,6 @@ function LedgerEntry(message, amount) {
 
 //export the LedgerEntry constructor
 Account.LedgerEntry = LedgerEntry;
-
-//TEMP
-var a = new Account();
-
 
 
 /*

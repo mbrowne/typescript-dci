@@ -1,4 +1,5 @@
 var __dci_internal__ = require('typescript-dci/dci');
+var DCI = require('../../DCI');
 
 
 /**
@@ -10,7 +11,7 @@ var __dci_internal__ = require('typescript-dci/dci');
 * @param {Account} destination
 * @param {number} amount
 */
-var TransferMoney = Context.extend(function () {
+var TransferMoney = DCI.Context.extend(function () {
 var __context = this;
 this.__$SourceAccount = {        transferOut: function () {
             __dci_internal__.callMethodOnSelf(__context, this, 'SourceAccount', 'withdraw');

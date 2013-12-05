@@ -28822,24 +28822,27 @@ var TypeScript;
                     if (this.thisRoleNode) {
                         if (this.thisRoleNode && operand1 instanceof TypeScript.ThisExpression) {
                             roleName = this.thisRoleNode.name.actualText;
-                            isCallToRoleMethod = true;
                             isCallToSelf = true;
-                        } else {
-                            roleName = operand1.actualText;
-                            if (roleName in dciContext.roleDeclarations) {
-                                isCallToRoleMethod = true;
-                            }
                         }
-                    } else {
+                    }
+
+                    if (!isCallToSelf) {
                         roleName = operand1.actualText;
                         if (roleName in dciContext.roleDeclarations) {
-                            isCallToRoleMethod = true;
+                            var methodName = operand2.actualText;
+                            var roleDecl = dciContext.roleDeclarations[roleName];
+                            roleDecl.members.members.forEach(function (member) {
+                                if ((member).name.actualText == methodName) {
+                                    isCallToRoleMethod = true;
+                                    return false;
+                                }
+                            });
                         }
                     }
                 }
             }
 
-            if (isCallToRoleMethod) {
+            if (isCallToRoleMethod || isCallToSelf) {
                 if (isCallToSelf) {
                     this.writeToOutput("__dci_internal__.callMethodOnSelf");
 
@@ -40195,7 +40198,9 @@ var TypeScript;
                 }
 
                 if (!nameSymbol) {
-                    context.postError(this.unitPath, dottedNameAST.operand2.minChar, dottedNameAST.operand2.getLength(), TypeScript.DiagnosticCode.The_property_0_does_not_exist_on_value_of_type_1, [(dottedNameAST.operand2).actualText, lhsType.toString(enclosingDecl ? enclosingDecl.getSymbol() : null)], enclosingDecl);
+                    if (lhs.kind != TypeScript.PullElementKind.Role) {
+                        context.postError(this.unitPath, dottedNameAST.operand2.minChar, dottedNameAST.operand2.getLength(), TypeScript.DiagnosticCode.The_property_0_does_not_exist_on_value_of_type_1, [(dottedNameAST.operand2).actualText, lhsType.toString(enclosingDecl ? enclosingDecl.getSymbol() : null)], enclosingDecl);
+                    }
                     return this.getNewErrorTypeSymbol(null, rhsName);
                 }
             }

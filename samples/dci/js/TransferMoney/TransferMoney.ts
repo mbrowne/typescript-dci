@@ -1,7 +1,4 @@
-///<reference path='../../DCI.d.ts'/>
-
-//import DCI = require('../../DCI');
-
+import DCI = require('../../DCI');
 export = TransferMoney;
 
 /**
@@ -13,7 +10,7 @@ export = TransferMoney;
  * @param {Account} destination
  * @param {number} amount
  */
-var TransferMoney = Context.extend(function() {
+var TransferMoney = DCI.Context.extend(function() {
 	this.bindRoles = function(sourceAcct, destinationAcct, amount) {
 		SourceAccount <- sourceAcct;
 		DestinationAccount <- destinationAcct;

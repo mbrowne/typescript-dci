@@ -1,8 +1,17 @@
 var __dci_internal__ = require('typescript-dci/dci');
+var DCI = require('../../DCI');
 
 
-var Account = Context.extend(function () {
+
+var Account = DCI.Context.extend(function () {
 var __context = this;
+    //TypeScript doesn't support this syntax yet.
+    //If it did, in ES5 environments, a native-like getter could be created:
+    /*
+    get balance() {
+    return Ledgers.getBalance();
+    }
+    */
 this.__$Ledgers = {        addEntry: function (message, amount) {
             __context.Ledgers.push(new LedgerEntry(message, amount));
         }
@@ -29,11 +38,7 @@ this.__$Ledgers = {        addEntry: function (message, amount) {
         return __context.__$Ledgers.getBalance.call(__context.Ledgers);
     };
 
-    //In ES5 environments, a native-like getter could be created:
-    //(TypeScript doesn't support this syntax yet)
-    //	get balance() {
-    //		return this._balance;
-    //	}
+
 });
 function LedgerEntry(message, amount) {
     this.message = message;
@@ -42,8 +47,5 @@ function LedgerEntry(message, amount) {
 
 //export the LedgerEntry constructor
 Account.LedgerEntry = LedgerEntry;
-
-//TEMP
-var a = new Account();
 module.exports = Account;
 
