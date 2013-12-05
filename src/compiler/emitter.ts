@@ -599,27 +599,29 @@ module TypeScript {
 					if (this.thisRoleNode) {
 						if (this.thisRoleNode && operand1 instanceof ThisExpression) {
 							roleName = this.thisRoleNode.name.actualText;
-							isCallToRoleMethod = true;
 							isCallToSelf = true;
 						}
-						else {
-							roleName = operand1.actualText;
-							if (roleName in dciContext.roleDeclarations) {
-								isCallToRoleMethod = true;
-							}
-						}
 					}
-					else {
+
+					if (!isCallToSelf) {
 						roleName = operand1.actualText;
 						if (roleName in dciContext.roleDeclarations) {
-							isCallToRoleMethod = true;
+							//Check whether the method exists on the role - if not, it's a data object method, not a role method
+							var methodName = operand2.actualText;
+							var roleDecl: RoleDeclaration = dciContext.roleDeclarations[roleName];
+                            roleDecl.members.members.forEach(function(member) {
+                                if ((<FunctionDeclaration>member).name.actualText == methodName) {
+                                    isCallToRoleMethod = true;
+                                    return false; //exit loop
+                                }
+                            });
 						}
 					}
 				}
 			}
 
 			//DCI
-			if (isCallToRoleMethod) {
+			if (isCallToRoleMethod || isCallToSelf) {
 				//If the call is within a role and begins with `this.`
 				if (isCallToSelf) {
 					this.writeToOutput("__dci_internal__.callMethodOnSelf");

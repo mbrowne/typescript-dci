@@ -1,8 +1,11 @@
 var Account = require('./Account');
 var TransferMoney = require('./TransferMoney');
 
-var src = new Account(20);
-var dst = new Account(10);
+var src = new Account();
+src.increaseBalance(20);
+
+var dst = new Account();
+dst.increaseBalance(10);
 
 var ctx = new TransferMoney(src, dst, 10);
 

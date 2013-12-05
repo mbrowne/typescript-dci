@@ -4,11 +4,11 @@ var __dci_internal__ = require('typescript-dci/dci');
 var Account = Context.extend(function () {
 var __context = this;
 this.__$Ledgers = {        addEntry: function (message, amount) {
-            __context.__$Ledgers.push.call(__context.Ledgers, new LedgerEntry(message, amount));
+            __context.Ledgers.push(new LedgerEntry(message, amount));
         }
         ,getBalance: function () {
             var sum = 0;
-            __context.__$Ledgers.each.call(__context.Ledgers, function (ledgerEntry) {
+            __context.Ledgers.forEach(function (ledgerEntry) {
                 sum += ledgerEntry.amount;
             });
             return sum;

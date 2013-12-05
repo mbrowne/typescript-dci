@@ -31,7 +31,7 @@ var Account = Context.extend(function() {
 		
 		getBalance() {
 			var sum = 0;
-			Ledgers.each(function(ledgerEntry) {
+			Ledgers.forEach(function(ledgerEntry) {
 				sum += ledgerEntry.amount;
 			});
 			return sum;
