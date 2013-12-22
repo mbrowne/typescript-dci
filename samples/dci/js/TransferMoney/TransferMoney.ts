@@ -6,8 +6,8 @@ export = TransferMoney;
  *
  * @constructor
  * @this {TransferMoney}
- * @param {Account} source
- * @param {Account} destination
+ * @param {Account} sourceAcct
+ * @param {Account} destinationAcct
  * @param {number} amount
  */
 var TransferMoney = DCI.Context.extend(function() {
@@ -16,12 +16,14 @@ var TransferMoney = DCI.Context.extend(function() {
 		DestinationAccount <- destinationAcct;
 		Amount <- amount;
 	}
-
+	
+	//Run the use case
 	this.run = function() {
 		SourceAccount.transferOut();
 	}
 
 	role SourceAccount {
+		//transfer out of this account and into the destination account
 		transferOut() {
 			this.withdraw();
 			DestinationAccount.deposit();

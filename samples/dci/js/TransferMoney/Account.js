@@ -3,15 +3,8 @@ var DCI = require('../../DCI');
 
 
 
-var Account = DCI.Context.extend(function () {
+var Account = DCI.Context.extend(function (ledgers) {
 var __context = this;
-    //TypeScript doesn't support this syntax yet.
-    //If it did, in ES5 environments, a native-like getter could be created:
-    /*
-    get balance() {
-    return Ledgers.getBalance();
-    }
-    */
 this.__$Ledgers = {        addEntry: function (message, amount) {
             __context.Ledgers.push(new LedgerEntry(message, amount));
         }
@@ -23,11 +16,9 @@ this.__$Ledgers = {        addEntry: function (message, amount) {
             return sum;
         }
 };
-    this.bindRoles = function (ledgers) {
-        if (!ledgers)
-            ledgers = [];
-        __context.Ledgers = ledgers;
-    };
+    if (!ledgers)
+        ledgers = [];
+    __context.Ledgers = ledgers;
     this.increaseBalance = function (amount) {
         __context.__$Ledgers.addEntry.call(__context.Ledgers, 'depositing', amount);
     };
@@ -37,7 +28,6 @@ this.__$Ledgers = {        addEntry: function (message, amount) {
     this.getBalance = function () {
         return __context.__$Ledgers.getBalance.call(__context.Ledgers);
     };
-
 
 });
 function LedgerEntry(message, amount) {

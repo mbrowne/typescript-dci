@@ -249,9 +249,9 @@ module TypeScript {
 
         public emit(emitter: Emitter) {
 			//DCI
-        	if (emitter.thisFunctionNode && emitter.thisFunctionNode.isDCIContext) {
-				//If we're in a role method
-        		if (this.actualText in emitter.thisFunctionNode.roleDeclarations) {
+			//If we're inside a DCI context
+        	if (emitter.thisDCIContextNode) {
+        		if (this.actualText in emitter.thisDCIContextNode.roleDeclarations) {
         			emitter.writeToOutput("__context.");
         		}
         	}
@@ -878,13 +878,17 @@ module TypeScript {
         }
     }
 
-    export class FunctionDeclaration extends AST {
+	//DCI
+	export interface DCIContext {
+		roleDeclarations: { [roleName: string]: RoleDeclaration};
+	}
+
+    export class FunctionDeclaration extends AST implements DCIContext {  //DCI
         public hint: string = null;
         private _functionFlags = FunctionFlags.None;
         public classDecl: ClassDeclaration = null;
 		//DCI
 	    public isDCIContext = false;
-		//DCI TODO would MapStringTo<RoleDeclaration> = {} be better here?
 		public roleDeclarations: { [roleName: string]: RoleDeclaration} = {};
 
         public returnStatementsWithExpressions: ReturnStatement[];
@@ -1095,8 +1099,12 @@ module TypeScript {
         }
     }
 
-    export class ClassDeclaration extends TypeDeclaration {
+    export class ClassDeclaration extends TypeDeclaration implements DCIContext {  //DCI
         public constructorDecl: FunctionDeclaration = null;
+
+		//DCI
+	    public isDCIContext = false;
+		public roleDeclarations: { [roleName: string]: RoleDeclaration} = {};
 
         constructor(name: Identifier,
                     typeParameters: ASTList,
@@ -1225,12 +1233,7 @@ module TypeScript {
 			if (this.expression.nodeType() == NodeType.RoleAssignmentExpression) {
 				var operand1 = (<BinaryExpression>this.expression).operand1;
 				var operand2 = (<BinaryExpression>this.expression).operand2;
-				
-				if (!emitter.thisFunctionNode.isDCIContext) {
-					//For the case where role binding is done in a context method, not the context function itself
-					//Otherwise, we don't need to output "__context" because Identifier.emit() has already done so
-					emitter.writeToOutput("__context.");
-				}
+
                 operand1.emit(emitter);
 				emitter.writeToOutput(" = ");
 				

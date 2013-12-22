@@ -149,6 +149,7 @@ module TypeScript {
         public thisClassNode: ClassDeclaration = null;
 		public thisRoleNode: RoleDeclaration = null; //DCI
         public thisFunctionNode: FunctionDeclaration = null;
+        public thisDCIContextNode: DCIContext = null; //DCI
         public moduleName = "";
         public emitState = new EmitState();
         public indenter = new Indenter();
@@ -566,7 +567,7 @@ module TypeScript {
 			var binExpTarget: BinaryExpression,
 				operand1: Identifier,
 				operand2: Identifier,
-				dciContext: FunctionDeclaration,
+				dciContext: DCIContext,
 				isCallToRoleMethod = false,
 				isCallToSelf = false,
 				roleName: string;
@@ -574,23 +575,29 @@ module TypeScript {
 			//DCI
 			//Determine whether it's a call to a role method
 			if (this.thisFunctionNode && target instanceof BinaryExpression) {
+
+				/*
 				if (this.thisFunctionNode.isDCIContext) {
 					dciContext = this.thisFunctionNode;
 				}
-
-				//Check to see if any of the parent functions to which this function belongs are a DCI context
-				var declStack = this.declStack;
-				for (var i=0; i < declStack.length; i++) {
-					if (declStack[i] instanceof PullFunctionExpressionDecl) {
-						var funcDecl = <FunctionDeclaration>declStack[i].ast;
-						if (funcDecl.isDCIContext) {
-							dciContext = funcDecl;
-							break;
+				else {
+					//Check to see if any of the parent functions to which this function belongs are a DCI context
+					var declStack = this.declStack;
+					for (var i=0; i < declStack.length; i++) {
+						if (declStack[i] instanceof PullFunctionExpressionDecl) {
+							var funcDecl = <FunctionDeclaration>declStack[i].ast;
+							if (funcDecl.isDCIContext) {
+								dciContext = funcDecl;
+								break;
+							}
 						}
 					}
 				}
+				*/
 
-				if (dciContext) {
+				//If we're currently inside a DCI context
+				if (this.thisDCIContextNode) {
+					dciContext = this.thisDCIContextNode;
 					binExpTarget = <BinaryExpression>target;
 					operand1 = <Identifier>binExpTarget.operand1; //object
 					operand2 = <Identifier>binExpTarget.operand2; //method
@@ -754,9 +761,6 @@ module TypeScript {
                 this.emitComments(funcDecl.arguments, false);
             }
             this.writeLineToOutput(") {");
-
-			//DCI
-			funcDecl.isDCIContext = (Object.keys(funcDecl.roleDeclarations).length > 0);
 
 			if (funcDecl.isDCIContext) {
 				this.indenter.increaseIndent();
@@ -1253,6 +1257,15 @@ module TypeScript {
             var tempFnc = this.thisFunctionNode;
             this.thisFunctionNode = funcDecl;
 
+            //DCI
+            //Is the current function a DCI context?
+			funcDecl.isDCIContext = (Object.keys(funcDecl.roleDeclarations).length > 0);
+			if (funcDecl.isDCIContext) {
+				//Temporarily store the outer DCI context, if any
+                var tmpDCIContext = this.thisDCIContextNode;
+				this.thisDCIContextNode = funcDecl;
+			}
+
             if (funcDecl.isConstructor) {
                 temp = this.setContainer(EmitContainer.Constructor);
             }
@@ -1269,6 +1282,12 @@ module TypeScript {
             }
             this.setContainer(temp);
             this.thisFunctionNode = tempFnc;
+
+            //DCI
+			if (funcDecl.isDCIContext) {
+				//Restore the outer DCI context, if any
+				this.thisDCIContextNode = tmpDCIContext;
+			}
 
             if (!hasFlag(funcDecl.getFunctionFlags(), FunctionFlags.Signature)) {
                 var pullFunctionDecl = this.semanticInfoChain.getDeclForAST(funcDecl, this.document.fileName);
