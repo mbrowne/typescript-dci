@@ -569,31 +569,12 @@ module TypeScript {
 				operand2: Identifier,
 				dciContext: DCIContext,
 				isCallToRoleMethod = false,
-				isCallToSelf = false,
+				//isCallToSelf = false,
 				roleName: string;
 
 			//DCI
 			//Determine whether it's a call to a role method
 			if (this.thisFunctionNode && target instanceof BinaryExpression) {
-
-				/*
-				if (this.thisFunctionNode.isDCIContext) {
-					dciContext = this.thisFunctionNode;
-				}
-				else {
-					//Check to see if any of the parent functions to which this function belongs are a DCI context
-					var declStack = this.declStack;
-					for (var i=0; i < declStack.length; i++) {
-						if (declStack[i] instanceof PullFunctionExpressionDecl) {
-							var funcDecl = <FunctionDeclaration>declStack[i].ast;
-							if (funcDecl.isDCIContext) {
-								dciContext = funcDecl;
-								break;
-							}
-						}
-					}
-				}
-				*/
 
 				//If we're currently inside a DCI context
 				if (this.thisDCIContextNode) {
@@ -604,50 +585,42 @@ module TypeScript {
 
 					//if currently inside a role
 					if (this.thisRoleNode) {
-						if (this.thisRoleNode && operand1 instanceof ThisExpression) {
+						if (this.thisRoleNode && (operand1 instanceof ThisExpression || operand1.actualText == 'self') ) {
 							roleName = this.thisRoleNode.name.actualText;
-							isCallToSelf = true;
+							//isCallToSelf = true;
 						}
 					}
 
-					if (!isCallToSelf) {
-						roleName = operand1.actualText;
-						if (roleName in dciContext.roleDeclarations) {
-							//Check whether the method exists on the role - if not, it's a data object method, not a role method
-							var methodName = operand2.actualText;
-							var roleDecl: RoleDeclaration = dciContext.roleDeclarations[roleName];
-                            roleDecl.members.members.forEach(function(member) {
-                                if ((<FunctionDeclaration>member).name.actualText == methodName) {
-                                    isCallToRoleMethod = true;
-                                    return false; //exit loop
-                                }
-                            });
-						}
+					if (!roleName) roleName = operand1.actualText;
+
+					//if (!isCallToSelf) {
+					//roleName = operand1.actualText;
+					if (roleName && roleName in dciContext.roleDeclarations) {
+						//Check whether the method exists on the role - if not, it's a data object method, not a role method
+						var methodName = operand2.actualText;
+						var roleDecl: RoleDeclaration = dciContext.roleDeclarations[roleName];
+                        roleDecl.members.members.forEach(function(member) {
+                            if ((<FunctionDeclaration>member).name.actualText == methodName) {
+                                isCallToRoleMethod = true;
+                                return false; //exit loop
+                            }
+                        });
 					}
+					//}
 				}
 			}
 
 			//DCI
-			if (isCallToRoleMethod || isCallToSelf) {
-				//If the call is within a role and begins with `this.`
-				if (isCallToSelf) {
-					this.writeToOutput("__dci_internal__.callMethodOnSelf");
-					//this.writeToOutput("DCI.callMethodOnSelf");
-					this.writeToOutput("(__context, this, '" + roleName + "'");
-					this.writeToOutput(", '" + operand2.actualText + "'");
-				}
-				else {
-					this.writeToOutput("__context.__$" + roleName + "." + operand2.actualText + ".");
-					this.writeToOutput("call(__context." + roleName);
-				}
+			if (isCallToRoleMethod) {
+				this.writeToOutput("__context.__$" + roleName + "." + operand2.actualText + ".");
+				this.writeToOutput("call(__context." + roleName);
+
 				if (args && args.members.length) this.writeToOutput(", ");
 
 				this.recordSourceMappingStart(args);
 				
 				if (args && args.members.length) {
-					if (isCallToSelf) this.writeToOutput("[");
 					this.emitCommaSeparatedList(args);
-					if (isCallToSelf) this.writeToOutput("]");
 				}
 			}
 			else {

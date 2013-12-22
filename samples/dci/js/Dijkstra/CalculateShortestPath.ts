@@ -45,7 +45,7 @@ var CalculateShortestPath = DCI.Context.extend(function() {
 	role Initial {}
 	
 	role Neighbor {
-		visited() {
+		visited() {		
 			return !Unvisited.has(this);
 		}
 	}
@@ -64,10 +64,10 @@ var CalculateShortestPath = DCI.Context.extend(function() {
 				Neighbor <- node;
 				if (Neighbor.visited()) return;
 
-				var alternate = Tentative.get(Current) + Current.distanceTo(Neighbor);
+				var alternate = Tentative.get(self) + self.distanceTo(Neighbor);
 				if (alternate < Tentative.get(Neighbor)) {
 				  Tentative.add(Neighbor, alternate);
-				  Path.add(Neighbor, Current);
+				  Path.add(Neighbor, self);
 				}
 			});
 		}
@@ -91,7 +91,8 @@ var CalculateShortestPath = DCI.Context.extend(function() {
 	role Tentative {}
 	
 	role Unvisited {
-		findNearest() {
+	
+		findNearest() {		
 			var nearest = undefined,
 				distance = Infinity;
 			this.each(function(node) {

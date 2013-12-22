@@ -4638,11 +4638,13 @@ module TypeScript {
                 nameSymbol = this.resolveNameSymbol(nameSymbol, context);
 
                 // could be an object member
-                if (!nameSymbol && !lhsType.isPrimitive() && this.cachedObjectInterfaceType()) {
-                    nameSymbol = this.getMemberSymbol(rhsName, PullElementKind.SomeValue, this.cachedObjectInterfaceType());
-                }
+                if (!nameSymbol) {
+                    if (!lhsType.isPrimitive() && this.cachedObjectInterfaceType()) {
+                        nameSymbol = this.getMemberSymbol(rhsName, PullElementKind.SomeValue, this.cachedObjectInterfaceType());
+                    }
 
-				if (!nameSymbol) {
+                    //DCI TODO - prevent error when calling a method on the current role using `self`
+
 					//DCI TODO is it ok to be returning an ErrorTypeSymbol here?
 					//DCI TODO is there really no reliable way to check if it's a valid data object method at compile time?
 					//  TypeScript seems to check this ordinarily, for regular objects, at compile time....

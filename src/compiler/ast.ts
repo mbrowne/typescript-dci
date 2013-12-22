@@ -251,7 +251,11 @@ module TypeScript {
 			//DCI
 			//If we're inside a DCI context
         	if (emitter.thisDCIContextNode) {
-        		if (this.actualText in emitter.thisDCIContextNode.roleDeclarations) {
+        	    if (emitter.thisRoleNode && this.actualText == 'self') {
+        	        emitter.writeToOutput("__context." + emitter.thisRoleNode.name.actualText);
+        	        return;
+        	    }
+        		else if (this.actualText in emitter.thisDCIContextNode.roleDeclarations) {
         			emitter.writeToOutput("__context.");
         		}
         	}
