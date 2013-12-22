@@ -6,7 +6,7 @@ var __context = this;
 this.__$SourceAccount = {        transferOut: function () {
             //TODO test calling role methods this way:
             //this['withdraw']();
-            __dci_internal__.callMethodOnSelf(__context, this, 'SourceAccount', 'withdraw');
+            __context.__$SourceAccount.withdraw.call(__context.SourceAccount);
             __context.__$DestinationAccount.deposit.call(__context.DestinationAccount);
         }
         ,withdraw: function () {

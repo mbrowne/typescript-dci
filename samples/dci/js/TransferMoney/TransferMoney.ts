@@ -25,18 +25,18 @@ var TransferMoney = DCI.Context.extend(function() {
 	role SourceAccount {
 		//transfer out of this account and into the destination account
 		transferOut() {
-			this.withdraw();
+			self.withdraw();
 			DestinationAccount.deposit();
 		}
 	
 		withdraw() {
-			this.decreaseBalance(Amount);
+			self.decreaseBalance(Amount);
 		}
 	}
 
 	role DestinationAccount {
 		deposit() {
-			this.increaseBalance(Amount);
+			self.increaseBalance(Amount);
 		}
 	}
 

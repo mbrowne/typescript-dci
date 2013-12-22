@@ -13,20 +13,21 @@ export class TransferMoney extends DCI.Context
 		Amount <- amount;
 	}
 	
-	role SourceAccount {
+	role SourceAccount {	
+	
 		transferOut() {
-			this.withdraw();
+			self.withdraw();
 			DestinationAccount.deposit();
 		}
 	
 		withdraw() {
-			this.decreaseBalance(Amount);
+			self.decreaseBalance(Amount);
 		}
 	}
 
 	role DestinationAccount {
 		deposit() {
-			this.increaseBalance(Amount);
+			self.increaseBalance(Amount);
 		}
 	}
 

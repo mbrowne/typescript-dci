@@ -569,7 +569,7 @@ module TypeScript {
 				operand2: Identifier,
 				dciContext: DCIContext,
 				isCallToRoleMethod = false,
-				//isCallToSelf = false,
+				isCallToSelf = false,
 				roleName: string;
 
 			//DCI
@@ -587,7 +587,7 @@ module TypeScript {
 					if (this.thisRoleNode) {
 						if (this.thisRoleNode && (operand1 instanceof ThisExpression || operand1.actualText == 'self') ) {
 							roleName = this.thisRoleNode.name.actualText;
-							//isCallToSelf = true;
+							isCallToSelf = true;
 						}
 					}
 
@@ -611,16 +611,66 @@ module TypeScript {
 			}
 
 			//DCI
-			if (isCallToRoleMethod) {
-				this.writeToOutput("__context.__$" + roleName + "." + operand2.actualText + ".");
-				this.writeToOutput("call(__context." + roleName);
+			if (isCallToRoleMethod || isCallToSelf) {
+				//If the call is within a role and begins with `this` or `self`, it could be either a role method or a data object method
+				var isCallToThis = false;
+				if (isCallToSelf) {
+					if (operand1 instanceof ThisExpression) {
+						isCallToThis = true;
 
-				if (args && args.members.length) this.writeToOutput(", ");
+						//If `this` was used, we can't be sure it's pointing to a role method even if the given method name is found on the role.
+						//Consider:
+						/*
+						role SomeRole {
+							foo() {
+								var test = {
+									problemIsHere: function() {
+										this.bar();
+									},
+
+									bar: function() {}
+								}
+							}
+
+							bar() {}
+						}
+
+						There may be a way we could know for sure by examining the AST in more detail, but in the current implementation  we just take care of this
+						at run-time via the callMethodOnSelf() function.
+						*/
+
+						this.writeToOutput("__dci_internal__.callMethodOnSelf");
+						//this.writeToOutput("DCI.callMethodOnSelf");
+						this.writeToOutput("(__context, this, '" + roleName + "'");
+						this.writeToOutput(", '" + operand2.actualText + "'");
+
+						if (args && args.members.length) this.writeToOutput(", ");
+					}
+					else {  //`self` was used, not `this`
+						if (isCallToRoleMethod) {
+							this.writeToOutput("__context.__$" + roleName + "." + operand2.actualText + ".");
+							this.writeToOutput("call(__context." + roleName);
+
+							if (args && args.members.length) this.writeToOutput(", ");
+						}
+						else { //call to data object method
+							this.writeToOutput("__context." + roleName + "." + operand2.actualText + "(");
+						}
+					}
+				}
+				else { //it's a call to a method in one role from a method in another, or from a context method
+					this.writeToOutput("__context.__$" + roleName + "." + operand2.actualText + ".");
+					this.writeToOutput("call(__context." + roleName);
+
+					if (args && args.members.length) this.writeToOutput(", ");
+				}
 
 				this.recordSourceMappingStart(args);
 				
 				if (args && args.members.length) {
+					if (isCallToThis) this.writeToOutput("[");
 					this.emitCommaSeparatedList(args);
+					if (isCallToThis) this.writeToOutput("]");
 				}
 			}
 			else {

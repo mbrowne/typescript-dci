@@ -60,7 +60,7 @@ var CalculateShortestPath = DCI.Context.extend(function() {
 		}
 		
 		relaxDistances() {
-			this.getNeighbors().each(function(node) {
+			self.getNeighbors().each(function(node) {
 				Neighbor <- node;
 				if (Neighbor.visited()) return;
 
@@ -80,11 +80,11 @@ var CalculateShortestPath = DCI.Context.extend(function() {
 	role Graph {
 		distance(from, to) {
 			if(from === to) return 0;
-			return this.nodes.get(from).get(to) || Infinity;
+			return self.nodes.get(from).get(to) || Infinity;
 		}
 	  
 		neighbors(node) {
-			return this.nodes.get(node);
+			return self.nodes.get(node);
 		}
 	}
 	
@@ -95,7 +95,7 @@ var CalculateShortestPath = DCI.Context.extend(function() {
 		findNearest() {		
 			var nearest = undefined,
 				distance = Infinity;
-			this.each(function(node) {
+			self.each(function(node) {
 				var dist = Tentative.get(node);
 				if(dist < distance) {
 					nearest = node;
@@ -111,7 +111,7 @@ var CalculateShortestPath = DCI.Context.extend(function() {
 			var path = [to],
 				cur = to;
 			while (cur != Initial) {
-				cur = this.get(cur);
+				cur = self.get(cur);
 				path.unshift(cur);
 				if (cur === undefined) {
 					return undefined;
