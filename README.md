@@ -41,6 +41,10 @@ or:
 
 	tsc --module amd index.ts
 
+If you want TypeScript to watch for changes and recompile whenever you save a source file, add the `-w` option, e.g.:
+
+	tsc -w --module commonjs index.ts
+
 The `--module` flag is required when using DCI because some features are achieved at runtime, so the `typescript-dci/dci` module
 needs to be available to every DCI program. For server-side or desktop programs, use `commonjs` and it should work out of the box.
 
