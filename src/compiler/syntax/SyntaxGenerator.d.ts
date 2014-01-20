@@ -2260,7 +2260,7 @@ declare module TypeScript {
         CaretEqualsToken,
         SlashToken,
         SlashEqualsToken,
-        LeftArrowToken, //DCI
+        LeftArrowToken,
         SourceUnit,
         QualifiedName,
         ObjectType,
@@ -2316,7 +2316,7 @@ declare module TypeScript {
         VoidExpression,
         CommaExpression,
         AssignmentExpression,
-        RoleAssignmentExpression, //DCI
+        RoleAssignmentExpression,
         AddAssignmentExpression,
         SubtractAssignmentExpression,
         MultiplyAssignmentExpression,

@@ -1,3 +1,103 @@
+/*! *****************************************************************************
+Copyright (c) Microsoft Corporation. All rights reserved. 
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+this file except in compliance with the License. You may obtain a copy of the
+License at http://www.apache.org/licenses/LICENSE-2.0  
+ 
+THIS CODE IS PROVIDED ON AN *AS IS* BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, EITHER EXPRESS OR IMPLIED, INCLUDING WITHOUT LIMITATION ANY IMPLIED
+WARRANTIES OR CONDITIONS OF TITLE, FITNESS FOR A PARTICULAR PURPOSE, 
+MERCHANTABLITY OR NON-INFRINGEMENT. 
+ 
+See the Apache Version 2.0 License for specific language governing permissions
+and limitations under the License.
+***************************************************************************** */
+
+/*!----------------- TypeScript ThirdPartyNotices -------------------------------------------------------
+
+The TypeScript software is based on or incorporates material and code from the projects listed below 
+(collectively "Third Party Code"). Microsoft is not the original author of the 
+Third Party Code. The original copyright notice and the license, under which 
+Microsoft received such Third Party Code, are set forth below. Such license and 
+notices are provided for informational purposes only. Microsoft licenses the Third 
+Party Code to you under the terms of the Apache 2.0 License.
+All Third Party Code licensed by Microsoft under the Apache License, Version 2.0 (the "License"); you 
+may not use this file except in compliance with the License. You may obtain a copy 
+of the License at http://www.apache.org/licenses/LICENSE-2.0
+
+THIS CODE IS PROVIDED ON AN *AS IS* BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, 
+EITHER EXPRESS OR IMPLIED, INCLUDING WITHOUT LIMITATION ANY IMPLIED WARRANTIES OR 
+CONDITIONS OF TITLE, FITNESS FOR A PARTICULAR PURPOSE, MERCHANTABLITY OR NON-INFRINGEMENT. 
+
+See the Apache Version 2.0 License for specific language governing permissions and 
+limitations under the License.
+---------------------------------------------
+Third Party Code Components
+--------------------------------------------
+---- Mozilla Developer Code---------
+The following Mozilla Developer Code is under Public Domain as updated after Aug. 20, 2012, see, https://developer.mozilla.org/en-US/docs/Project:Copyrights
+1. Array filter Compatibility Method, 
+Available at https://developer.mozilla.org/en-US/docs/JavaScript/Reference/Global_Objects/Array/filter
+Any copyright is dedicated to the Public Domain.
+
+2. Array forEach Compatibility Method, 
+Available at https://developer.mozilla.org/en-US/docs/JavaScript/Reference/Global_Objects/Array/forEach
+Any copyright is dedicated to the Public Domain.
+
+3. Array indexOf Compatibility Method, 
+Available at https://developer.mozilla.org/en-US/docs/JavaScript/Reference/Global_Objects/Array/indexOf
+Any copyright is dedicated to the Public Domain.
+
+4. Array map Compatibility Method, 
+Available at https://developer.mozilla.org/en-US/docs/JavaScript/Reference/Global_Objects/Array/map
+Any copyright is dedicated to the Public Domain.
+
+5. Array Reduce Compatibility Method, 
+Available at https://developer.mozilla.org/en-US/docs/JavaScript/Reference/Global_Objects/Array/Reduce
+Any copyright is dedicated to the Public Domain.
+
+6. String Trim Compatibility Method, 
+Available at https://developer.mozilla.org/en-US/docs/JavaScript/Reference/Global_Objects/String/Trim
+Any copyright is dedicated to the Public Domain.
+
+7. Date now Compatibility Method, 
+Available at https://developer.mozilla.org/en-US/docs/JavaScript/Reference/Global_Objects/Date/now
+Any copyright is dedicated to the Public Domain.
+
+------------JSON2 Script------------------------
+json2.js 2012-10-08
+Public Domain.
+NO WARRANTY EXPRESSED OR IMPLIED. USE AT YOUR OWN RISK.
+See, http://www.JSON.org/js.html
+
+--------------r.js----------------------
+Copyright (c) 2010-2011 Dojo Foundation. All Rights Reserved.
+Originally License under MIT License
+-------------------------------------------------------------------------
+Provided for Informational Purposes Only
+MIT License
+
+Permission is hereby granted, free of charge, to any person obtaining
+a copy of this software and associated documentation files (the
+"Software"), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish,
+distribute, sublicense, and/or sell copies of the Software, and to
+permit persons to whom the Software is furnished to do so, subject to
+the following conditions:
+
+The above copyright notice and this permission notice shall be
+included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+--------------------------------------------------------------------------------------
+
+------------- End of ThirdPartyNotices --------------------------------------------------- */
 var TypeScript;
 (function (TypeScript) {
     TypeScript.DiagnosticCode = {
@@ -28413,6 +28513,7 @@ var TypeScript;
             this.thisClassNode = null;
             this.thisRoleNode = null;
             this.thisFunctionNode = null;
+            this.thisDCIContextNode = null;
             this.moduleName = "";
             this.emitState = new EmitState();
             this.indenter = new Indenter();
@@ -28799,69 +28900,74 @@ var TypeScript;
             var binExpTarget, operand1, operand2, dciContext, isCallToRoleMethod = false, isCallToSelf = false, roleName;
 
             if (this.thisFunctionNode && target instanceof TypeScript.BinaryExpression) {
-                if (this.thisFunctionNode.isDCIContext) {
-                    dciContext = this.thisFunctionNode;
-                }
-
-                var declStack = this.declStack;
-                for (var i = 0; i < declStack.length; i++) {
-                    if (declStack[i] instanceof TypeScript.PullFunctionExpressionDecl) {
-                        var funcDecl = declStack[i].ast;
-                        if (funcDecl.isDCIContext) {
-                            dciContext = funcDecl;
-                            break;
-                        }
-                    }
-                }
-
-                if (dciContext) {
+                if (this.thisDCIContextNode) {
+                    dciContext = this.thisDCIContextNode;
                     binExpTarget = target;
                     operand1 = binExpTarget.operand1;
                     operand2 = binExpTarget.operand2;
 
                     if (this.thisRoleNode) {
-                        if (this.thisRoleNode && operand1 instanceof TypeScript.ThisExpression) {
+                        if (this.thisRoleNode && (operand1 instanceof TypeScript.ThisExpression || operand1.actualText == 'self')) {
                             roleName = this.thisRoleNode.name.actualText;
                             isCallToSelf = true;
                         }
                     }
 
-                    if (!isCallToSelf) {
+                    if (!roleName)
                         roleName = operand1.actualText;
-                        if (roleName in dciContext.roleDeclarations) {
-                            var methodName = operand2.actualText;
-                            var roleDecl = dciContext.roleDeclarations[roleName];
-                            roleDecl.members.members.forEach(function (member) {
-                                if ((member).name.actualText == methodName) {
-                                    isCallToRoleMethod = true;
-                                    return false;
-                                }
-                            });
-                        }
+
+                    if (roleName && roleName in dciContext.roleDeclarations) {
+                        var methodName = operand2.actualText;
+                        var roleDecl = dciContext.roleDeclarations[roleName];
+                        roleDecl.members.members.forEach(function (member) {
+                            if ((member).name.actualText == methodName) {
+                                isCallToRoleMethod = true;
+                                return false;
+                            }
+                        });
                     }
                 }
             }
 
             if (isCallToRoleMethod || isCallToSelf) {
+                var isCallToThis = false;
                 if (isCallToSelf) {
-                    this.writeToOutput("__dci_internal__.callMethodOnSelf");
+                    if (operand1 instanceof TypeScript.ThisExpression) {
+                        isCallToThis = true;
 
-                    this.writeToOutput("(__context, this, '" + roleName + "'");
-                    this.writeToOutput(", '" + operand2.actualText + "'");
+                        this.writeToOutput("__dci_internal__.callMethodOnSelf");
+
+                        this.writeToOutput("(__context, this, '" + roleName + "'");
+                        this.writeToOutput(", '" + operand2.actualText + "'");
+
+                        if (args && args.members.length)
+                            this.writeToOutput(", ");
+                    } else {
+                        if (isCallToRoleMethod) {
+                            this.writeToOutput("__context.__$" + roleName + "." + operand2.actualText + ".");
+                            this.writeToOutput("call(__context." + roleName);
+
+                            if (args && args.members.length)
+                                this.writeToOutput(", ");
+                        } else {
+                            this.writeToOutput("__context." + roleName + "." + operand2.actualText + "(");
+                        }
+                    }
                 } else {
                     this.writeToOutput("__context.__$" + roleName + "." + operand2.actualText + ".");
                     this.writeToOutput("call(__context." + roleName);
+
+                    if (args && args.members.length)
+                        this.writeToOutput(", ");
                 }
-                if (args && args.members.length)
-                    this.writeToOutput(", ");
 
                 this.recordSourceMappingStart(args);
 
                 if (args && args.members.length) {
-                    if (isCallToSelf)
+                    if (isCallToThis)
                         this.writeToOutput("[");
                     this.emitCommaSeparatedList(args);
-                    if (isCallToSelf)
+                    if (isCallToThis)
                         this.writeToOutput("]");
                 }
             } else {
@@ -28958,8 +29064,6 @@ var TypeScript;
                 this.emitComments(funcDecl.arguments, false);
             }
             this.writeLineToOutput(") {");
-
-            funcDecl.isDCIContext = (Object.keys(funcDecl.roleDeclarations).length > 0);
 
             if (funcDecl.isDCIContext) {
                 this.indenter.increaseIndent();
@@ -29402,6 +29506,12 @@ var TypeScript;
             var tempFnc = this.thisFunctionNode;
             this.thisFunctionNode = funcDecl;
 
+            funcDecl.isDCIContext = (Object.keys(funcDecl.roleDeclarations).length > 0);
+            if (funcDecl.isDCIContext) {
+                var tmpDCIContext = this.thisDCIContextNode;
+                this.thisDCIContextNode = funcDecl;
+            }
+
             if (funcDecl.isConstructor) {
                 temp = this.setContainer(4 /* Constructor */);
             } else {
@@ -29416,6 +29526,10 @@ var TypeScript;
             }
             this.setContainer(temp);
             this.thisFunctionNode = tempFnc;
+
+            if (funcDecl.isDCIContext) {
+                this.thisDCIContextNode = tmpDCIContext;
+            }
 
             if (!TypeScript.hasFlag(funcDecl.getFunctionFlags(), 128 /* Signature */)) {
                 var pullFunctionDecl = this.semanticInfoChain.getDeclForAST(funcDecl, this.document.fileName);
@@ -40193,11 +40307,11 @@ var TypeScript;
 
                 nameSymbol = this.resolveNameSymbol(nameSymbol, context);
 
-                if (!nameSymbol && !lhsType.isPrimitive() && this.cachedObjectInterfaceType()) {
-                    nameSymbol = this.getMemberSymbol(rhsName, TypeScript.PullElementKind.SomeValue, this.cachedObjectInterfaceType());
-                }
-
                 if (!nameSymbol) {
+                    if (!lhsType.isPrimitive() && this.cachedObjectInterfaceType()) {
+                        nameSymbol = this.getMemberSymbol(rhsName, TypeScript.PullElementKind.SomeValue, this.cachedObjectInterfaceType());
+                    }
+
                     if (lhs.kind != TypeScript.PullElementKind.Role) {
                         context.postError(this.unitPath, dottedNameAST.operand2.minChar, dottedNameAST.operand2.getLength(), TypeScript.DiagnosticCode.The_property_0_does_not_exist_on_value_of_type_1, [(dottedNameAST.operand2).actualText, lhsType.toString(enclosingDecl ? enclosingDecl.getSymbol() : null)], enclosingDecl);
                     }
@@ -53610,8 +53724,11 @@ var TypeScript;
         };
 
         Identifier.prototype.emit = function (emitter) {
-            if (emitter.thisFunctionNode && emitter.thisFunctionNode.isDCIContext) {
-                if (this.actualText in emitter.thisFunctionNode.roleDeclarations) {
+            if (emitter.thisDCIContextNode) {
+                if (emitter.thisRoleNode && this.actualText == 'self') {
+                    emitter.writeToOutput("__context." + emitter.thisRoleNode.name.actualText);
+                    return;
+                } else if (this.actualText in emitter.thisDCIContextNode.roleDeclarations) {
                     emitter.writeToOutput("__context.");
                 }
             }
@@ -54525,6 +54642,8 @@ var TypeScript;
             _super.call(this, name, typeParameters, extendsList, implementsList, members);
             this.endingToken = endingToken;
             this.constructorDecl = null;
+            this.isDCIContext = false;
+            this.roleDeclarations = {};
         }
         ClassDeclaration.prototype.nodeType = function () {
             return 14 /* ClassDeclaration */;
@@ -54644,9 +54763,6 @@ var TypeScript;
                 var operand1 = (this.expression).operand1;
                 var operand2 = (this.expression).operand2;
 
-                if (!emitter.thisFunctionNode.isDCIContext) {
-                    emitter.writeToOutput("__context.");
-                }
                 operand1.emit(emitter);
                 emitter.writeToOutput(" = ");
 
@@ -63371,4 +63487,3 @@ var Services;
     })();
     Services.BraceMatcher = BraceMatcher;
 })(Services || (Services = {}));
-//# sourceMappingURL=file:////www/node_modules/typescript-dci/built/local/typescriptServices.js.map

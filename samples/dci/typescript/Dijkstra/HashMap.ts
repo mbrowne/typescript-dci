@@ -1,12 +1,10 @@
 export = HashMap;
 
-"use strict";
-
 /*
 HashMap
 
 Features include:
- * support for object keys
+ * support for object keys (it doesn't actually use a hash function, it just loops to find the matching object)
  * fast keys or values iteration using for (;;) instead of for in syntax (http://jsperf.com/array-keys-vs-object-keys-iteration/3 )
    (thanks to https://gist.github.com/alaa-eddine/6317515)
 */

@@ -91,7 +91,6 @@ var CalculateShortestPath = DCI.Context.extend(function() {
 	role Tentative {}
 	
 	role Unvisited {
-	
 		findNearest() {		
 			var nearest = undefined,
 				distance = Infinity;

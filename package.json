@@ -1,6 +1,9 @@
 {
-	"name": "typescript",
-	"author": "Microsoft Corp.",
+	"name": "typescript-dci",
+	"author": "Matt Browne",
+	"contributors": [
+		{"name": "Microsoft Corp."}
+	],
 	"homepage": "http://typescriptlang.org/",
 	"version": "0.9.1-1",
 	"licenses": [

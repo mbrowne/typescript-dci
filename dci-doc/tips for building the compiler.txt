@@ -10,12 +10,12 @@ The .generated.ts files are not regenerated just by running `jake local`; it's n
 
 The run-syntax-generator task is a bit tricky because it relies on a working compiler in the built/local directory in order to do its job. This can result in a catch-22 where you've made a change to src/compiler/syntax/syntaxGenerator.ts that would resolve an error you're currently getting for a change you recently made to any of the other .ts files, but it's still trying to use the files you generated previously BEFORE it can run the run-syntax-generator task.
 
-So when making changes to syntaxGenerator.ts or SyntaxGenerator.d.ts, always make those changes without changing any of the other .ts files, and run `jake run-syntax-generator` BEFORE making your other modifications and running `jake local`.
+*** So when making changes to syntaxGenerator.ts or SyntaxGenerator.d.ts, always make those changes without changing any of the other .ts files, and run `jake run-syntax-generator` BEFORE making your other modifications and running `jake local`. ***
 
 Solution
 ========
 
-Copy syntaxGenerator.ts, syntaxGenerator.d.ts, and syntaxElement.ts *to* the official distro and then, *from the official distro*, run:
+Copy syntaxGenerator.ts, syntaxGenerator.d.ts, and syntaxElement.ts *to* the official distro and then, *cd to the official distro*, then run:
 jake run-syntax-generator
 
 Make sure to copy all 3 files; the official distro's version of syntaxGenerator.ts doesn't support Mac properly (see comments at bottom of syntaxGenerator.ts for details).

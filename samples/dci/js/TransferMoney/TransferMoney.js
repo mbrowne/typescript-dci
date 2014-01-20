@@ -13,19 +13,7 @@ var DCI = require('../../DCI');
 */
 var TransferMoney = DCI.Context.extend(function () {
 var __context = this;
-this.__$SourceAccount = {        foo: function () {
-            var test = {
-                problemIsHere: function () {
-                    __dci_internal__.callMethodOnSelf(__context, this, 'SourceAccount', 'bar');
-                },
-                bar: function () {
-                }
-            };
-        }
-        ,bar: function () {
-        }
-
-        ,transferOut: //transfer out of this account and into the destination account
+this.__$SourceAccount = {        transferOut: //transfer out of this account and into the destination account
         function () {
             __context.__$SourceAccount.withdraw.call(__context.SourceAccount);
             __context.__$DestinationAccount.deposit.call(__context.DestinationAccount);
