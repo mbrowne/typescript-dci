@@ -36,18 +36,18 @@ Scalable JavaScript development with types, classes and modules.
 
 ## Usage
 
-	tsc --module commonjs hello.ts
+	tsc --module commonjs index.ts
 or:
 
-	tsc --module amd hello.ts
+	tsc --module amd index.ts
 
 The `--module` flag is required when using DCI because some features are achieved at runtime, so the `typescript-dci/dci` module
 needs to be available to every DCI program. For server-side or desktop programs, use `commonjs` and it should work out of the box.
 
 To generate client-side code that will run in the browser, use `amd` to compile your project into [AMD](http://requirejs.org/docs/whyamd.html)
 modules. You will also need to ensure that your project has access to the `typescript-dci/dci` module. To do this, copy the
-file `typescript-dci/dci/dci-amd.js` to your project directory and rename it to `dci.js`. In the future this process will be
-simplified.
+file `typescript-dci/dci/dci-amd.js` to your project as `typescript-dci/dci.js` (relative to
+the root directory of your project). In the future this process will be simplified.
 
 In order to run the client-side code you will need an AMD loader. Some good AMD loaders include:
 
