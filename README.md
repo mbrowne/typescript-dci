@@ -13,12 +13,53 @@ Scalable JavaScript development with types, classes and modules.
 
 ## Install
 
-  npm install -g typescript
+### Instructions for the in-development version:
+
+1.  Download the zip file of this repository from https://github.com/mbrowne/typescript-dci/archive/master.zip
+2.  If you already have typescript installed, you will need to remove the symlink to the existing Typescript compiler
+    or else the `npm install` command below will fail. If you installed typescript as a global module in the standard location,
+    you can remove the existing symlink by running:
+    
+    `rm /usr/local/bin/tsc`
+
+3.  Unzip the downloaded file:
+
+    `unzip typescript-dci-master.zip`
+
+4.  Install it as a global node.js module (note: on some systems you may need to prefix this command with `sudo`):
+
+    `npm install -g typescript-dci-master`
+
+
+### Coming Soon:
+  npm install -g typescript-dci
 
 ## Usage
 
-  tsc hello.ts
-  
+	tsc --module commonjs hello.ts
+or:
+
+	tsc --module amd hello.ts
+
+The `--module` flag is required when using DCI because some features are achieved at runtime, so the `typescript-dci/dci` module
+needs to be available to every DCI program. For server-side or desktop programs, use `commonjs` and it should work out of the box.
+
+To generate client-side code that will run in the browser, use `amd` to compile your project into [AMD](http://requirejs.org/docs/whyamd.html)
+modules. You will also need to ensure that your project has access to the `typescript-dci/dci` module. To do this, copy the
+file `typescript-dci/dci/dci-amd.js` to your project directory and rename it to `dci.js`. In the future this process will be
+simplified.
+
+In order to run the client-side code you will need an AMD loader. Some good AMD loaders include:
+
+- [curl](https://github.com/cujojs/curl) (not to be confused with the command-line tool of the same name)
+- [RequireJS](http://requirejs.org/)
+
+(curl is listed first because it is more lightweight, but both are excellent projects.)
+
+Some AMD projects also provide a bundling tool that makes it possible to combine all your modules into one or more minified files,
+in order to optimize your app for production. For example, [curl](https://github.com/cujojs/curl) has a companion project
+[cram](https://github.com/cujojs/cram/tree/master/docs).
+
 
 ## Build
 

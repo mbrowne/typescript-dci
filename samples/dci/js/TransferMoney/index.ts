@@ -13,7 +13,7 @@ var ctx = new TransferMoney(src, dst, 10);
 ctx.run();
 
 //ctx.bindRoles(dst, src, 50);
-//ctx.execute();
+//ctx.run();
 
 console.log(src.getBalance());
 console.log(dst.getBalance());
