@@ -22,10 +22,10 @@ var CalculateShortestPath = DCI.Context.extend(function() {
 	//Run the use case
 	this.run = function() {	
 		Graph.nodes.each(function(node) {
-			Unvisited.add(node);
-			Tentative.add(node, Infinity);
+			Unvisited.put(node);
+			Tentative.put(node, Infinity);
 		});
-		Tentative.add(Initial, 0);
+		Tentative.put(Initial, 0);
 		
 		Current = Initial;
 		Current.markVisited();
@@ -66,8 +66,8 @@ var CalculateShortestPath = DCI.Context.extend(function() {
 
 				var alternate = Tentative.get(self) + self.distanceTo(Neighbor);
 				if (alternate < Tentative.get(Neighbor)) {
-				  Tentative.add(Neighbor, alternate);
-				  Path.add(Neighbor, self);
+				  Tentative.put(Neighbor, alternate);
+				  Path.put(Neighbor, self);
 				}
 			});
 		}

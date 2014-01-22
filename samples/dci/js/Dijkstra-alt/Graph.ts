@@ -15,13 +15,13 @@ function Graph(edges) {
 	  var pairs = this.nodes.get(from);
 	  if (pairs == null) {
 	      pairs = new HashMap();
-	      pairs.add(to, dist);
-	      this.nodes.add(from, pairs);
+	      pairs.put(to, dist);
+	      this.nodes.put(from, pairs);
 	  }
 	  else {
-	      pairs.add(to, dist);
+	      pairs.put(to, dist);
 	  }
 	  
- 	  this.distances.add(from, Infinity);
+ 	  this.distances.put(from, Infinity);
   }
 }

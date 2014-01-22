@@ -25,7 +25,10 @@ var TransferMoney = DCI.Context.extend(function() {
 	role SourceAccount {
 		//transfer money out of this account and into the destination account
 		transferOut() {
-			self.withdraw();
+			var withdraw = self['withdraw'];
+			withdraw.call(self);
+		
+			//self.withdraw();
 			DestinationAccount.deposit();
 		}
 	

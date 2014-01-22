@@ -643,6 +643,14 @@ module TypeScript {
 						this.writeToOutput("__dci_internal.callMethodOnSelf");
 						//this.writeToOutput("DCI.callMethodOnSelf");
 						this.writeToOutput("(__context, this, '" + roleName + "'");
+
+						//DCI TODO
+						//Check for dynamic role method call, e.g. this['withdraw'](); or:
+						//  var methodName = 'withdraw';
+						//  this[methodName]();
+						//
+						//if (target.nodeType() == NodeType.ElementAccessExpression) {
+
 						this.writeToOutput(", '" + operand2.actualText + "'");
 
 						if (args && args.members.length) this.writeToOutput(", ");
@@ -1290,10 +1298,19 @@ module TypeScript {
 	            //This allows us to support calling role methods dynamically, e.g.:
 	            //  var methodName = 'deposit';
 	            //  DestinationAccount[methodName]();
-				var isCallToSelf = false;
 				var dciContext = this.thisDCIContextNode;
 				var potentialRoleIdentifier: Identifier = <Identifier>operand1; //object identifier - potentially a role identifier
 				var roleName: string;
+
+				//DCI TODO
+				//Support `this` in addition to `self`
+				//
+				//Support dynamically retrieving a role method on `self`, e.g.:
+				//  var withdraw = self['withdraw'];
+				//  withdraw.call(self);
+				if (this.thisRoleNode && potentialRoleIdentifier.actualText == 'self') {
+					roleName = this.thisRoleNode.name.actualText;
+				}
 
 				if (!roleName) roleName = potentialRoleIdentifier.actualText;
 

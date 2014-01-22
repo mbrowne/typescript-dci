@@ -26,7 +26,7 @@ class HashMap {
 		return -1;
 	}
  
-    add(key, value) {
+    put(key, value) {
         if (key === undefined && value === undefined) return undefined;
 
         var previous = undefined;

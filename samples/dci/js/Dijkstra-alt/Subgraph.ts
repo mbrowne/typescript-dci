@@ -37,7 +37,7 @@ var Subgraph = DCI.Context.extend(function() {
 		}
 		
 		setAsPreviousOf(node) {
-			Graph.previous.add(node, self);
+			Graph.previous.put(node, self);
 		}
 		
 		distanceTo(otherNode) {

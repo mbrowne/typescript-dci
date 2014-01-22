@@ -12,7 +12,7 @@ function Graph(edges) {
 
 	  forceMap(this.nodes, to);
 	  var cur = forceMap(this.nodes, from);
-	  cur.add(to, dist);
+	  cur.put(to, dist);
   }
 }
 
@@ -20,7 +20,7 @@ function forceMap(nodes, node) {
 	var map = nodes.get(node);
 	if (map === undefined) {
 	  map = new HashMap();
-	  nodes.add(node, map);
+	  nodes.put(node, map);
 	}
 	return map;
 }

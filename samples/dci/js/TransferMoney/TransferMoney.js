@@ -15,14 +15,11 @@ var TransferMoney = DCI.Context.extend(function () {
 var __context = this;
 this.__$SourceAccount = {        transferOut: //transfer money out of this account and into the destination account
         function () {
-            var methodName = 'withdraw';
-            __dci_internal.getRoleMember(__context, __context.SourceAccount, "SourceAccount", methodName)();
+            var withdraw = __dci_internal.getRoleMember(__context, __context.SourceAccount, "SourceAccount", 'withdraw');
+            withdraw.call(__context.SourceAccount);
 
             //self.withdraw();
-            methodName = 'deposit';
-            __dci_internal.getRoleMember(__context, __context.DestinationAccount, "DestinationAccount", methodName)();
-            //self.withdraw();
-            //DestinationAccount.deposit();
+            __context.__$DestinationAccount.deposit.call(__context.DestinationAccount);
         }
         ,withdraw: function () {
             if (__context.SourceAccount.getBalance() < __context.Amount) {
@@ -43,9 +40,7 @@ this.__$Amount = {};
     };
     //Run the use case
     this.run = function () {
-        var methodName = 'transferOut';
-        __dci_internal.getRoleMember(__context, __context.SourceAccount, "SourceAccount", methodName)();
-        //SourceAccount.transferOut();
+        __context.__$SourceAccount.transferOut.call(__context.SourceAccount);
     };
 
 
