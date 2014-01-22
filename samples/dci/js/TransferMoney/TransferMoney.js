@@ -1,4 +1,4 @@
-var __dci_internal__ = require('typescript-dci/dci');
+var __dci_internal = require('typescript-dci/dci');
 var DCI = require('../../DCI');
 
 
@@ -13,12 +13,21 @@ var DCI = require('../../DCI');
 */
 var TransferMoney = DCI.Context.extend(function () {
 var __context = this;
-this.__$SourceAccount = {        transferOut: //transfer out of this account and into the destination account
+this.__$SourceAccount = {        transferOut: //transfer money out of this account and into the destination account
         function () {
-            __context.__$SourceAccount.withdraw.call(__context.SourceAccount);
-            __context.__$DestinationAccount.deposit.call(__context.DestinationAccount);
+            var methodName = 'withdraw';
+            __dci_internal.getRoleMember(__context, __context.SourceAccount, "SourceAccount", methodName)();
+
+            //self.withdraw();
+            methodName = 'deposit';
+            __dci_internal.getRoleMember(__context, __context.DestinationAccount, "DestinationAccount", methodName)();
+            //self.withdraw();
+            //DestinationAccount.deposit();
         }
         ,withdraw: function () {
+            if (__context.SourceAccount.getBalance() < __context.Amount) {
+                throw new Error('Insufficient funds');
+            }
             __context.SourceAccount.decreaseBalance(__context.Amount);
         }
 };
@@ -34,7 +43,9 @@ this.__$Amount = {};
     };
     //Run the use case
     this.run = function () {
-        __context.__$SourceAccount.transferOut.call(__context.SourceAccount);
+        var methodName = 'transferOut';
+        __dci_internal.getRoleMember(__context, __context.SourceAccount, "SourceAccount", methodName)();
+        //SourceAccount.transferOut();
     };
 
 

@@ -1,4 +1,4 @@
-var __dci_internal__ = require('typescript-dci/dci');
+var __dci_internal = require('typescript-dci/dci');
 var DCI = require('../../DCI');
 
 

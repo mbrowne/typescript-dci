@@ -585,7 +585,7 @@ module TypeScript {
 
 					//if currently inside a role
 					if (this.thisRoleNode) {
-						if (this.thisRoleNode && (operand1 instanceof ThisExpression || operand1.actualText == 'self') ) {
+						if (operand1 instanceof ThisExpression || operand1.actualText == 'self') {
 							roleName = this.thisRoleNode.name.actualText;
 							isCallToSelf = true;
 						}
@@ -630,6 +630,7 @@ module TypeScript {
 
 									bar: function() {}
 								}
+								...
 							}
 
 							bar() {}
@@ -639,7 +640,7 @@ module TypeScript {
 						at run-time via the callMethodOnSelf() function.
 						*/
 
-						this.writeToOutput("__dci_internal__.callMethodOnSelf");
+						this.writeToOutput("__dci_internal.callMethodOnSelf");
 						//this.writeToOutput("DCI.callMethodOnSelf");
 						this.writeToOutput("(__context, this, '" + roleName + "'");
 						this.writeToOutput(", '" + operand2.actualText + "'");
@@ -653,8 +654,24 @@ module TypeScript {
 
 							if (args && args.members.length) this.writeToOutput(", ");
 						}
-						else { //call to data object method
-							this.writeToOutput("__context." + roleName + "." + operand2.actualText + "(");
+						else {
+							//DCI TODO
+							//Support calling role methods dynamically for `this` in addition to `self`
+							//
+							//probably a call to a data object method, but it could still be a role method because
+							//we support calling role methods on `self` dynamically, e.g.:
+							//
+							//  var methodName = 'withdraw';
+							//  self[methodName]();
+							if (target.nodeType() == NodeType.ElementAccessExpression) {
+	                            this.writeToOutput("__dci_internal.getRoleMember(__context, __context." + roleName + ', "' + roleName + '", ');
+								operand2.emit(this);
+								this.writeToOutput(")(");
+							}
+							else {
+								//it's a data object method
+								this.writeToOutput("__context." + roleName + "." + operand2.actualText + "(");
+							}
 						}
 					}
 				}
@@ -1080,7 +1097,7 @@ module TypeScript {
 					//DCI
 					if (hasDCIContext) {
 						dependencyList += ", \"typescript-dci/dci\"";
-						importList += ", __dci_internal__";
+						importList += ", __dci_internal";
 					}
 
                     var importAndDependencyList = this.getModuleImportAndDependencyList(moduleDecl);
@@ -1092,11 +1109,11 @@ module TypeScript {
 					//DCI
 //					if (hasDCIContext) {
 //						//DCI TODO indent
-//						this.writeLineToOutput("var __dci_internal__ = typescriptDCI.DCI;");
+//						this.writeLineToOutput("var __dci_internal = typescriptDCI.DCI;");
 //					}
                 }
 				//DCI
-				else if (hasDCIContext) this.writeLineToOutput("var __dci_internal__ = require('typescript-dci/dci');");
+				else if (hasDCIContext) this.writeLineToOutput("var __dci_internal = require('typescript-dci/dci');");
             }
             else {
                 if (!isExported) {
@@ -1266,6 +1283,32 @@ module TypeScript {
         }
 
         public emitIndex(operand1: AST, operand2: AST) {
+            //DCI
+            //If we're currently inside a DCI context
+			if (this.thisFunctionNode && this.thisDCIContextNode) {
+	            //Check to see if operand1 is a role identifier
+	            //This allows us to support calling role methods dynamically, e.g.:
+	            //  var methodName = 'deposit';
+	            //  DestinationAccount[methodName]();
+				var isCallToSelf = false;
+				var dciContext = this.thisDCIContextNode;
+				var potentialRoleIdentifier: Identifier = <Identifier>operand1; //object identifier - potentially a role identifier
+				var roleName: string;
+
+				if (!roleName) roleName = potentialRoleIdentifier.actualText;
+
+				//Is it a role identifier?
+				if (roleName && roleName in dciContext.roleDeclarations) {
+					//If so, call getRoleMember(), which looks up the role method at runtime (or role player property, if it's not a role method)
+					this.writeToOutput('__dci_internal.getRoleMember(__context, __context.' + roleName + ', "' + roleName + '", ');
+					//getRoleMember() parameters: (context: Object, player: Object, roleName: string, memberName: string)
+					operand2.emit(this);
+					this.writeToOutput(')');
+
+					return;
+				}
+			}
+
             operand1.emit(this);
             this.writeToOutput("[");
             operand2.emit(this);

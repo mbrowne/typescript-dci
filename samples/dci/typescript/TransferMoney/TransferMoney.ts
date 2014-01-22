@@ -14,13 +14,17 @@ export class TransferMoney extends DCI.Context
 	}
 	
 	role SourceAccount {	
-	
+		
+		//transfer money out of this account and into the destination account
 		transferOut() {
 			self.withdraw();
 			DestinationAccount.deposit();
 		}
 	
 		withdraw() {
+			if (self.getBalance() < Amount) {
+				throw new Error('Insufficient funds');
+			}
 			self.decreaseBalance(Amount);
 		}
 	}

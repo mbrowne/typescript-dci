@@ -23,13 +23,16 @@ var TransferMoney = DCI.Context.extend(function() {
 	}
 
 	role SourceAccount {
-		//transfer out of this account and into the destination account
+		//transfer money out of this account and into the destination account
 		transferOut() {
 			self.withdraw();
 			DestinationAccount.deposit();
 		}
 	
 		withdraw() {
+			if (self.getBalance() < Amount) {
+				throw new Error('Insufficient funds');
+			}
 			self.decreaseBalance(Amount);
 		}
 	}
