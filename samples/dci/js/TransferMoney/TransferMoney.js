@@ -15,10 +15,7 @@ var TransferMoney = DCI.Context.extend(function () {
 var __context = this;
 this.__$SourceAccount = {        transferOut: //transfer money out of this account and into the destination account
         function () {
-            var withdraw = __dci_internal.getRoleMember(__context, __context.SourceAccount, "SourceAccount", 'withdraw');
-            withdraw.call(__context.SourceAccount);
-
-            //self.withdraw();
+            __context.__$SourceAccount.withdraw.call(__context.SourceAccount);
             __context.__$DestinationAccount.deposit.call(__context.DestinationAccount);
         }
         ,withdraw: function () {
