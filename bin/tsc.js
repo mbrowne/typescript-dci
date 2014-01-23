@@ -28413,6 +28413,7 @@ var TypeScript;
             this.thisClassNode = null;
             this.thisRoleNode = null;
             this.thisFunctionNode = null;
+            this.thisDCIContextNode = null;
             this.moduleName = "";
             this.emitState = new EmitState();
             this.indenter = new Indenter();
@@ -28799,69 +28800,81 @@ var TypeScript;
             var binExpTarget, operand1, operand2, dciContext, isCallToRoleMethod = false, isCallToSelf = false, roleName;
 
             if (this.thisFunctionNode && target instanceof TypeScript.BinaryExpression) {
-                if (this.thisFunctionNode.isDCIContext) {
-                    dciContext = this.thisFunctionNode;
-                }
-
-                var declStack = this.declStack;
-                for (var i = 0; i < declStack.length; i++) {
-                    if (declStack[i] instanceof TypeScript.PullFunctionExpressionDecl) {
-                        var funcDecl = declStack[i].ast;
-                        if (funcDecl.isDCIContext) {
-                            dciContext = funcDecl;
-                            break;
-                        }
-                    }
-                }
-
-                if (dciContext) {
+                if (this.thisDCIContextNode) {
+                    dciContext = this.thisDCIContextNode;
                     binExpTarget = target;
                     operand1 = binExpTarget.operand1;
                     operand2 = binExpTarget.operand2;
 
                     if (this.thisRoleNode) {
-                        if (this.thisRoleNode && operand1 instanceof TypeScript.ThisExpression) {
+                        if (operand1 instanceof TypeScript.ThisExpression || operand1.actualText == 'self') {
                             roleName = this.thisRoleNode.name.actualText;
                             isCallToSelf = true;
                         }
                     }
 
-                    if (!isCallToSelf) {
+                    if (!roleName)
                         roleName = operand1.actualText;
-                        if (roleName in dciContext.roleDeclarations) {
-                            var methodName = operand2.actualText;
-                            var roleDecl = dciContext.roleDeclarations[roleName];
-                            roleDecl.members.members.forEach(function (member) {
-                                if ((member).name.actualText == methodName) {
-                                    isCallToRoleMethod = true;
-                                    return false;
-                                }
-                            });
-                        }
+
+                    if (roleName && roleName in dciContext.roleDeclarations) {
+                        var methodName = operand2.actualText;
+                        var roleDecl = dciContext.roleDeclarations[roleName];
+                        roleDecl.members.members.forEach(function (member) {
+                            if ((member).name.actualText == methodName) {
+                                isCallToRoleMethod = true;
+                                return false;
+                            }
+                        });
                     }
                 }
             }
 
             if (isCallToRoleMethod || isCallToSelf) {
+                var isCallToThis = false;
                 if (isCallToSelf) {
-                    this.writeToOutput("__dci_internal__.callMethodOnSelf");
+                    if (operand1 instanceof TypeScript.ThisExpression) {
+                        isCallToThis = true;
 
-                    this.writeToOutput("(__context, this, '" + roleName + "'");
-                    this.writeToOutput(", '" + operand2.actualText + "'");
+                        this.writeToOutput("__dci_internal.callMethodOnSelf");
+
+                        this.writeToOutput("(__context, this, '" + roleName + "'");
+
+                        this.writeToOutput(", '" + operand2.actualText + "'");
+
+                        if (args && args.members.length)
+                            this.writeToOutput(", ");
+                    } else {
+                        if (isCallToRoleMethod) {
+                            this.writeToOutput("__context.__$" + roleName + "." + operand2.actualText + ".");
+                            this.writeToOutput("call(__context." + roleName);
+
+                            if (args && args.members.length)
+                                this.writeToOutput(", ");
+                        } else {
+                            if (target.nodeType() == 37 /* ElementAccessExpression */) {
+                                this.writeToOutput("__dci_internal.getRoleMember(__context, __context." + roleName + ', "' + roleName + '", ');
+                                operand2.emit(this);
+                                this.writeToOutput(")(");
+                            } else {
+                                this.writeToOutput("__context." + roleName + "." + operand2.actualText + "(");
+                            }
+                        }
+                    }
                 } else {
                     this.writeToOutput("__context.__$" + roleName + "." + operand2.actualText + ".");
                     this.writeToOutput("call(__context." + roleName);
+
+                    if (args && args.members.length)
+                        this.writeToOutput(", ");
                 }
-                if (args && args.members.length)
-                    this.writeToOutput(", ");
 
                 this.recordSourceMappingStart(args);
 
                 if (args && args.members.length) {
-                    if (isCallToSelf)
+                    if (isCallToThis)
                         this.writeToOutput("[");
                     this.emitCommaSeparatedList(args);
-                    if (isCallToSelf)
+                    if (isCallToThis)
                         this.writeToOutput("]");
                 }
             } else {
@@ -28958,8 +28971,6 @@ var TypeScript;
                 this.emitComments(funcDecl.arguments, false);
             }
             this.writeLineToOutput(") {");
-
-            funcDecl.isDCIContext = (Object.keys(funcDecl.roleDeclarations).length > 0);
 
             if (funcDecl.isDCIContext) {
                 this.indenter.increaseIndent();
@@ -29222,7 +29233,7 @@ var TypeScript;
 
                     if (hasDCIContext) {
                         dependencyList += ", \"typescript-dci/dci\"";
-                        importList += ", __dci_internal__";
+                        importList += ", __dci_internal";
                     }
 
                     var importAndDependencyList = this.getModuleImportAndDependencyList(moduleDecl);
@@ -29231,7 +29242,7 @@ var TypeScript;
 
                     this.writeLineToOutput("define(" + dependencyList + "," + " function(" + importList + ") {");
                 } else if (hasDCIContext)
-                    this.writeLineToOutput("var __dci_internal__ = require('typescript-dci/dci');");
+                    this.writeLineToOutput("var __dci_internal = require('typescript-dci/dci');");
             } else {
                 if (!isExported) {
                     this.recordSourceMappingStart(moduleDecl);
@@ -29388,6 +29399,28 @@ var TypeScript;
         };
 
         Emitter.prototype.emitIndex = function (operand1, operand2) {
+            if (this.thisFunctionNode && this.thisDCIContextNode) {
+                var dciContext = this.thisDCIContextNode;
+                var potentialRoleIdentifier = operand1;
+                var roleName;
+
+                if (this.thisRoleNode && potentialRoleIdentifier.actualText == 'self') {
+                    roleName = this.thisRoleNode.name.actualText;
+                }
+
+                if (!roleName)
+                    roleName = potentialRoleIdentifier.actualText;
+
+                if (roleName && roleName in dciContext.roleDeclarations) {
+                    this.writeToOutput('__dci_internal.getRoleMember(__context, __context.' + roleName + ', "' + roleName + '", ');
+
+                    operand2.emit(this);
+                    this.writeToOutput(')');
+
+                    return;
+                }
+            }
+
             operand1.emit(this);
             this.writeToOutput("[");
             operand2.emit(this);
@@ -29401,6 +29434,12 @@ var TypeScript;
             var temp;
             var tempFnc = this.thisFunctionNode;
             this.thisFunctionNode = funcDecl;
+
+            funcDecl.isDCIContext = (Object.keys(funcDecl.roleDeclarations).length > 0);
+            if (funcDecl.isDCIContext) {
+                var tmpDCIContext = this.thisDCIContextNode;
+                this.thisDCIContextNode = funcDecl;
+            }
 
             if (funcDecl.isConstructor) {
                 temp = this.setContainer(4 /* Constructor */);
@@ -29416,6 +29455,10 @@ var TypeScript;
             }
             this.setContainer(temp);
             this.thisFunctionNode = tempFnc;
+
+            if (funcDecl.isDCIContext) {
+                this.thisDCIContextNode = tmpDCIContext;
+            }
 
             if (!TypeScript.hasFlag(funcDecl.getFunctionFlags(), 128 /* Signature */)) {
                 var pullFunctionDecl = this.semanticInfoChain.getDeclForAST(funcDecl, this.document.fileName);
@@ -40193,11 +40236,11 @@ var TypeScript;
 
                 nameSymbol = this.resolveNameSymbol(nameSymbol, context);
 
-                if (!nameSymbol && !lhsType.isPrimitive() && this.cachedObjectInterfaceType()) {
-                    nameSymbol = this.getMemberSymbol(rhsName, TypeScript.PullElementKind.SomeValue, this.cachedObjectInterfaceType());
-                }
-
                 if (!nameSymbol) {
+                    if (!lhsType.isPrimitive() && this.cachedObjectInterfaceType()) {
+                        nameSymbol = this.getMemberSymbol(rhsName, TypeScript.PullElementKind.SomeValue, this.cachedObjectInterfaceType());
+                    }
+
                     if (lhs.kind != TypeScript.PullElementKind.Role) {
                         context.postError(this.unitPath, dottedNameAST.operand2.minChar, dottedNameAST.operand2.getLength(), TypeScript.DiagnosticCode.The_property_0_does_not_exist_on_value_of_type_1, [(dottedNameAST.operand2).actualText, lhsType.toString(enclosingDecl ? enclosingDecl.getSymbol() : null)], enclosingDecl);
                     }
@@ -53610,8 +53653,11 @@ var TypeScript;
         };
 
         Identifier.prototype.emit = function (emitter) {
-            if (emitter.thisFunctionNode && emitter.thisFunctionNode.isDCIContext) {
-                if (this.actualText in emitter.thisFunctionNode.roleDeclarations) {
+            if (emitter.thisDCIContextNode) {
+                if (emitter.thisRoleNode && this.actualText == 'self') {
+                    emitter.writeToOutput("__context." + emitter.thisRoleNode.name.actualText);
+                    return;
+                } else if (this.actualText in emitter.thisDCIContextNode.roleDeclarations) {
                     emitter.writeToOutput("__context.");
                 }
             }
@@ -54525,6 +54571,8 @@ var TypeScript;
             _super.call(this, name, typeParameters, extendsList, implementsList, members);
             this.endingToken = endingToken;
             this.constructorDecl = null;
+            this.isDCIContext = false;
+            this.roleDeclarations = {};
         }
         ClassDeclaration.prototype.nodeType = function () {
             return 14 /* ClassDeclaration */;
@@ -54644,9 +54692,6 @@ var TypeScript;
                 var operand1 = (this.expression).operand1;
                 var operand2 = (this.expression).operand2;
 
-                if (!emitter.thisFunctionNode.isDCIContext) {
-                    emitter.writeToOutput("__context.");
-                }
                 operand1.emit(emitter);
                 emitter.writeToOutput(" = ");
 
