@@ -91,6 +91,22 @@ if (!isNodeJs) {
 
 //Gets a member on a role player - can be either a role method or a method or property of the role player object
 export function getRoleMember(context: Object, player: Object, roleName: string, memberName: string) {
+	if (player != context[roleName]) {
+		//If we're here, it's because the programmer used `this` inside a closure inside a role method.
+		//So either `this` refers to some other object besides the current role, or the programmer used `this`
+		//inside a closure when they should have used `self`.
+		//
+		//In other words this code would also be reached if `this` is equal to `undefined`, `global`, or `window`.)
+		//...for example, if the SourceAccount.transferOut() method in the Transfer Money example contained the following code:
+		//	[1,2,3].forEach(function() {
+		//		this.withdraw();  //`this` is actually equal to `window` or `global` here! (or `undefined` in strict mode)
+		//	});
+		//
+		//Because we need to account for the first case (`this` refers to some other object besides the current role),
+		//which is perfectly valid, we simply return the property on `this` just as would happen normally in Javascript.
+		return player[memberName];
+	}
+
     var roleMethod = context['__$' + roleName][memberName];
     if (roleMethod) {
 		//bind the role player as `this` on the specified role method
@@ -104,8 +120,6 @@ export function getRoleMember(context: Object, player: Object, roleName: string,
     	return player[memberName];
     }
 }
-
-
 
 //This function is for handling calls beginning with `this`; it calls a method on the current role player,
 //which could be either a role method or a method on the data object.
