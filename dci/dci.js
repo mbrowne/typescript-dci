@@ -51,7 +51,7 @@ function getRoleMember(context, player, roleName, memberName) {
         //bind the role player as `this` on the specified role method
         return roleMethod.bind(player);
     } else {
-        if (!player[memberName]) {
+        if (!(memberName in player)) {
             throw new Error('Method or property "' + memberName + '" not found on role "' + roleName + '" nor on its current role player.');
         }
         return player[memberName];

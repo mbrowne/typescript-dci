@@ -114,7 +114,7 @@ export function getRoleMember(context: Object, player: Object, roleName: string,
     }
     else {
 	    //check for property on role player
-    	if (!player[memberName]) {
+    	if (!(memberName in player)) {
     		throw new Error('Method or property "' + memberName + '" not found on role "' + roleName + '" nor on its current role player.');
     	}
     	return player[memberName];
