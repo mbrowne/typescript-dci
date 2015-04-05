@@ -650,7 +650,10 @@ module TypeScript {
 						//  this[methodName]();
 						//
 						//if (target.nodeType() == NodeType.ElementAccessExpression) {
-
+						//
+						//the below line can stay as is for callMethodOnSelf, but for __dci_internal.getRoleMember() it should be:
+						//this.writeToOutput(", ")
+						//operand2.emit(this)
 						this.writeToOutput(", '" + operand2.actualText + "'");
 
 						if (args && args.members.length) this.writeToOutput(", ");
@@ -812,7 +815,13 @@ module TypeScript {
 
 			if (funcDecl.isDCIContext) {
 				this.indenter.increaseIndent();
-				this.writeLineToOutput("var __context = this;");
+				//if it's a constructor function, __context is set to 'this'; otherwise, create an empty object to
+				//be used as a container to hold the role methods.
+				//
+				//TODO would it be better to detect whether we're in commonjs or AMD mode here
+				//rather than checking for both global and window at runtime?
+				this.writeLineToOutput("var __context = (this==undefined || (typeof global != 'undefined' && this == global) || (typeof window != 'undefined' && this == window) ? {}: this);");
+				
 				//this.writeLineToOutput("__context.__rolePlayers = {};");
 				this.indenter.decreaseIndent();
 			}
@@ -2232,7 +2241,7 @@ module TypeScript {
             this.emitComments(roleDecl, true);
             var temp = this.setContainer(EmitContainer.Role);
 
-			this.writeToOutput("this.__$" + roleName + " = {");
+			this.writeToOutput("__context.__$" + roleName + " = {");
 
             this.recordSourceMappingStart(roleDecl);
             this.indenter.increaseIndent();

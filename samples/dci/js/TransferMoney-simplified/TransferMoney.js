@@ -1,11 +1,5 @@
-var __dci_internal = require('typescript-dci/dci');
-
 /**
-* TransferMoney Context
-*
-* @param {Account} sourceAcct
-* @param {Account} destinationAcct
-* @param {number} amount
+* Transfer Money use case
 */
 function TransferMoney(sourceAcct, destinationAcct, amount) {
 	var __context = (this==undefined || (typeof global != 'undefined' && this == global) || (typeof window != 'undefined' && this == window) ? {}: this);
@@ -22,17 +16,46 @@ function TransferMoney(sourceAcct, destinationAcct, amount) {
             __context.SourceAccount.decreaseBalance(__context.Amount);
         }
 	};
-	__context.__$DestinationAccount = {        deposit: function () {
+	__context.__$DestinationAccount = {
+	    deposit: function () {
             __context.DestinationAccount.increaseBalance(__context.Amount);
-        }
+    	}
 	};
 	
 	__context.__$Amount = {};
+    //bind the objects to their roles
     __context.SourceAccount = sourceAcct;
     __context.DestinationAccount = destinationAcct;
     __context.Amount = amount;
-    //Do the transfer
+    //do the transfer
     __context.__$SourceAccount.transferOut.call(__context.SourceAccount);
 }
-module.exports = TransferMoney;
 
+/**
+* Bank account class
+*/
+function Account() {
+    this._balance = 0;
+}
+Account.prototype = {
+    constructor: Account,
+    increaseBalance: function (amount) {
+        this._balance += amount;
+    },
+    decreaseBalance: function (amount) {
+        this._balance -= amount;
+    },
+    getBalance: function () {
+        return this._balance;
+    }
+};
+
+//Run the use case
+var sourceAccount = new Account();
+sourceAccount.increaseBalance(20);
+var destinationAccount = new Account();
+destinationAccount.increaseBalance(10);
+//Transfer 10 dollars (or whatever the currency is) from the source account to the destination account
+TransferMoney(sourceAccount, destinationAccount, 10);
+console.log(sourceAccount.getBalance());
+console.log(destinationAccount.getBalance());

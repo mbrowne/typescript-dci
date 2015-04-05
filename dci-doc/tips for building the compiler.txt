@@ -35,3 +35,11 @@ In Jakefile, set useBuiltCompiler to false
 
 NOTE:
 Sometimes syntax-generator appears to work the first time, then doesn't work when you run it again immediately afterward, apparently because the first time it might use the already-generated files, but not the second time.
+
+
+Note on src/compiler/typecheck/pullTypeResolution.ts
+====================================================
+Be careful with changes to this file. Because type checking warnings can prevent a script from compiling, changing this file incorrectly could potentially prevent the compiler from being able to compile *itself*.
+
+In other words, you could find that `jake local` compiles successfully, and that your newly compiled built/local/tsc.js file works fine to compile DCI code, HOWEVER, you could find that after the next time you run `jake LKG`, `jake local` will no longer compile successfully. The quick fix is to overwrite bin/tsc.js with the one from the official distro, but then obviously bin/tsc.js can no longer compile DCI code. At that point, you will need to fix the bug in src/compiler/typecheck/pullTypeResolution.ts that was causing type checking warnings to be thrown erroneously so that you can run `jake local` followed by `jake LKG` and the compiler will once again be able to compile itself.
+

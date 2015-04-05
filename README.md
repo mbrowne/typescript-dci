@@ -79,3 +79,8 @@ in order to optimize your app for production. For example, [curl](https://github
         - You can also override the host or specify a test for this command. Use host=<hostName> or tests=<testPath>. 
     - jake baseline-accept - This replaces the baseline test results with the results obtained from jake runtests. 
     - jake -T lists the above commands. 
+
+## Implementation Details
+
+This implementation is "injectionless", meaning that it does not rely on method injection in order to make the roles work.
+This has a number of advantages, as described here: https://groups.google.com/d/msg/object-composition/ulYGsCaJ0Mg/rF9wt1TV_MIJ.

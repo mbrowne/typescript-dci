@@ -4,8 +4,8 @@ var DCI = require('../../DCI');
 
 
 var Account = DCI.Context.extend(function (ledgers) {
-var __context = this;
-this.__$Ledgers = {        addEntry: function (message, amount) {
+var __context = (this==undefined || (typeof global != 'undefined' && this == global) || (typeof window != 'undefined' && this == window) ? {}: this);
+__context.__$Ledgers = {        addEntry: function (message, amount) {
             __context.Ledgers.push(new LedgerEntry(message, amount));
         }
         ,getBalance: function () {

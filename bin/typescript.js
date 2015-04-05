@@ -1,3 +1,18 @@
+/*! *****************************************************************************
+Copyright (c) Microsoft Corporation. All rights reserved. 
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+this file except in compliance with the License. You may obtain a copy of the
+License at http://www.apache.org/licenses/LICENSE-2.0  
+ 
+THIS CODE IS PROVIDED ON AN *AS IS* BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, EITHER EXPRESS OR IMPLIED, INCLUDING WITHOUT LIMITATION ANY IMPLIED
+WARRANTIES OR CONDITIONS OF TITLE, FITNESS FOR A PARTICULAR PURPOSE, 
+MERCHANTABLITY OR NON-INFRINGEMENT. 
+ 
+See the Apache Version 2.0 License for specific language governing permissions
+and limitations under the License.
+***************************************************************************** */
+
 var TypeScript;
 (function (TypeScript) {
     TypeScript.DiagnosticCode = {
@@ -28807,7 +28822,7 @@ var TypeScript;
                     operand2 = binExpTarget.operand2;
 
                     if (this.thisRoleNode) {
-                        if (this.thisRoleNode && (operand1 instanceof TypeScript.ThisExpression || operand1.actualText == 'self')) {
+                        if (operand1 instanceof TypeScript.ThisExpression || operand1.actualText == 'self') {
                             roleName = this.thisRoleNode.name.actualText;
                             isCallToSelf = true;
                         }
@@ -28835,9 +28850,10 @@ var TypeScript;
                     if (operand1 instanceof TypeScript.ThisExpression) {
                         isCallToThis = true;
 
-                        this.writeToOutput("__dci_internal__.callMethodOnSelf");
+                        this.writeToOutput("__dci_internal.callMethodOnSelf");
 
                         this.writeToOutput("(__context, this, '" + roleName + "'");
+
                         this.writeToOutput(", '" + operand2.actualText + "'");
 
                         if (args && args.members.length)
@@ -28850,7 +28866,13 @@ var TypeScript;
                             if (args && args.members.length)
                                 this.writeToOutput(", ");
                         } else {
-                            this.writeToOutput("__context." + roleName + "." + operand2.actualText + "(");
+                            if (target.nodeType() == 37 /* ElementAccessExpression */) {
+                                this.writeToOutput("__dci_internal.getRoleMember(__context, __context." + roleName + ', "' + roleName + '", ');
+                                operand2.emit(this);
+                                this.writeToOutput(")(");
+                            } else {
+                                this.writeToOutput("__context." + roleName + "." + operand2.actualText + "(");
+                            }
                         }
                     }
                 } else {
@@ -28967,7 +28989,8 @@ var TypeScript;
 
             if (funcDecl.isDCIContext) {
                 this.indenter.increaseIndent();
-                this.writeLineToOutput("var __context = this;");
+
+                this.writeLineToOutput("var __context = (this==undefined || (typeof global != 'undefined' && this == global) || (typeof window != 'undefined' && this == window) ? {}: this);");
 
                 this.indenter.decreaseIndent();
             }
@@ -29226,7 +29249,7 @@ var TypeScript;
 
                     if (hasDCIContext) {
                         dependencyList += ", \"typescript-dci/dci\"";
-                        importList += ", __dci_internal__";
+                        importList += ", __dci_internal";
                     }
 
                     var importAndDependencyList = this.getModuleImportAndDependencyList(moduleDecl);
@@ -29235,7 +29258,7 @@ var TypeScript;
 
                     this.writeLineToOutput("define(" + dependencyList + "," + " function(" + importList + ") {");
                 } else if (hasDCIContext)
-                    this.writeLineToOutput("var __dci_internal__ = require('typescript-dci/dci');");
+                    this.writeLineToOutput("var __dci_internal = require('typescript-dci/dci');");
             } else {
                 if (!isExported) {
                     this.recordSourceMappingStart(moduleDecl);
@@ -29392,6 +29415,28 @@ var TypeScript;
         };
 
         Emitter.prototype.emitIndex = function (operand1, operand2) {
+            if (this.thisFunctionNode && this.thisDCIContextNode) {
+                var dciContext = this.thisDCIContextNode;
+                var potentialRoleIdentifier = operand1;
+                var roleName;
+
+                if (this.thisRoleNode && potentialRoleIdentifier.actualText == 'self') {
+                    roleName = this.thisRoleNode.name.actualText;
+                }
+
+                if (!roleName)
+                    roleName = potentialRoleIdentifier.actualText;
+
+                if (roleName && roleName in dciContext.roleDeclarations) {
+                    this.writeToOutput('__dci_internal.getRoleMember(__context, __context.' + roleName + ', "' + roleName + '", ');
+
+                    operand2.emit(this);
+                    this.writeToOutput(')');
+
+                    return;
+                }
+            }
+
             operand1.emit(this);
             this.writeToOutput("[");
             operand2.emit(this);
@@ -30193,7 +30238,7 @@ var TypeScript;
             this.emitComments(roleDecl, true);
             var temp = this.setContainer(8 /* Role */);
 
-            this.writeToOutput("this.__$" + roleName + " = {");
+            this.writeToOutput("__context.__$" + roleName + " = {");
 
             this.recordSourceMappingStart(roleDecl);
             this.indenter.increaseIndent();
@@ -40207,14 +40252,12 @@ var TypeScript;
 
                 nameSymbol = this.resolveNameSymbol(nameSymbol, context);
 
-                if (!nameSymbol) {
-                    if (!lhsType.isPrimitive() && this.cachedObjectInterfaceType()) {
-                        nameSymbol = this.getMemberSymbol(rhsName, TypeScript.PullElementKind.SomeValue, this.cachedObjectInterfaceType());
-                    }
+                if (!nameSymbol && !lhsType.isPrimitive() && this.cachedObjectInterfaceType()) {
+                    nameSymbol = this.getMemberSymbol(rhsName, TypeScript.PullElementKind.SomeValue, this.cachedObjectInterfaceType());
+                }
 
-                    if (lhs.kind != TypeScript.PullElementKind.Role) {
-                        context.postError(this.unitPath, dottedNameAST.operand2.minChar, dottedNameAST.operand2.getLength(), TypeScript.DiagnosticCode.The_property_0_does_not_exist_on_value_of_type_1, [(dottedNameAST.operand2).actualText, lhsType.toString(enclosingDecl ? enclosingDecl.getSymbol() : null)], enclosingDecl);
-                    }
+                if (!nameSymbol) {
+                    context.postError(this.unitPath, dottedNameAST.operand2.minChar, dottedNameAST.operand2.getLength(), TypeScript.DiagnosticCode.The_property_0_does_not_exist_on_value_of_type_1, [(dottedNameAST.operand2).actualText, lhsType.toString(enclosingDecl ? enclosingDecl.getSymbol() : null)], enclosingDecl);
                     return this.getNewErrorTypeSymbol(null, rhsName);
                 }
             }
@@ -55655,4 +55698,3 @@ var TypeScript;
     })(AST);
     TypeScript.Comment = Comment;
 })(TypeScript || (TypeScript = {}));
-//# sourceMappingURL=file:////www/node_modules/typescript-dci/built/local/typescript.js.map

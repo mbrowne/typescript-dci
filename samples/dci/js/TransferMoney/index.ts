@@ -1,19 +1,14 @@
 import Account = require('./Account');
 import TransferMoney = require('./TransferMoney');
 
-var src = new Account();
-src.increaseBalance(20);
+var sourceAccount = new Account();
+sourceAccount.increaseBalance(20);
 
-var dst = new Account();
-dst.increaseBalance(10);
-
-var ctx = new TransferMoney(src, dst, 10);
+var destinationAccount = new Account();
+destinationAccount.increaseBalance(10);
 
 //run the use case
-ctx.run();
+TransferMoney(sourceAccount, destinationAccount, 10);
 
-//ctx.bindRoles(dst, src, 50);
-//ctx.run();
-
-console.log(src.getBalance());
-console.log(dst.getBalance());
+console.log(sourceAccount.getBalance());
+console.log(destinationAccount.getBalance());

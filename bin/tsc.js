@@ -1,3 +1,18 @@
+/*! *****************************************************************************
+Copyright (c) Microsoft Corporation. All rights reserved. 
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+this file except in compliance with the License. You may obtain a copy of the
+License at http://www.apache.org/licenses/LICENSE-2.0  
+ 
+THIS CODE IS PROVIDED ON AN *AS IS* BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, EITHER EXPRESS OR IMPLIED, INCLUDING WITHOUT LIMITATION ANY IMPLIED
+WARRANTIES OR CONDITIONS OF TITLE, FITNESS FOR A PARTICULAR PURPOSE, 
+MERCHANTABLITY OR NON-INFRINGEMENT. 
+ 
+See the Apache Version 2.0 License for specific language governing permissions
+and limitations under the License.
+***************************************************************************** */
+
 var TypeScript;
 (function (TypeScript) {
     TypeScript.DiagnosticCode = {
@@ -28974,7 +28989,8 @@ var TypeScript;
 
             if (funcDecl.isDCIContext) {
                 this.indenter.increaseIndent();
-                this.writeLineToOutput("var __context = this;");
+
+                this.writeLineToOutput("var __context = (this==undefined || (typeof global != 'undefined' && this == global) || (typeof window != 'undefined' && this == window) ? {}: this);");
 
                 this.indenter.decreaseIndent();
             }
@@ -30222,7 +30238,7 @@ var TypeScript;
             this.emitComments(roleDecl, true);
             var temp = this.setContainer(8 /* Role */);
 
-            this.writeToOutput("this.__$" + roleName + " = {");
+            this.writeToOutput("__context.__$" + roleName + " = {");
 
             this.recordSourceMappingStart(roleDecl);
             this.indenter.increaseIndent();
@@ -40236,14 +40252,12 @@ var TypeScript;
 
                 nameSymbol = this.resolveNameSymbol(nameSymbol, context);
 
-                if (!nameSymbol) {
-                    if (!lhsType.isPrimitive() && this.cachedObjectInterfaceType()) {
-                        nameSymbol = this.getMemberSymbol(rhsName, TypeScript.PullElementKind.SomeValue, this.cachedObjectInterfaceType());
-                    }
+                if (!nameSymbol && !lhsType.isPrimitive() && this.cachedObjectInterfaceType()) {
+                    nameSymbol = this.getMemberSymbol(rhsName, TypeScript.PullElementKind.SomeValue, this.cachedObjectInterfaceType());
+                }
 
-                    if (lhs.kind != TypeScript.PullElementKind.Role) {
-                        context.postError(this.unitPath, dottedNameAST.operand2.minChar, dottedNameAST.operand2.getLength(), TypeScript.DiagnosticCode.The_property_0_does_not_exist_on_value_of_type_1, [(dottedNameAST.operand2).actualText, lhsType.toString(enclosingDecl ? enclosingDecl.getSymbol() : null)], enclosingDecl);
-                    }
+                if (!nameSymbol) {
+                    context.postError(this.unitPath, dottedNameAST.operand2.minChar, dottedNameAST.operand2.getLength(), TypeScript.DiagnosticCode.The_property_0_does_not_exist_on_value_of_type_1, [(dottedNameAST.operand2).actualText, lhsType.toString(enclosingDecl ? enclosingDecl.getSymbol() : null)], enclosingDecl);
                     return this.getNewErrorTypeSymbol(null, rhsName);
                 }
             }
@@ -57083,4 +57097,3 @@ var TypeScript;
 
 var batch = new TypeScript.BatchCompiler(IO);
 batch.batchCompile();
-//# sourceMappingURL=file:////www/node_modules/typescript-dci/built/local/tsc.js.map

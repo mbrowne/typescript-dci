@@ -1,26 +1,19 @@
-import DCI = require('../../DCI');
 export = TransferMoney;
 
 /**
  * TransferMoney Context
  *
- * @constructor
- * @this {TransferMoney}
  * @param {Account} sourceAcct
  * @param {Account} destinationAcct
  * @param {number} amount
  */
-var TransferMoney = DCI.Context.extend(function() {
-	this.bindRoles = function(sourceAcct, destinationAcct, amount) {
-		SourceAccount <- sourceAcct;
-		DestinationAccount <- destinationAcct;
-		Amount <- amount;
-	}
+function TransferMoney(sourceAcct, destinationAcct, amount) {
+	SourceAccount <- sourceAcct;
+	DestinationAccount <- destinationAcct;
+	Amount <- amount;
 	
-	//Run the use case
-	this.run = function() {
-		SourceAccount.transferOut();
-	}
+	//Do the transfer
+	SourceAccount.transferOut();
 
 	role SourceAccount {
 		//transfer money out of this account and into the destination account
@@ -44,4 +37,4 @@ var TransferMoney = DCI.Context.extend(function() {
 	}
 
 	role Amount {}
-});
+}
