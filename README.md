@@ -1,8 +1,10 @@
 # typescript-dci
 
-Brings support for DCI programming to TypeScript. For more information on DCI, see http://fulloo.info.
+*NOTE:* I am no longer working on this project. My more recent project for DCI in Javascript
+is [babel-dci](https://github.com/mbrowne/babel-dci).
 
-Documentation is forthcoming. In the meantime, check out the samples/dci folder.
+Brings support for DCI programming to TypeScript. For more information on DCI, see http://fulloo.info.
+Also see the samples/dci folder.
 
 All modifications to the official TypeScript source code are commented with "DCI"
 
