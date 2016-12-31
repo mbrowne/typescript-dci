@@ -1,6 +1,6 @@
 # typescript-dci
 
-*NOTE:* I am no longer working on this project. My more recent project for DCI in Javascript
+**NOTE:** I am no longer working on this project. My more recent project for DCI in Javascript
 is [babel-dci](https://github.com/mbrowne/babel-dci).
 
 Brings support for DCI programming to TypeScript. For more information on DCI, see http://fulloo.info.
