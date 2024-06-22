@@ -1,16 +1,22 @@
 import DCI = require('../../DCI');
 
-export class TransferMoney extends DCI.Context
+//IN PROGRESS
+//if needed in the meantime we can use a class that extends DCI.Context instead
+export context TransferMoney
 {
 	/**
 	 * @param {Account} sourceAcct
 	 * @param {Account} destinationAcct
 	 * @param {number} amount
 	 */
-	bindRoles(sourceAcct, destinationAcct, amount) {
+	bindRoles(sourceAcct: Account, destinationAcct: Account, amount: int) {
 		SourceAccount <- sourceAcct;
 		DestinationAccount <- destinationAcct;
 		Amount <- amount;
+	}
+	
+	run() {
+		SourceAccount.transferOut();
 	}
 	
 	role SourceAccount {	
